@@ -1,36 +1,131 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ACE EMS - Enterprise Management System
 
-## Getting Started
+A comprehensive monorepo for building enterprise management applications including Time Tracking, Inventory Management System (IMS), Human Resource Management System (HRMS), and more.
 
-First, run the development server:
+## 🏗️ Monorepo Structure
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+ace-ems/
+├── apps/                          # Application packages
+│   └── time-tracker-backend/      # Time Tracker Next.js Backend
+├── packages/                      # Shared packages
+│   └── shared/                    # Common types, utilities, and components
+├── package.json                   # Root workspace configuration
+└── tsconfig.json                  # Root TypeScript configuration
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Getting Started
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Prerequisites
+- Node.js 18+ 
+- npm 8+
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Installation
 
-## Learn More
+1. Clone the repository:
+```bash
+git clone <your-repo-url>
+cd ace-ems
+```
 
-To learn more about Next.js, take a look at the following resources:
+2. Install dependencies for all workspaces:
+```bash
+npm install
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Development
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+#### Time Tracker Backend
+Start the development server:
+```bash
+npm run dev
+```
+This will start the Next.js backend at `http://localhost:3000`
 
-## Deploy on Vercel
+### Available Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `npm run dev` - Start the time tracker backend in development mode
+- `npm run build` - Build all applications
+- `npm run lint` - Lint all applications
+- `npm run type-check` - Type check all applications
+- `npm run clean` - Clean build artifacts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📱 Applications
+
+### Time Tracker Backend (`apps/time-tracker-backend`)
+A Next.js-based backend API for time tracking functionality. Designed to work with desktop and mobile time tracking clients.
+
+**Features:**
+- ✅ Time entry management (start/stop/pause)
+- ✅ Project management
+- ✅ RESTful API endpoints
+- 🔄 Client management (coming soon)
+- 🔄 User authentication (coming soon)
+- 🔄 Reporting and analytics (coming soon)
+
+**API Endpoints:**
+- `GET /api/time-entries` - List time entries with filtering
+- `POST /api/time-entries` - Create new time entry
+- `PATCH /api/time-entries/[id]/stop` - Stop a running time entry
+- `GET /api/projects` - List active projects
+- `POST /api/projects` - Create new project
+
+### Shared Package (`packages/shared`)
+Common types, utilities, and business logic shared across all applications.
+
+**Exports:**
+- TypeScript types for Time Tracker entities
+- Utility functions for time calculations
+- Common validation functions
+- Shared constants and enums
+
+## 🔮 Future Applications
+
+The monorepo is designed to accommodate additional enterprise applications:
+
+- **IMS (Inventory Management System)** - `apps/ims-backend`
+- **HRMS (Human Resource Management System)** - `apps/hrms-backend`
+- **CRM (Customer Relationship Management)** - `apps/crm-backend`
+- **Accounting System** - `apps/accounting-backend`
+
+## 🏛️ Architecture
+
+### Monorepo Benefits
+- **Code Sharing**: Shared types and utilities across all applications
+- **Consistent Tooling**: Unified linting, testing, and build processes
+- **Simplified Dependencies**: Centralized dependency management
+- **Cross-App Integration**: Easy integration between different EMS modules
+
+### Technology Stack
+- **Runtime**: Node.js
+- **Framework**: Next.js 15+ with App Router
+- **Language**: TypeScript
+- **Package Manager**: npm with workspaces
+- **Styling**: Tailwind CSS
+- **Linting**: ESLint
+
+## 📝 Development Guidelines
+
+### Adding New Applications
+1. Create new directory in `apps/`
+2. Set up package.json with workspace naming convention `@ace-ems/app-name`
+3. Configure TypeScript to extend root tsconfig
+4. Add workspace reference to root package.json
+5. Update this README
+
+### Shared Code
+- Place shared types in `packages/shared/types/`
+- Add utility functions to `packages/shared/lib/`
+- Export everything through `packages/shared/index.ts`
+- Import shared code using `@ace-ems/shared` alias
+
+## 🤝 Contributing
+
+1. Create feature branches from `main`
+2. Follow conventional commit format
+3. Ensure all tests pass and code is properly typed
+4. Update documentation as needed
+
+## 📜 License
+
+Private - ACE EMS Project
