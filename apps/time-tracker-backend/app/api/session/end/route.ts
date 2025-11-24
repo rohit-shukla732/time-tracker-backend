@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
-import { requireAuth } from "../../../../lib/requireAuth";
+import { requireAuth } from "../../../../lib/roleAuth";
 
 export async function POST(req: NextRequest) {
-  const auth = requireAuth(req);
-  if (!auth || "error" in auth || !auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const user = auth.user as { id: string };
+  const auth = await requireAuth(req);
+  if (auth.error || !auth.user) {
+    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+  }
 
   const {
     sessionId,
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   await prisma.sessionSummary.create({
     data: {
       sessionId,
-      userId: user.id,
+      userId: auth.user.id,
       sessionDurationMs: sessionDuration ? BigInt(sessionDuration) : BigInt(0),
       totalBreakMs: BigInt(totalBreakMs || 0),
       totalIdleMs: BigInt(totalIdleMs || 0),
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   if (appUsage?.topApps?.length) {
     const rows = appUsage.topApps.map((app: any) => ({
       sessionId,
-      userId: user.id,
+      userId: auth.user?.id,
       appName: app.app,
       timeMs: BigInt(app.timeMs || 0),
     }));

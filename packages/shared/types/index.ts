@@ -1,10 +1,26 @@
 // Common types for the Time Tracker application
 
+export type Role = 'ADMIN' | 'MANAGER' | 'HR' | 'EMPLOYEE';
+
+export interface Team {
+  id: string;
+  name: string;
+  description?: string;
+  managerId?: string;
+  manager?: User;
+  members?: User[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface User {
   id: string;
   email: string;
-  name: string;
-  role: 'admin' | 'manager' | 'employee';
+  name?: string;
+  role: Role;
+  teamId?: string;
+  team?: Team;
+  managedTeams?: Team[];
   createdAt: Date;
   updatedAt: Date;
 }

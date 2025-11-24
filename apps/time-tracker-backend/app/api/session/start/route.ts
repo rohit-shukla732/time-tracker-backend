@@ -1,23 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { requireAuth } from '../../../../lib/requireAuth';
+import { requireAuth } from '../../../../lib/roleAuth';
 
 export async function POST(request: NextRequest) {
-  const auth = requireAuth(request);
-  if ('error' in auth || !auth.user) {
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  const auth = await requireAuth(request);
+  if (auth.error || !auth.user) {
+    return NextResponse.json({ success: false, error: auth.error || 'Unauthorized' }, { status: 401 });
   }
 
   const {sessionId, timestamp, rawEvent} = await request.json();
 
   const startedAt = new Date(timestamp);
 
-  const user = auth.user as { id: string };
-
   await prisma.session.create({
     data: {
       sessionId,
-      userId: user.id,
+      userId: auth.user.id,
       startedAt,
       rawStartEvent: JSON.stringify(rawEvent),
     },

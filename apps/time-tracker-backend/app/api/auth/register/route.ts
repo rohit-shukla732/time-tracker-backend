@@ -33,8 +33,8 @@ export async function POST(req: NextRequest) {
     });
 
     // Generate tokens
-    const accessToken = signAccessToken({ id: user.id, email: user.email });
-    const refreshToken = signRefreshToken({ id: user.id });
+    const accessToken = signAccessToken({ userId: user.id, email: user.email });
+    const refreshToken = signRefreshToken({ userId: user.id });
 
     // Store refresh token
     await prisma.refreshToken.create({
@@ -50,7 +50,8 @@ export async function POST(req: NextRequest) {
       user: { 
         id: user.id, 
         email: user.email, 
-        name: user.name 
+        name: user.name,
+        role: user.role
       },
       accessToken,
       refreshToken

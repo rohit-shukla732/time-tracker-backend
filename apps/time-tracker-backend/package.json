@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --port 3000 --turbopack",
     "build": "next build --turbopack",
-    "start": "next start",
+    "start": "next start --port 3000",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf .next",
@@ -34,6 +34,10 @@
     "eslint-config-next": "15.5.6",
     "prisma": "^5.22.0",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }
