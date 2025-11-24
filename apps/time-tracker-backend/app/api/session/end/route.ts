@@ -1,34 +1,62 @@
 import { NextRequest, NextResponse } from "next/server";
-import sessionStore from "../store";
+import { prisma } from "../../../../lib/prisma";
+import { requireAuth } from "../../../../lib/requireAuth";
 
-export async function POST(request: NextRequest) {
-  try {
-    const data = await request.json();
+export async function POST(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (!auth || "error" in auth || !auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Basic validation
-    const sessionId = typeof data?.sessionId === "string" ? data.sessionId : undefined;
-    if (!sessionId) {
-        return NextResponse.json({ success: false, error: "sessionId is required" }, { status: 400 });
-    }
-    const record = {
-      id: crypto.randomUUID(),
+  const user = auth.user as { id: string };
+
+  const {
+    sessionId,
+    timestamp,
+    auto,
+    reason,
+    rawEvent,
+    sessionDuration,
+    totalBreakMs,
+    totalIdleMs,
+    workTimeMs,
+    appUsage
+  } = await req.json();
+
+  const endedAt = new Date(timestamp);
+
+  // 1. Update session record
+  await prisma.session.update({
+    where: { sessionId },
+    data: {
+      endedAt,
+      autoClockOut: auto || false,
+      autoReason: reason || null,
+      rawEndEvent: rawEvent,
+    },
+  });
+
+  // 2. Insert session summary
+  await prisma.sessionSummary.create({
+    data: {
       sessionId,
-        type: data?.type ?? "session_end",
-        timestamp: data?.timestamp ?? new Date().toISOString(),
-        receivedAt: new Date().toISOString(),
-        payload: data,
-    };
+      userId: user.id,
+      sessionDurationMs: sessionDuration ? BigInt(sessionDuration) : BigInt(0),
+      totalBreakMs: BigInt(totalBreakMs || 0),
+      totalIdleMs: BigInt(totalIdleMs || 0),
+      workTimeMs: workTimeMs ? BigInt(workTimeMs) : BigInt(0),
+    },
+  });
 
-    sessionStore.push(record);
+  // 3. Insert app usage (loop)
+  if (appUsage?.topApps?.length) {
+    const rows = appUsage.topApps.map((app: any) => ({
+      sessionId,
+      userId: user.id,
+      appName: app.app,
+      timeMs: BigInt(app.timeMs || 0),
+    }));
 
-    return NextResponse.json({ success: true, id: record.id }, { status: 201 });
-  } catch (err) { 
-    console.error("[session/end] error:", err);
-    return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
+    await prisma.sessionAppUsage.createMany({ data: rows });
   }
-}
 
-// GET /api/session/end (debug) - returns stored sessions
-export async function GET() {
-  return NextResponse.json(sessionStore);
+  return NextResponse.json({ success: true });
 }

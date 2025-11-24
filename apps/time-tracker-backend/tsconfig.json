@@ -25,6 +25,6 @@
       "@ace-ems/shared/*": ["../../packages/shared/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "../../packages/shared/lib/auth.ts", "../../packages/shared/lib/requireAuth.ts", "../../packages/shared/lib/hash.ts"],
   "exclude": ["node_modules"]
 }

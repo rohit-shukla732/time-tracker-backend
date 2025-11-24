@@ -8,8 +8,11 @@ A comprehensive monorepo for building enterprise management applications includi
 ace-ems/
 ├── apps/                          # Application packages
 │   └── time-tracker-backend/      # Time Tracker Next.js Backend
+│       ├── prisma/                # Database schema and migrations
+│       ├── lib/                   # App-specific utilities (Prisma client)
+│       └── app/                   # Next.js app router structure
 ├── packages/                      # Shared packages
-│   └── shared/                    # Common types, utilities, and components
+│   └── shared/                    # Common types, utilities, and auth helpers
 ├── package.json                   # Root workspace configuration
 └── tsconfig.json                  # Root TypeScript configuration
 ```
@@ -19,6 +22,7 @@ ace-ems/
 ### Prerequisites
 - Node.js 18+ 
 - npm 8+
+- PostgreSQL 14+ (for time tracker backend)
 
 ### Installation
 
@@ -31,6 +35,23 @@ cd ace-ems
 2. Install dependencies for all workspaces:
 ```bash
 npm install
+```
+
+3. Set up environment variables:
+```bash
+# Copy and edit the environment file for time tracker
+cp apps/time-tracker-backend/.env.example apps/time-tracker-backend/.env
+```
+
+### Database Setup
+
+Initialize and migrate the database:
+```bash
+# Push schema to database
+npm run db:push
+
+# Or run migrations (recommended for production)
+npm run db:migrate
 ```
 
 ### Development
@@ -48,6 +69,12 @@ This will start the Next.js backend at `http://localhost:3000`
 - `npm run build` - Build all applications
 - `npm run lint` - Lint all applications
 - `npm run type-check` - Type check all applications
+
+#### Database Scripts
+- `npm run db:generate` - Generate Prisma client
+- `npm run db:push` - Push schema to database (development)
+- `npm run db:migrate` - Run database migrations
+- `npm run db:reset` - Reset database and run migrations
 - `npm run clean` - Clean build artifacts
 
 ## 📱 Applications

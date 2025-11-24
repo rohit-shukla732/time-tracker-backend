@@ -9,8 +9,14 @@
     "lint": "eslint . --ext .ts,.tsx",
     "type-check": "tsc --noEmit"
   },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2"
+  },
   "devDependencies": {
     "typescript": "^5",
-    "eslint": "^9"
+    "eslint": "^9",
+    "@types/bcrypt": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.7"
   }
 }

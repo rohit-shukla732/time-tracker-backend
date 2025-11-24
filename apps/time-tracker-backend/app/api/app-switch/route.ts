@@ -1,38 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { appSwitchStore } from "./store";
-export async function POST(request: NextRequest) {
-  try {
-    const data = await request.json();
+import { prisma } from "../../../lib/prisma";
+import { requireAuth } from "../../../lib/requireAuth";
 
-    // basic validation
-    if (!data?.sessionId || typeof data.sessionId !== "string") {
-      return NextResponse.json(
-        { success: false, error: "sessionId is required" },
-        { status: 400 }
-      );
-    }
+export async function POST(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (!auth || "error" in auth || !auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const record = {
-      id: crypto.randomUUID(),
-      sessionId: data.sessionId,
-      type: data?.type || "app_switch",
-      from: data?.fromApp || "unknown",
-      to: data?.toApp || "unknown",
-      durationMs: data?.durationMs || 0,
-      timestamp: data?.timestamp || new Date().toISOString(),
-      receivedAt: new Date().toISOString(),
-    };
+  const user = auth.user as { id: string };
 
-    appSwitchStore.push(record);
-    return NextResponse.json({ success: true, id: record.id }, { status: 201 });
-  } catch (err) {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON" },
-      { status: 400 }
-    );
-  }
-}
+  const body = await req.json();
+  const {
+    sessionId,
+    from,
+    to,
+    duration,
+    timestamp,
+    epochMs,
+    rawEvent
+  } = body;
 
-export async function GET() {
-  return NextResponse.json(appSwitchStore); // for debugging
+  await prisma.appSwitchEvent.create({
+    data: {
+      sessionId,
+      userId: user.id,
+      fromApp: from || null,
+      toApp: to || null,
+      durationMs: duration ? BigInt(duration) : null,
+      timestamp: new Date(timestamp),
+      epochMs: epochMs ? BigInt(epochMs) : BigInt(Date.now()),
+      payload: rawEvent || {},
+    },
+  });
+
+  return NextResponse.json({ success: true });
 }

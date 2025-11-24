@@ -35,24 +35,6 @@ export default function Home() {
                 Stop a running time entry
               </p>
             </div>
-            
-            <div>
-              <code className="bg-green-100 dark:bg-green-900 px-2 py-1 rounded text-sm">
-                GET /api/projects
-              </code>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                List all active projects
-              </p>
-            </div>
-            
-            <div>
-              <code className="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-sm">
-                POST /api/projects
-              </code>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Create a new project
-              </p>
-            </div>
           </div>
         </div>
 

@@ -8,17 +8,6 @@ export interface User {
   createdAt: Date;
   updatedAt: Date;
 }
-
-export interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  clientId?: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface Client {
   id: string;
   name: string;
@@ -32,7 +21,6 @@ export interface Client {
 export interface TimeEntry {
   id: string;
   userId: string;
-  projectId: string;
   description?: string;
   startTime: Date;
   endTime?: Date;
@@ -43,7 +31,6 @@ export interface TimeEntry {
 }
 
 export interface TimeEntryCreateRequest {
-  projectId: string;
   description?: string;
   startTime?: Date; // defaults to now if not provided
 }

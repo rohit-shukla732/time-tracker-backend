@@ -1,32 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eventStore } from "./store";
+import { prisma } from "../../../lib/prisma";
+import { requireAuth } from "../../../lib/requireAuth";
 
-export async function POST(request: NextRequest) {
-  try {
-    const data = await request.json();
+export async function POST(req: NextRequest) {
+  const auth = requireAuth(req);
+  if (!auth || "error" in auth || !auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Basic validation
-    if (data.sessionId === undefined || typeof data.sessionId !== 'string') {
-      return NextResponse.json({ success: false, error: "sessionId is required" }, { status: 400 });
-    }
-    
-    const record = {
-      id: crypto.randomUUID(),
-      sessionId: data.sessionId,
-      type: data?.type ?? 'event',
-      timestamp: data?.timestamp ?? new Date().toISOString(),
-      receivedAt: new Date().toISOString(),
-      payload: data,
-    };
+  const user = auth.user as { id: string };
 
-    eventStore.push(record);
+  const {
+    sessionId,
+    type,
+    timestamp,
+    epochMs,
+    duration,
+    reason,
+    rawEvent
+  } = await req.json();
 
-    return NextResponse.json({ success: true, id: record.id }, { status: 201 });
-  } catch (err) {
-    return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
-  }
-}
+  await prisma.event.create({
+    data: {
+      sessionId,
+      userId: user.id,
+      type,
+      reason: reason || null,
+      durationMs: duration ? BigInt(duration) : null,
+      timestamp: new Date(timestamp),
+      epochMs: epochMs ? BigInt(epochMs) : BigInt(Date.now()),
+      payload: rawEvent || {},
+    },
+  });
 
-export async function GET() {
-  return NextResponse.json(eventStore); // for debugging
+  return NextResponse.json({ success: true });
 }
