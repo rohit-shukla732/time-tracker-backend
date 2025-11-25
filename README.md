@@ -1,20 +1,21 @@
-# ACE EMS - Enterprise Management System
+# Time Tracker Backend
 
-A comprehensive monorepo for building enterprise management applications including Time Tracking, Inventory Management System (IMS), Human Resource Management System (HRMS), and more.
+A Next.js backend API for time tracking and employee management system with authentication, role-based access control, and team management features.
 
-## 🏗️ Monorepo Structure
+## 🚀 Project Structure
 
 ```
-ace-ems/
-├── apps/                          # Application packages
-│   └── time-tracker-backend/      # Time Tracker Next.js Backend
-│       ├── prisma/                # Database schema and migrations
-│       ├── lib/                   # App-specific utilities (Prisma client)
-│       └── app/                   # Next.js app router structure
-├── packages/                      # Shared packages
-│   └── shared/                    # Common types, utilities, and auth helpers
-├── package.json                   # Root workspace configuration
-└── tsconfig.json                  # Root TypeScript configuration
+time-tracker-backend/
+├── app/                          # Next.js app router
+│   └── api/                      # API routes
+│       ├── auth/                 # Authentication endpoints
+│       ├── users/                # User management
+│       ├── teams/                # Team management
+│       ├── events/               # Time tracking events
+│       └── dashboard/            # Dashboard data
+├── lib/                          # Utilities and configurations
+├── prisma/                       # Database schema and migrations
+└── public/                       # Static files
 ```
 
 ## 🚀 Getting Started
@@ -22,25 +23,25 @@ ace-ems/
 ### Prerequisites
 - Node.js 18+ 
 - npm 8+
-- PostgreSQL 14+ (for time tracker backend)
+- PostgreSQL 14+
 
 ### Installation
 
 1. Clone the repository:
 ```bash
 git clone <your-repo-url>
-cd ace-ems
+cd time-tracker-backend
 ```
 
-2. Install dependencies for all workspaces:
+2. Install dependencies:
 ```bash
 npm install
 ```
 
 3. Set up environment variables:
 ```bash
-# Copy and edit the environment file for time tracker
-cp apps/time-tracker-backend/.env.example apps/time-tracker-backend/.env
+# Copy and edit the environment file
+cp .env.example .env
 ```
 
 ### Database Setup
@@ -52,11 +53,12 @@ npm run db:push
 
 # Or run migrations (recommended for production)
 npm run db:migrate
+
+# Generate Prisma client
+npm run db:generate
 ```
 
 ### Development
-
-#### Time Tracker Backend
 Start the development server:
 ```bash
 npm run dev
@@ -65,17 +67,18 @@ This will start the Next.js backend at `http://localhost:3000`
 
 ### Available Scripts
 
-- `npm run dev` - Start the time tracker backend in development mode
-- `npm run build` - Build all applications
-- `npm run lint` - Lint all applications
-- `npm run type-check` - Type check all applications
+- `npm run dev` - Start the development server
+- `npm run build` - Build the application
+- `npm run start` - Start the production server
+- `npm run lint` - Lint the codebase
+- `npm run type-check` - Type check the project
 
 #### Database Scripts
 - `npm run db:generate` - Generate Prisma client
 - `npm run db:push` - Push schema to database (development)
 - `npm run db:migrate` - Run database migrations
 - `npm run db:reset` - Reset database and run migrations
-- `npm run clean` - Clean build artifacts
+- `npm run db:seed` - Seed the database with initial data
 
 ## 📱 Applications
 
