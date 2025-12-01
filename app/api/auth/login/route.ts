@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        token: accessToken,
+        accessToken,
+        token: accessToken, // Keep for backward compatibility
         refreshToken,
         user: { id: user.id, email: user.email, name: user.name, role: user.role },
       },

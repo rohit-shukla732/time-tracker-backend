@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import bcrypt from 'bcrypt';
@@ -9,7 +9,7 @@ const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
 const users = [
-  { id: 'ACE012', name: 'Mantu Madhheshiya', email: 'mmaddheshiya@acehcs.com' },
+  { id: 'ACE012', name: 'Mantu Madhheshiya', email: 'mmaddheshiya@acehcs.com', Role: Role.ADMIN },
   { id: 'ACE004', name: 'Gautam Chakravarty', email: 'gchakravarty@acehcs.com' },
   { id: 'ACE008', name: 'Jinendra Shah', email: 'jshah@acehcs.com' },
   { id: 'ACE009', name: 'Jitender Sharma', email: 'jsharma@acehcs.com' },
@@ -107,6 +107,7 @@ const users = [
   { id: 'ACE303', name: 'Akshit Jain', email: 'AJain@acehcs.com' },
   { id: 'ACE305', name: 'Rohit Mistari', email: 'RMistari@acehcs.com' },
   { id: 'ACE306', name: 'Prerana Jain', email: 'PJain@acehcs.com' },
+  { id: 'ACE307', name: 'Malou Garang', email: 'MGarang@acehcs.com' },
   { id: 'ACE308', name: 'Adilson Gafur', email: 'AGafur@acehcs.com' },
   { id: 'ACE309', name: 'Rohan Macwan', email: 'RMacwan@acehcs.com' },
   { id: 'ACE310', name: 'Pranav Kalbhut', email: 'PKalbhut@acehcs.com' },
@@ -119,7 +120,7 @@ const users = [
   { id: 'ACE317', name: 'Ketan Ghorpade', email: 'KGhorpade@acehcs.com' },
   { id: 'ACE318', name: 'Anthony Mwangi', email: 'AMwangi@acehcs.com' },
   { id: 'ACE320', name: 'Devesh Punjabi', email: 'DPunjabi@acehcs.com' },
-  { id: 'ACE321', name: 'Rohit Shukla', email: 'RShukla@acehcs.com' },
+  { id: 'ACE321', name: 'Rohit Shukla', email: 'RShukla@acehcs.com', Role: Role.ADMIN },
   { id: 'ACE322', name: 'Mading Daniel', email: 'MDaniel@acehcs.com' },
   { id: 'ACE323', name: 'Harnish Patel', email: 'HarPatel@acehcs.com' },
   { id: 'ACE324', name: 'Atem Mabior', email: 'amabior@acehcs.com' },
@@ -155,7 +156,7 @@ async function main() {
         name: userData.name,
         email: userData.email.toLowerCase(),
         passwordHash,
-        role: 'EMPLOYEE',
+        role: userData.Role || Role.EMPLOYEE,
       },
     });
 

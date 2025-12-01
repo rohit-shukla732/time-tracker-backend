@@ -23,9 +23,14 @@ export async function POST(req: NextRequest) {
     // Hash password
     const passwordHash = await hashPassword(password);
 
+    // Generate a unique user ID
+    const userCount = await prisma.user.count();
+    const userId = `ACE${String(userCount + 1000).padStart(3, '0')}`;
+
     // Create user
     const user = await prisma.user.create({
       data: {
+        id: userId,
         name,
         email,
         passwordHash
