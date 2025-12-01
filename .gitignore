@@ -80,3 +80,5 @@ packages/*/dist/
 # Development utilities
 .turbo/
 .eslintcache
+
+/lib/generated/prisma
