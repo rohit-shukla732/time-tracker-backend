@@ -71,7 +71,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background container mx-auto flex flex-col">
+    <div className="min-h-screen bg-background container mx-auto flex flex-col px-4">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="container flex h-14 items-center">
