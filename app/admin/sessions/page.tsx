@@ -10,6 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -25,7 +29,29 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { AlertCircle, Filter, ChevronLeft, ChevronRight, Clock, Zap } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { 
+  AlertCircle, 
+  Filter, 
+  ChevronLeft, 
+  ChevronRight, 
+  Clock, 
+  Zap,
+  User,
+  Calendar,
+  Timer,
+  Coffee,
+  Moon,
+  Monitor,
+  ArrowRight,
+  Activity
+} from 'lucide-react';
 
 interface Session {
   id: string;
@@ -48,6 +74,53 @@ interface Session {
   appSwitchCount: number;
 }
 
+interface SessionDetail {
+  id: string;
+  sessionId: string;
+  userId: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+    teamName: string | null;
+  } | null;
+  startedAt: string;
+  endedAt: string | null;
+  isActive: boolean;
+  autoClockOut: boolean;
+  autoReason: string | null;
+  summary: {
+    sessionDurationMs: number;
+    workTimeMs: number;
+    totalBreakMs: number;
+    totalIdleMs: number;
+  } | null;
+  appUsage: Array<{
+    id: string;
+    appName: string;
+    timeMs: number;
+  }>;
+  events: Array<{
+    id: string;
+    type: string;
+    reason: string | null;
+    durationMs: number | null;
+    timestamp: string;
+  }>;
+  appSwitches: Array<{
+    id: string;
+    fromApp: string | null;
+    toApp: string | null;
+    durationMs: number | null;
+    timestamp: string;
+  }>;
+  counts: {
+    events: number;
+    appSwitches: number;
+  };
+}
+
 interface Pagination {
   page: number;
   limit: number;
@@ -58,11 +131,22 @@ interface Pagination {
 function formatDuration(ms: number): string {
   const hours = Math.floor(ms / (1000 * 60 * 60));
   const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-  return `${hours}h ${minutes}m`;
+  const seconds = Math.floor((ms % (1000 * 60)) / 1000);
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
 }
 
 function formatTime(dateString: string): string {
   return new Date(dateString).toLocaleString();
+}
+
+function formatTimeOnly(dateString: string): string {
+  return new Date(dateString).toLocaleTimeString();
 }
 
 export default function AdminSessions() {
@@ -75,6 +159,11 @@ export default function AdminSessions() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  
+  // Detail view state
+  const [selectedSession, setSelectedSession] = useState<SessionDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const fetchSessions = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
@@ -122,10 +211,52 @@ export default function AdminSessions() {
     fetchSessions();
   }, [fetchSessions]);
 
+  const fetchSessionDetail = async (sessionId: string) => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    setDetailLoading(true);
+    setSheetOpen(true);
+
+    try {
+      const response = await fetch(`/api/admin/sessions/${sessionId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setSelectedSession(data.session);
+      }
+    } catch (err) {
+      console.error('Failed to fetch session details:', err);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
   const handleFilter = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
     fetchSessions();
+  };
+
+  const handleRowClick = (session: Session) => {
+    fetchSessionDetail(session.id);
+  };
+
+  const getEventTypeIcon = (type: string) => {
+    switch (type.toLowerCase()) {
+      case 'break':
+        return <Coffee className="h-4 w-4 text-yellow-500" />;
+      case 'idle':
+        return <Moon className="h-4 w-4 text-gray-500" />;
+      case 'active':
+        return <Activity className="h-4 w-4 text-green-500" />;
+      default:
+        return <Zap className="h-4 w-4 text-blue-500" />;
+    }
   };
 
   if (loading) {
@@ -154,7 +285,7 @@ export default function AdminSessions() {
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Sessions</h2>
           <p className="text-muted-foreground">
-            View and manage work sessions
+            View and manage work sessions. Click on a row to see details.
           </p>
         </div>
 
@@ -231,7 +362,11 @@ export default function AdminSessions() {
               </TableHeader>
               <TableBody>
                 {sessions.map((session) => (
-                  <TableRow key={session.id}>
+                  <TableRow 
+                    key={session.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleRowClick(session)}
+                  >
                     <TableCell>
                       <div className="font-medium">{session.userName || 'Unknown'}</div>
                       <div className="text-sm text-muted-foreground">{session.userId}</div>
@@ -314,6 +449,282 @@ export default function AdminSessions() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Session Detail Sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Session Details
+            </SheetTitle>
+            <SheetDescription>
+              {selectedSession?.sessionId}
+            </SheetDescription>
+          </SheetHeader>
+
+          {detailLoading ? (
+            <div className="space-y-4 mt-6">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-32 w-full" />
+              <Skeleton className="h-48 w-full" />
+            </div>
+          ) : selectedSession ? (
+            <div className="mt-6 space-y-6">
+              {/* User Info */}
+              <div className="flex items-start gap-4 p-4 bg-muted rounded-lg">
+                <div className="bg-primary/10 p-2 rounded-full">
+                  <User className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold">{selectedSession.user?.name || 'Unknown User'}</h4>
+                  <p className="text-sm text-muted-foreground">{selectedSession.user?.email}</p>
+                  <div className="flex gap-2 mt-2">
+                    <Badge variant="outline">{selectedSession.user?.role}</Badge>
+                    {selectedSession.user?.teamName && (
+                      <Badge variant="secondary">{selectedSession.user?.teamName}</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Session Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 border rounded-lg">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Calendar className="h-4 w-4" />
+                    Started
+                  </div>
+                  <p className="font-medium">{formatTime(selectedSession.startedAt)}</p>
+                </div>
+                <div className="p-3 border rounded-lg">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Calendar className="h-4 w-4" />
+                    Ended
+                  </div>
+                  <p className="font-medium">
+                    {selectedSession.endedAt ? formatTime(selectedSession.endedAt) : 'Still Active'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Status:</span>
+                {selectedSession.isActive ? (
+                  <Badge className="bg-green-500">Active</Badge>
+                ) : selectedSession.autoClockOut ? (
+                  <Badge variant="outline" className="text-yellow-600 border-yellow-600">
+                    Auto Clock Out: {selectedSession.autoReason}
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">Completed</Badge>
+                )}
+              </div>
+
+              {/* Time Summary */}
+              {selectedSession.summary && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Timer className="h-4 w-4" />
+                      Time Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="flex items-center gap-1">
+                          <Activity className="h-3 w-3 text-green-500" />
+                          Work Time
+                        </span>
+                        <span className="font-medium">{formatDuration(selectedSession.summary.workTimeMs)}</span>
+                      </div>
+                      <Progress 
+                        value={(selectedSession.summary.workTimeMs / selectedSession.summary.sessionDurationMs) * 100} 
+                        className="h-2"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="flex items-center gap-1">
+                          <Coffee className="h-3 w-3 text-yellow-500" />
+                          Break Time
+                        </span>
+                        <span className="font-medium">{formatDuration(selectedSession.summary.totalBreakMs)}</span>
+                      </div>
+                      <Progress 
+                        value={(selectedSession.summary.totalBreakMs / selectedSession.summary.sessionDurationMs) * 100} 
+                        className="h-2 [&>div]:bg-yellow-500"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="flex items-center gap-1">
+                          <Moon className="h-3 w-3 text-gray-500" />
+                          Idle Time
+                        </span>
+                        <span className="font-medium">{formatDuration(selectedSession.summary.totalIdleMs)}</span>
+                      </div>
+                      <Progress 
+                        value={(selectedSession.summary.totalIdleMs / selectedSession.summary.sessionDurationMs) * 100} 
+                        className="h-2 [&>div]:bg-gray-400"
+                      />
+                    </div>
+                    <Separator />
+                    <div className="flex justify-between font-medium">
+                      <span>Total Duration</span>
+                      <span>{formatDuration(selectedSession.summary.sessionDurationMs)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Tabs for Events and App Usage */}
+              <Tabs defaultValue="apps" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="apps">
+                    <Monitor className="h-4 w-4 mr-1" />
+                    Apps
+                  </TabsTrigger>
+                  <TabsTrigger value="events">
+                    <Zap className="h-4 w-4 mr-1" />
+                    Events
+                  </TabsTrigger>
+                  <TabsTrigger value="switches">
+                    <ArrowRight className="h-4 w-4 mr-1" />
+                    Switches
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="apps" className="mt-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Top Applications</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-64">
+                        {selectedSession.appUsage.length > 0 ? (
+                          <div className="space-y-3">
+                            {selectedSession.appUsage.map((app) => {
+                              const maxTime = selectedSession.appUsage[0]?.timeMs || 1;
+                              return (
+                                <div key={app.id} className="space-y-1">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="truncate flex-1 mr-2">{app.appName}</span>
+                                    <span className="text-muted-foreground font-mono">
+                                      {formatDuration(app.timeMs)}
+                                    </span>
+                                  </div>
+                                  <Progress 
+                                    value={(app.timeMs / maxTime) * 100} 
+                                    className="h-1.5"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No app usage data
+                          </p>
+                        )}
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="events" className="mt-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">
+                        Recent Events ({selectedSession.counts.events} total)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-64">
+                        {selectedSession.events.length > 0 ? (
+                          <div className="space-y-2">
+                            {selectedSession.events.map((event) => (
+                              <div 
+                                key={event.id} 
+                                className="flex items-center gap-3 p-2 rounded-md hover:bg-muted"
+                              >
+                                {getEventTypeIcon(event.type)}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-sm capitalize">{event.type}</span>
+                                    {event.durationMs && (
+                                      <span className="text-xs text-muted-foreground">
+                                        ({formatDuration(event.durationMs)})
+                                      </span>
+                                    )}
+                                  </div>
+                                  {event.reason && (
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {event.reason}
+                                    </p>
+                                  )}
+                                </div>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {formatTimeOnly(event.timestamp)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No events recorded
+                          </p>
+                        )}
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="switches" className="mt-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">
+                        App Switches ({selectedSession.counts.appSwitches} total)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-64">
+                        {selectedSession.appSwitches.length > 0 ? (
+                          <div className="space-y-2">
+                            {selectedSession.appSwitches.map((sw) => (
+                              <div 
+                                key={sw.id} 
+                                className="flex items-center gap-2 p-2 rounded-md hover:bg-muted text-sm"
+                              >
+                                <span className="truncate flex-1 max-w-[120px]" title={sw.fromApp || undefined}>
+                                  {sw.fromApp || 'Unknown'}
+                                </span>
+                                <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                <span className="truncate flex-1 max-w-[120px]" title={sw.toApp || undefined}>
+                                  {sw.toApp || 'Unknown'}
+                                </span>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {formatTimeOnly(sw.timestamp)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            No app switches recorded
+                          </p>
+                        )}
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </AdminLayout>
   );
 }
