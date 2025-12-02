@@ -10,22 +10,24 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const {
+    userId,
     sessionId,
-    from,
-    to,
-    duration,
+    fromApp,
+    toApp,
+    durationMs,
     timestamp,
     epochMs,
     rawEvent
   } = body;
 
+  console.log(body);
   await prisma.appSwitchEvent.create({
     data: {
       sessionId,
-      userId: user.id,
-      fromApp: from || null,
-      toApp: to || null,
-      durationMs: duration ? BigInt(duration) : null,
+      userId: userId,
+      fromApp: fromApp || null,
+      toApp: toApp || null,
+      durationMs: durationMs ? BigInt(durationMs) : null,
       timestamp: new Date(timestamp),
       epochMs: epochMs ? BigInt(epochMs) : BigInt(Date.now()),
       payload: rawEvent || {},

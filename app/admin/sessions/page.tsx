@@ -452,7 +452,7 @@ export default function AdminSessions() {
 
       {/* Session Detail Sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-4">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
