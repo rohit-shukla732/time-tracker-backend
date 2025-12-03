@@ -14,10 +14,10 @@ export async function POST(req: NextRequest) {
     auto,
     reason,
     rawEvent,
-    sessionDuration,
+    sessionLength,
     totalBreakMs,
     totalIdleMs,
-    workTimeMs,
+    totalWorkMs,
     appUsage
   } = await req.json();
 
@@ -39,10 +39,10 @@ export async function POST(req: NextRequest) {
     data: {
       sessionId,
       userId: auth.user.id,
-      sessionDurationMs: sessionDuration ? BigInt(sessionDuration) : BigInt(0),
+      sessionDurationMs: sessionLength ? BigInt(sessionLength) : BigInt(0),
       totalBreakMs: BigInt(totalBreakMs || 0),
       totalIdleMs: BigInt(totalIdleMs || 0),
-      workTimeMs: workTimeMs ? BigInt(workTimeMs) : BigInt(0),
+      workTimeMs: totalWorkMs ? BigInt(totalWorkMs) : BigInt(0),
     },
   });
 

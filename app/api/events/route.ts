@@ -6,7 +6,6 @@ export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
   if (!auth || "error" in auth || !auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = auth.user as { id: string };
   const body = await req.json();
   const {
     userId,

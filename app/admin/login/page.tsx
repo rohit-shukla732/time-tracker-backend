@@ -105,13 +105,10 @@ export default function AdminLogin() {
               />
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
+          <CardFooter className="gap-4 mt-10">
             <Button type="submit" className="w-full" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {loading ? 'Signing in...' : 'Sign in'}
-            </Button>
-            <Button variant="link" asChild className="text-muted-foreground">
-              <a href="/">← Back to Home</a>
             </Button>
           </CardFooter>
         </form>
