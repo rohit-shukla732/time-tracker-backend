@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyPassword } from "../../../../lib/hash";
 import { signAccessToken, signRefreshToken } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/prisma";
+import { logger } from "../../../../lib/logger";
 
 // Handle CORS preflight
 export async function OPTIONS() {
@@ -17,8 +18,10 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
   try {
     const { email, password } = await req.json();
+    logger.info("POST /api/auth/login - Login attempt", { email });
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
@@ -59,6 +62,8 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    logger.info("POST /api/auth/login - Login successful", { userId: user.id, email: user.email });
+    logger.response("POST", "/api/auth/login", 200, Date.now() - startTime);
     return NextResponse.json(
       {
         success: true,
@@ -75,6 +80,8 @@ export async function POST(req: NextRequest) {
       }
     );
   } catch (err) {
+    const error = err as Error;
+    logger.error("POST /api/auth/login - Failed", error);
     return NextResponse.json(
       { error: "Server error" },
       {

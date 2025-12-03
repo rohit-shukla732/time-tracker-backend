@@ -1,20 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, unauthorizedResponse } from "../../../../../lib/roleAuth";
 import { prisma } from "../../../../../lib/prisma";
+import { logger } from "../../../../../lib/logger";
 import type { Role } from "@prisma/client";
 
 // PATCH /api/users/[id]/role - Update user role (Admin only)
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const startTime = Date.now();
   const resolvedParams = await params;
   const authResult = await requireAdmin(req);
   
   if (authResult.error || !authResult.user) {
+    logger.warn("PATCH /api/users/[id]/role - Unauthorized");
     return unauthorizedResponse(authResult.error);
   }
 
   try {
     const userId = resolvedParams.id;
     const { role } = await req.json();
+    logger.info("PATCH /api/users/[id]/role - Updating role", { targetUserId: userId, newRole: role, by: authResult.user.id });
 
     if (!role) {
       return NextResponse.json({ error: 'Role is required' }, { status: 400 });
@@ -57,6 +61,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     });
 
+    logger.info("PATCH /api/users/[id]/role - Role updated", { userId, newRole: role });
+    logger.response("PATCH", `/api/users/${userId}/role`, 200, Date.now() - startTime);
     return NextResponse.json({
       success: true,
       user: {
@@ -70,7 +76,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     });
   } catch (error) {
-    console.error('[users] Role update error:', error);
+    const err = error as Error;
+    logger.error("PATCH /api/users/[id]/role - Failed", err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

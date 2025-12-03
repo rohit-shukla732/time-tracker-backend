@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { requireAuth } from "../../../../lib/roleAuth";
+import { logger } from "../../../../lib/logger";
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAuth(req);
-  if (auth.error || !auth.user) {
-    return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
-  }
+  const startTime = Date.now();
+  try {
+    const auth = await requireAuth(req);
+    if (auth.error || !auth.user) {
+      logger.warn("POST /api/session/end - Unauthorized");
+      return NextResponse.json({ error: auth.error || "Unauthorized" }, { status: 401 });
+    }
 
-  const {
+    const {
     sessionId,
     timestamp,
     auto,
@@ -20,6 +24,14 @@ export async function POST(req: NextRequest) {
     totalWorkMs,
     appUsage
   } = await req.json();
+
+  logger.info("POST /api/session/end - Ending session", { 
+    userId: auth.user.id, 
+    sessionId, 
+    auto, 
+    sessionLength,
+    totalWorkMs 
+  });
 
   const endedAt = new Date(timestamp);
 
@@ -58,5 +70,12 @@ export async function POST(req: NextRequest) {
     await prisma.sessionAppUsage.createMany({ data: rows });
   }
 
-  return NextResponse.json({ success: true });
+    logger.info("POST /api/session/end - Session ended", { sessionId, userId: auth.user.id });
+    logger.response("POST", "/api/session/end", 200, Date.now() - startTime);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const error = err as Error & { code?: string };
+    logger.error("POST /api/session/end - Failed", error);
+    return NextResponse.json({ error: "Server error", message: error.message }, { status: 500 });
+  }
 }

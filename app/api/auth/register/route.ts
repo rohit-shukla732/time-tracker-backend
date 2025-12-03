@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { hashPassword } from "../../../../lib/hash";
 import { signAccessToken, signRefreshToken } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/prisma";
+import { logger } from "../../../../lib/logger";
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
   try {
     const { name, email, password } = await req.json();
+    logger.info("POST /api/auth/register - Registration attempt", { email, name });
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
@@ -50,6 +53,8 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    logger.info("POST /api/auth/register - Registration successful", { userId: user.id, email: user.email });
+    logger.response("POST", "/api/auth/register", 200, Date.now() - startTime);
     return NextResponse.json({
       success: true,
       user: { 
@@ -62,7 +67,8 @@ export async function POST(req: NextRequest) {
       refreshToken
     });
   } catch (error) {
-    console.error('[register] error:', error);
+    const err = error as Error;
+    logger.error("POST /api/auth/register - Failed", err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

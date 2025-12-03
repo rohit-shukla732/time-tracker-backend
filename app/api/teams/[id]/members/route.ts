@@ -1,19 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, unauthorizedResponse } from "../../../../../lib/roleAuth";
 import { prisma } from "../../../../../lib/prisma";
+import { logger } from "../../../../../lib/logger";
 
 // POST /api/teams/[id]/members - Add member to team (Admin only)
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const startTime = Date.now();
   const resolvedParams = await params;
   const authResult = await requireAdmin(req);
   
   if (authResult.error || !authResult.user) {
+    logger.warn("POST /api/teams/[id]/members - Unauthorized");
     return unauthorizedResponse(authResult.error);
   }
 
   try {
     const teamId = resolvedParams.id;
     const { userId } = await req.json();
+    logger.info("POST /api/teams/[id]/members - Adding member", { teamId, userId, by: authResult.user.id });
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
@@ -51,6 +55,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     });
 
+    logger.info("POST /api/teams/[id]/members - Member added", { teamId, userId });
+    logger.response("POST", `/api/teams/${teamId}/members`, 200, Date.now() - startTime);
     return NextResponse.json({
       success: true,
       user: {
@@ -62,17 +68,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     });
   } catch (error) {
-    console.error('[teams] Add member error:', error);
+    const err = error as Error;
+    logger.error("POST /api/teams/[id]/members - Failed", err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
 
 // DELETE /api/teams/[id]/members - Remove member from team (Admin only)
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const startTime = Date.now();
   const resolvedParams = await params;
   const authResult = await requireAdmin(req);
   
   if (authResult.error || !authResult.user) {
+    logger.warn("DELETE /api/teams/[id]/members - Unauthorized");
     return unauthorizedResponse(authResult.error);
   }
 
@@ -80,6 +89,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const teamId = resolvedParams.id;
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
+    logger.info("DELETE /api/teams/[id]/members - Removing member", { teamId, userId, by: authResult.user.id });
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
@@ -113,6 +123,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       data: { teamId: null }
     });
 
+    logger.info("DELETE /api/teams/[id]/members - Member removed", { teamId, userId });
+    logger.response("DELETE", `/api/teams/${teamId}/members`, 200, Date.now() - startTime);
     return NextResponse.json({
       success: true,
       user: {
@@ -124,7 +136,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       }
     });
   } catch (error) {
-    console.error('[teams] Remove member error:', error);
+    const err = error as Error;
+    logger.error("DELETE /api/teams/[id]/members - Failed", err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

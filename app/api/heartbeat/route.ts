@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "../../../lib/requireAuth";
+import { logger } from "../../../lib/logger";
 
 const HEARTBEAT_TIMEOUT_MS = 60_000; // consider app alive if heartbeat within last 60s
 
@@ -25,13 +26,19 @@ function isAlive(lastSeenMs?: number) {
 export async function POST(request: Request) {
     const auth = requireAuth(request);
     if (!auth || "error" in auth || !auth.user) {
+        logger.warn("POST /api/heartbeat - Unauthorized");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     try {
         const body = await request.json();
         const clientId = typeof body?.clientId === "string" ? body.clientId : undefined;
-        if (!clientId) return NextResponse.json({ error: "clientId is required" }, { status: 400 });
+        if (!clientId) {
+            logger.warn("POST /api/heartbeat - Missing clientId");
+            return NextResponse.json({ error: "clientId is required" }, { status: 400 });
+        }
+        
+        logger.debug("POST /api/heartbeat - Heartbeat received", { clientId, name: body?.name });
 
         const now = Date.now();
         const rec: HeartbeatRecord = {
@@ -46,6 +53,8 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ ok: true, clientId, lastSeen: new Date(now).toISOString() }, { status: 200 });
     } catch (err) {
+        const error = err as Error;
+        logger.error("POST /api/heartbeat - Failed", error);
         return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
     }
 }

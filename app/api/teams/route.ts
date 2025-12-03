@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRoles, requireAdmin, unauthorizedResponse } from "../../../lib/roleAuth";
 import { prisma } from "../../../lib/prisma";
+import { logger } from "../../../lib/logger";
 
 // GET /api/teams - List all teams (Admin/HR only)
 export async function GET(req: NextRequest) {
@@ -60,14 +61,17 @@ export async function GET(req: NextRequest) {
 
 // POST /api/teams - Create a new team (Admin only)
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
   const authResult = await requireAdmin(req);
   
   if (authResult.error || !authResult.user) {
+    logger.warn("POST /api/teams - Unauthorized");
     return unauthorizedResponse(authResult.error);
   }
 
   try {
     const { name, description, managerId } = await req.json();
+    logger.info("POST /api/teams - Creating team", { name, managerId, by: authResult.user.id });
 
     if (!name) {
       return NextResponse.json({ error: 'Team name is required' }, { status: 400 });
@@ -114,6 +118,8 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    logger.info("POST /api/teams - Team created", { teamId: team.id, name: team.name });
+    logger.response("POST", "/api/teams", 200, Date.now() - startTime);
     return NextResponse.json({
       success: true,
       team: {
@@ -126,7 +132,8 @@ export async function POST(req: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('[teams] POST error:', error);
+    const err = error as Error;
+    logger.error("POST /api/teams - Failed", err);
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
