@@ -16,6 +16,13 @@ export async function GET(req: NextRequest) {
     const thisWeekStart = new Date(today);
     thisWeekStart.setDate(today.getDate() - today.getDay());
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // Last 7 days for chart
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - (6 - i));
+      return d;
+    });
 
     // Get counts in parallel
     const [
@@ -27,6 +34,8 @@ export async function GET(req: NextRequest) {
       totalSessionsThisMonth,
       usersByRole,
       recentSessions,
+      topApps,
+      dailySessions,
     ] = await Promise.all([
       // Total users
       prisma.user.count(),
@@ -79,6 +88,33 @@ export async function GET(req: NextRequest) {
           },
         },
       }),
+      
+      // Top apps by usage time (this month)
+      prisma.sessionAppUsage.groupBy({
+        by: ['appName'],
+        where: {
+          createdAt: { gte: thisMonthStart },
+        },
+        _sum: { timeMs: true },
+        orderBy: { _sum: { timeMs: 'desc' } },
+        take: 10,
+      }),
+      
+      // Daily session counts for last 7 days
+      Promise.all(last7Days.map(async (day) => {
+        const nextDay = new Date(day);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const count = await prisma.session.count({
+          where: {
+            startedAt: { gte: day, lt: nextDay },
+          },
+        });
+        return {
+          date: day.toISOString().split('T')[0],
+          day: day.toLocaleDateString('en-US', { weekday: 'short' }),
+          sessions: count,
+        };
+      })),
     ]);
 
     // Get work time statistics
@@ -103,6 +139,13 @@ export async function GET(req: NextRequest) {
       acc[item.role] = item._count.id;
       return acc;
     }, {});
+    
+    // Format top apps
+    const topAppsFormatted = topApps.map((app: any) => ({
+      name: app.appName,
+      timeMs: Number(app._sum.timeMs || 0),
+      hours: Number((Number(app._sum.timeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+    }));
 
     return NextResponse.json({
       success: true,
@@ -126,6 +169,14 @@ export async function GET(req: NextRequest) {
           totalIdleTimeMs: Number(sessionSummaries._sum.totalIdleMs || 0),
           avgWorkTimeMs: Number(sessionSummaries._avg.workTimeMs || 0),
           avgSessionDurationMs: Number(sessionSummaries._avg.sessionDurationMs || 0),
+        },
+        charts: {
+          dailySessions,
+          topApps: topAppsFormatted,
+          roleDistribution: Object.entries(roleDistribution).map(([role, count]) => ({
+            name: role,
+            value: count,
+          })),
         },
         recentSessions: recentSessions.map((s: any) => ({
           id: s.id,

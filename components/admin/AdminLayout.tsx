@@ -24,6 +24,7 @@ import {
   Settings,
   ChevronDown,
   Shield,
+  LayoutGrid,
 } from 'lucide-react';
 
 interface User {
@@ -39,6 +40,7 @@ interface AdminLayoutProps {
 
 const navItems = [
   { href: '/admin', label: 'Overview', icon: LayoutDashboard },
+  { href: '/admin/floor-map', label: 'Floor Map', icon: LayoutGrid },
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/sessions', label: 'Sessions', icon: Clock },
   { href: '/admin/activity', label: 'Activity', icon: Activity },
