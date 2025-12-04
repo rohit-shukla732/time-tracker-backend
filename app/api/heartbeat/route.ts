@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "../../../lib/requireAuth";
 import { logger } from "../../../lib/logger";
+import { prisma } from "../../../lib/prisma";
 
-const HEARTBEAT_TIMEOUT_MS = 60_000; // consider app alive if heartbeat within last 60s
+const HEARTBEAT_TIMEOUT_MS = 600_000; // consider app alive if heartbeat within last 60mins
 
 type HeartbeatRecord = {
     clientId: string;
+    userId?: string;
     lastSeenMs: number;
     name?: string | null;
     ip?: string | null;
@@ -41,8 +43,13 @@ export async function POST(request: Request) {
         logger.debug("POST /api/heartbeat - Heartbeat received", { clientId, name: body?.name });
 
         const now = Date.now();
+        
+        // Get userId from body or from the authenticated user
+        const userId = body?.userId || (auth.user as any)?.id;
+        
         const rec: HeartbeatRecord = {
             clientId,
+            userId,
             lastSeenMs: now,
             name: body?.name ?? null,
             ip: body?.ip ?? null,
@@ -51,7 +58,26 @@ export async function POST(request: Request) {
 
         store.set(clientId, rec);
 
-        return NextResponse.json({ ok: true, clientId, lastSeen: new Date(now).toISOString() }, { status: 200 });
+        // Check if this user's device should be force-stopped
+        if (userId) {
+            const deviceControl = await (prisma as any).deviceControl.findUnique({
+                where: { userId }
+            });
+
+            if (deviceControl?.forceStop) {
+                logger.info("POST /api/heartbeat - Force stop signal sent", { userId, reason: deviceControl.reason });
+                
+                return NextResponse.json({ 
+                    ok: true, 
+                    clientId, 
+                    lastSeen: new Date(now).toISOString(),
+                    forceStop: true, 
+                    reason: deviceControl.reason 
+                }, { status: 200 });
+            }
+        }
+
+        return NextResponse.json({ ok: true, clientId, lastSeen: new Date(now).toISOString(), forceStop: false }, { status: 200 });
     } catch (err) {
         const error = err as Error;
         logger.error("POST /api/heartbeat - Failed", error);
@@ -80,6 +106,7 @@ export async function GET(request: Request) {
     // list all clients
     const items = Array.from(store.values()).map((r) => ({
         clientId: r.clientId,
+        userId: r.userId,
         alive: isAlive(r.lastSeenMs),
         lastSeen: new Date(r.lastSeenMs).toISOString(),
         secondsAgo: Math.round((Date.now() - r.lastSeenMs) / 1000),
@@ -88,54 +115,3 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ clients: items, timeoutSeconds: Math.round(HEARTBEAT_TIMEOUT_MS / 1000) }, { status: 200 });
 }
-
-
-
-
-
-/*
- /api/heartbeat/route.ts
-export async function POST(request: Request) {
-  const { clientId, userId, status } = await request.json();
-  
-  // Check if this device should be force-stopped
-  const deviceControl = await prisma.deviceControl.findFirst({
-    where: { userId, forceStop: true }
-  });
-  
-  if (deviceControl) {
-    // Clear the flag after sending (one-time signal)
-    await prisma.deviceControl.update({
-      where: { id: deviceControl.id },
-      data: { forceStop: false }
-    });
-    
-    return Response.json({ 
-      forceStop: true, 
-      reason: deviceControl.reason 
-    });
-  }
-  
-  return Response.json({ ok: true });
-} 
-
-/api/device/status/route.ts
-export async function POST(request: Request) {
-  const { userId } = await request.json();
-  
-  // Check if device can resume
-  const deviceControl = await prisma.deviceControl.findFirst({
-    where: { userId }
-  });
-  
-  // If no control record or forceStop is false, allow resume
-  const canResume = !deviceControl || !deviceControl.forceStop;
-  
-  return Response.json({ 
-    canResume,
-    reason: deviceControl?.reason 
-  });
-}
-
-
-*/

@@ -23,6 +23,7 @@ import {
   LogOut,
   Settings,
   ChevronDown,
+  Shield,
 } from 'lucide-react';
 
 interface User {
@@ -41,6 +42,7 @@ const navItems = [
   { href: '/admin/users', label: 'Users', icon: Users },
   { href: '/admin/sessions', label: 'Sessions', icon: Clock },
   { href: '/admin/activity', label: 'Activity', icon: Activity },
+  { href: '/admin/devices', label: 'Devices', icon: Shield },
   { href: '/admin/reports', label: 'Reports', icon: FileBarChart },
 ];
 

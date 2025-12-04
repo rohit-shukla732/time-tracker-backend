@@ -50,6 +50,7 @@ model User {
   appUsage          SessionAppUsage[]
   events            Event[]
   appSwitchEvents   AppSwitchEvent[]
+  deviceControl     DeviceControl?
 }
 
 model RefreshToken {
@@ -148,4 +149,19 @@ model AppSwitchEvent {
 
   payload    Json
   createdAt  DateTime @default(now())
+}
+
+// Device control for remote force-stop/resume
+model DeviceControl {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  
+  forceStop   Boolean  @default(false)
+  reason      String?
+  stoppedBy   String?  // Admin ID who initiated the stop
+  stoppedAt   DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
