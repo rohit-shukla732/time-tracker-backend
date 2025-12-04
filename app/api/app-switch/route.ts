@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { requireAuth } from "../../../lib/requireAuth";
+import { logger } from "../../../lib/logger";
 
 export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest) {
     rawEvent
   } = body;
 
-  console.log(body);
+  logger.info("POST /api/app-switch - Received app switch event", { userId, sessionId, fromApp, toApp });
   await prisma.appSwitchEvent.create({
     data: {
       sessionId,

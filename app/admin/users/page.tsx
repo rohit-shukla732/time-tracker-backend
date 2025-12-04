@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,7 +25,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { AlertCircle, Search, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { AlertCircle, Search, ChevronLeft, ChevronRight, ExternalLink, UserPlus, Users, Plus } from 'lucide-react';
 import Link from 'next/link';
 
 interface User {
@@ -43,6 +53,13 @@ interface User {
   };
 }
 
+interface Team {
+  id: string;
+  name: string;
+  description: string | null;
+  memberCount: number;
+}
+
 interface Pagination {
   page: number;
   limit: number;
@@ -53,12 +70,25 @@ interface Pagination {
 export default function AdminUsers() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Dialog states
+  const [addEmployeeOpen, setAddEmployeeOpen] = useState(false);
+  const [createTeamOpen, setCreateTeamOpen] = useState(false);
+  const [addToTeamOpen, setAddToTeamOpen] = useState(false);
+  const [selectedUserForTeam, setSelectedUserForTeam] = useState<User | null>(null);
+  
+  // Form states
+  const [newEmployee, setNewEmployee] = useState({ name: '', email: '', password: '' });
+  const [newTeam, setNewTeam] = useState({ name: '', description: '' });
+  const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
@@ -101,9 +131,30 @@ export default function AdminUsers() {
     }
   }, [router, currentPage, search, roleFilter]);
 
+  const fetchTeams = useCallback(async () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    try {
+      const response = await fetch('/api/teams', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setTeams(data.teams);
+      }
+    } catch (err) {
+      console.error('Failed to fetch teams:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+    fetchTeams();
+  }, [fetchUsers, fetchTeams]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,6 +187,133 @@ export default function AdminUsers() {
     }
   };
 
+  const handleAddEmployee = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newEmployee),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setAddEmployeeOpen(false);
+        setNewEmployee({ name: '', email: '', password: '' });
+        fetchUsers();
+      } else {
+        alert(data.error || 'Failed to add employee');
+      }
+    } catch (err) {
+      alert('Failed to add employee');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCreateTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    setSubmitting(true);
+    try {
+      const response = await fetch('/api/teams', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newTeam),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setCreateTeamOpen(false);
+        setNewTeam({ name: '', description: '' });
+        fetchTeams();
+      } else {
+        alert(data.error || 'Failed to create team');
+      }
+    } catch (err) {
+      alert('Failed to create team');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAddToTeam = async () => {
+    if (!selectedUserForTeam || !selectedTeamId) return;
+    
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(`/api/teams/${selectedTeamId}/members`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: selectedUserForTeam.id }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setAddToTeamOpen(false);
+        setSelectedUserForTeam(null);
+        setSelectedTeamId('');
+        fetchUsers();
+      } else {
+        alert(data.error || 'Failed to add user to team');
+      }
+    } catch (err) {
+      alert('Failed to add user to team');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRemoveFromTeam = async (user: User) => {
+    if (!user.teamId) return;
+    
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    if (!confirm(`Remove ${user.name || user.email} from their team?`)) return;
+
+    try {
+      const response = await fetch(`/api/teams/${user.teamId}/members?userId=${user.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        fetchUsers();
+      } else {
+        alert(data.error || 'Failed to remove user from team');
+      }
+    } catch (err) {
+      alert('Failed to remove user from team');
+    }
+  };
+
+  const openAddToTeamDialog = (user: User) => {
+    setSelectedUserForTeam(user);
+    setSelectedTeamId('');
+    setAddToTeamOpen(true);
+  };
+
   if (loading) {
     return (
       <AdminLayout>
@@ -159,11 +337,123 @@ export default function AdminUsers() {
     <AdminLayout>
       <div className="space-y-6">
         {/* Page Header */}
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Users</h2>
-          <p className="text-muted-foreground">
-            Manage user accounts and permissions
-          </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Users</h2>
+            <p className="text-muted-foreground">
+              Manage user accounts and permissions
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Dialog open={createTeamOpen} onOpenChange={setCreateTeamOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Users className="h-4 w-4 mr-2" />
+                  Create Team
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New Team</DialogTitle>
+                  <DialogDescription>
+                    Create a new team to organize employees
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateTeam}>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="teamName">Team Name</Label>
+                      <Input
+                        id="teamName"
+                        value={newTeam.name}
+                        onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
+                        placeholder="e.g., Development Team"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="teamDescription">Description (Optional)</Label>
+                      <Input
+                        id="teamDescription"
+                        value={newTeam.description}
+                        onChange={(e) => setNewTeam({ ...newTeam, description: e.target.value })}
+                        placeholder="e.g., Frontend and backend developers"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setCreateTeamOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={submitting}>
+                      {submitting ? 'Creating...' : 'Create Team'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+            
+            <Dialog open={addEmployeeOpen} onOpenChange={setAddEmployeeOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add Employee
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Employee</DialogTitle>
+                  <DialogDescription>
+                    Create a new employee account
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAddEmployee}>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
+                        id="name"
+                        value={newEmployee.name}
+                        onChange={(e) => setNewEmployee({ ...newEmployee, name: e.target.value })}
+                        placeholder="John Doe"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={newEmployee.email}
+                        onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })}
+                        placeholder="john@company.com"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={newEmployee.password}
+                        onChange={(e) => setNewEmployee({ ...newEmployee, password: e.target.value })}
+                        placeholder="••••••••"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setAddEmployeeOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={submitting}>
+                      {submitting ? 'Adding...' : 'Add Employee'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {error && (
@@ -254,7 +544,29 @@ export default function AdminUsers() {
                       </Select>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {user.teamName || '-'}
+                      {user.teamName ? (
+                        <div className="flex items-center gap-2">
+                          <span>{user.teamName}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                            onClick={() => handleRemoveFromTeam(user)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => openAddToTeamDialog(user)}
+                        >
+                          <Plus className="h-3 w-3 mr-1" />
+                          Add to team
+                        </Button>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">Total: {user.totalSessions}</div>
@@ -316,6 +628,49 @@ export default function AdminUsers() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Add to Team Dialog */}
+      <Dialog open={addToTeamOpen} onOpenChange={setAddToTeamOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add to Team</DialogTitle>
+            <DialogDescription>
+              Add {selectedUserForTeam?.name || selectedUserForTeam?.email} to a team
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="space-y-2">
+              <Label>Select Team</Label>
+              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a team" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.length === 0 ? (
+                    <SelectItem value="_none" disabled>
+                      No teams available. Create one first.
+                    </SelectItem>
+                  ) : (
+                    teams.map((team) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        {team.name} ({team.memberCount} members)
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddToTeamOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddToTeam} disabled={!selectedTeamId || submitting}>
+              {submitting ? 'Adding...' : 'Add to Team'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

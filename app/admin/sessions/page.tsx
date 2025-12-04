@@ -36,6 +36,14 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { 
   AlertCircle, 
   Filter, 
@@ -50,7 +58,8 @@ import {
   Moon,
   Monitor,
   ArrowRight,
-  Activity
+  Activity,
+  Trash2
 } from 'lucide-react';
 
 interface Session {
@@ -164,6 +173,11 @@ export default function AdminSessions() {
   const [selectedSession, setSelectedSession] = useState<SessionDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  
+  // Delete dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchSessions = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
@@ -244,6 +258,42 @@ export default function AdminSessions() {
 
   const handleRowClick = (session: Session) => {
     fetchSessionDetail(session.id);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, session: Session) => {
+    e.stopPropagation(); // Prevent row click
+    setSessionToDelete(session);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!sessionToDelete) return;
+    
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/admin/sessions/${sessionToDelete.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        setDeleteDialogOpen(false);
+        setSessionToDelete(null);
+        fetchSessions(); // Refresh the list
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Failed to delete session');
+      }
+    } catch (err) {
+      alert('Failed to delete session');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const getEventTypeIcon = (type: string) => {
@@ -358,6 +408,7 @@ export default function AdminSessions() {
                   <TableHead>Work Time</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Activity</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -406,11 +457,21 @@ export default function AdminSessions() {
                         {session.appSwitchCount} app switches
                       </div>
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => handleDeleteClick(e, session)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {sessions.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       No sessions found
                     </TableCell>
                   </TableRow>
@@ -725,6 +786,41 @@ export default function AdminSessions() {
           ) : null}
         </SheetContent>
       </Sheet>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Session</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this session? This will permanently remove:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>The session record</li>
+                <li>All events ({sessionToDelete?.eventCount || 0})</li>
+                <li>All app switches ({sessionToDelete?.appSwitchCount || 0})</li>
+                <li>Session summary and app usage data</li>
+              </ul>
+              <p className="mt-2 font-medium text-destructive">This action cannot be undone.</p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting...' : 'Delete Session'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 }

@@ -108,3 +108,69 @@ export async function GET(
     );
   }
 }
+
+// DELETE /api/admin/sessions/[id] - Delete a session and all related data (Admin only)
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authResult = await requireAdmin(req);
+
+  if (authResult.error || !authResult.user) {
+    return unauthorizedResponse(authResult.error);
+  }
+
+  try {
+    const { id } = await params;
+
+    // First check if session exists
+    const session = await prisma.session.findUnique({
+      where: { id },
+      select: { id: true, sessionId: true },
+    });
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Session not found" },
+        { status: 404 }
+      );
+    }
+
+    // Delete all related data in the correct order (due to foreign key constraints)
+    // 1. Delete events
+    await prisma.event.deleteMany({
+      where: { sessionId: session.sessionId },
+    });
+
+    // 2. Delete app switch events
+    await prisma.appSwitchEvent.deleteMany({
+      where: { sessionId: session.sessionId },
+    });
+
+    // 3. Delete app usage
+    await prisma.sessionAppUsage.deleteMany({
+      where: { sessionId: session.sessionId },
+    });
+
+    // 4. Delete session summary
+    await prisma.sessionSummary.deleteMany({
+      where: { sessionId: session.sessionId },
+    });
+
+    // 5. Finally delete the session
+    await prisma.session.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Session deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting session:", error);
+    return NextResponse.json(
+      { error: "Failed to delete session" },
+      { status: 500 }
+    );
+  }
+}

@@ -88,3 +88,54 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ clients: items, timeoutSeconds: Math.round(HEARTBEAT_TIMEOUT_MS / 1000) }, { status: 200 });
 }
+
+
+
+
+
+/*
+ /api/heartbeat/route.ts
+export async function POST(request: Request) {
+  const { clientId, userId, status } = await request.json();
+  
+  // Check if this device should be force-stopped
+  const deviceControl = await prisma.deviceControl.findFirst({
+    where: { userId, forceStop: true }
+  });
+  
+  if (deviceControl) {
+    // Clear the flag after sending (one-time signal)
+    await prisma.deviceControl.update({
+      where: { id: deviceControl.id },
+      data: { forceStop: false }
+    });
+    
+    return Response.json({ 
+      forceStop: true, 
+      reason: deviceControl.reason 
+    });
+  }
+  
+  return Response.json({ ok: true });
+} 
+
+/api/device/status/route.ts
+export async function POST(request: Request) {
+  const { userId } = await request.json();
+  
+  // Check if device can resume
+  const deviceControl = await prisma.deviceControl.findFirst({
+    where: { userId }
+  });
+  
+  // If no control record or forceStop is false, allow resume
+  const canResume = !deviceControl || !deviceControl.forceStop;
+  
+  return Response.json({ 
+    canResume,
+    reason: deviceControl?.reason 
+  });
+}
+
+
+*/
