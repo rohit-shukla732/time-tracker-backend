@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin, unauthorizedResponse } from "../../../../lib/roleAuth";
 import { prisma } from "../../../../lib/prisma";
 
+// Get session state store from global (populated by /api/session/summary)
+const GLOBAL_SESSION_STATE_KEY = "__ace_ems_session_state_store__";
+const g: any = globalThis as any;
+if (!g[GLOBAL_SESSION_STATE_KEY]) g[GLOBAL_SESSION_STATE_KEY] = new Map<string, any>();
+const sessionStateStore: Map<string, any> = g[GLOBAL_SESSION_STATE_KEY];
+
+const SESSION_STATE_TIMEOUT_MS = 120_000; // 2 minutes
+
 // GET /api/admin/stats - Get dashboard statistics (Admin only)
 export async function GET(req: NextRequest) {
   const authResult = await requireAdmin(req);
@@ -22,6 +30,26 @@ export async function GET(req: NextRequest) {
       const d = new Date(today);
       d.setDate(d.getDate() - (6 - i));
       return d;
+    });
+
+    // Calculate real-time status counts from session state store
+    let realtimeWorking = 0;
+    let realtimeIdle = 0;
+    let realtimeBreak = 0;
+    
+    sessionStateStore.forEach((value, key) => {
+      if (key.startsWith('user:') && value.lastUpdated && Date.now() - value.lastUpdated <= SESSION_STATE_TIMEOUT_MS) {
+        const state = value.currentState;
+        if (state?.clockedIn) {
+          if (state.onBreak || state.autoBreak) {
+            realtimeBreak++;
+          } else if (state.isIdle) {
+            realtimeIdle++;
+          } else {
+            realtimeWorking++;
+          }
+        }
+      }
     });
 
     // Get counts in parallel
@@ -162,6 +190,12 @@ export async function GET(req: NextRequest) {
           today: totalSessionsToday,
           thisWeek: totalSessionsThisWeek,
           thisMonth: totalSessionsThisMonth,
+        },
+        realtime: {
+          working: realtimeWorking,
+          idle: realtimeIdle,
+          break: realtimeBreak,
+          total: realtimeWorking + realtimeIdle + realtimeBreak,
         },
         workTime: {
           totalWorkTimeMs: Number(sessionSummaries._sum.workTimeMs || 0),

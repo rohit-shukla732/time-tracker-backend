@@ -85,6 +85,12 @@ interface Stats {
     thisWeek: number;
     thisMonth: number;
   };
+  realtime: {
+    working: number;
+    idle: number;
+    break: number;
+    total: number;
+  };
   workTime: {
     totalWorkTimeMs: number;
     totalBreakTimeMs: number;
@@ -314,7 +320,7 @@ export default function AdminDashboard() {
               <Radio className="h-4 w-4 text-green-500 animate-pulse" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats?.sessions.activeToday || 0}</div>
+              <div className="text-2xl font-bold text-green-600">{stats?.realtime?.total || stats?.sessions.activeToday || 0}</div>
               <div className="flex items-center gap-1 text-xs text-green-600">
                 <ArrowUpRight className="h-3 w-3" />
                 Currently working
@@ -357,6 +363,37 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Real-time Employee Status */}
+        {stats?.realtime && stats.realtime.total > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Activity className="h-5 w-5 text-green-500 animate-pulse" />
+                Live Employee Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                  <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+                  <span className="font-semibold text-green-700 dark:text-green-400">{stats.realtime.working}</span>
+                  <span className="text-sm text-green-600 dark:text-green-500">Working</span>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                  <span className="font-semibold text-yellow-700 dark:text-yellow-400">{stats.realtime.idle}</span>
+                  <span className="text-sm text-yellow-600 dark:text-yellow-500">Idle</span>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                  <Coffee className="w-4 h-4 text-blue-500" />
+                  <span className="font-semibold text-blue-700 dark:text-blue-400">{stats.realtime.break}</span>
+                  <span className="text-sm text-blue-600 dark:text-blue-500">On Break</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Charts Row */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

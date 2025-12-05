@@ -32,9 +32,7 @@ import {
   AlertCircle, 
   Monitor,
   RefreshCw,
-  User,
   Coffee,
-  Clock,
   Wifi,
   WifiOff,
   Activity,
@@ -159,8 +157,6 @@ function Workstation({
               transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer
               flex flex-col items-center justify-center gap-1 bg-white dark:bg-gray-800`}
           >
-            {/* Status indicator dot */}
-            <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${config.bgColor} animate-pulse`} />
             
             {/* User avatar/initials */}
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${config.bgColor}`}>
@@ -211,6 +207,14 @@ function DeskCluster({
           employee={employees[1] || null} 
           onClick={() => employees[1] && onEmployeeClick(employees[1])}
         />
+        <Workstation 
+          employee={employees[2] || null} 
+          onClick={() => employees[2] && onEmployeeClick(employees[2])}
+        />
+        <Workstation 
+          employee={employees[3] || null} 
+          onClick={() => employees[3] && onEmployeeClick(employees[3])}
+        />
       </div>
       
       {/* Desk divider */}
@@ -219,12 +223,20 @@ function DeskCluster({
       {/* Bottom row (2 seats) */}
       <div className="flex gap-1">
         <Workstation 
-          employee={employees[2] || null} 
-          onClick={() => employees[2] && onEmployeeClick(employees[2])}
+          employee={employees[4] || null} 
+          onClick={() => employees[4] && onEmployeeClick(employees[4])}
         />
         <Workstation 
-          employee={employees[3] || null} 
-          onClick={() => employees[3] && onEmployeeClick(employees[3])}
+          employee={employees[5] || null} 
+          onClick={() => employees[5] && onEmployeeClick(employees[5])}
+        />
+        <Workstation 
+          employee={employees[6] || null} 
+          onClick={() => employees[6] && onEmployeeClick(employees[6])}
+        />
+        <Workstation 
+          employee={employees[7] || null} 
+          onClick={() => employees[7] && onEmployeeClick(employees[7])}
         />
       </div>
     </div>
@@ -421,19 +433,23 @@ export default function FloorMapPage() {
 
   // Create desk clusters (4 employees per cluster)
   const clusters: (FloorEmployee | null)[][] = [];
-  for (let i = 0; i < filteredEmployees.length; i += 4) {
+  for (let i = 0; i < filteredEmployees.length; i += 8) {
     const cluster = [
       filteredEmployees[i] || null,
       filteredEmployees[i + 1] || null,
       filteredEmployees[i + 2] || null,
       filteredEmployees[i + 3] || null,
+      filteredEmployees[i + 4] || null,
+      filteredEmployees[i + 5] || null,
+      filteredEmployees[i + 6] || null,
+      filteredEmployees[i + 7] || null,
     ];
     clusters.push(cluster);
   }
 
   // Add empty clusters to fill the floor if needed (min 8 clusters for visual)
   while (clusters.length < 8) {
-    clusters.push([null, null, null, null]);
+    clusters.push([null, null, null, null, null, null, null, null]);
   }
 
   if (loading) {
@@ -634,7 +650,7 @@ export default function FloorMapPage() {
               {/* Floor Layout */}
               <div className="relative rounded-xl p-8 overflow-x-auto">
 
-                <div className="mt-6 grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-6 justify-items-center">
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 justify-items-center">
                   {clusters.map((cluster, idx) => (
                     <div key={idx} className="relative">
                       {/* Workstation label */}

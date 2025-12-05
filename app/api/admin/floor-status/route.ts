@@ -4,12 +4,18 @@ import { requireAdmin, unauthorizedResponse } from "../../../../lib/roleAuth";
 import { logger } from "../../../../lib/logger";
 
 const HEARTBEAT_TIMEOUT_MS = 600_000; // 10 minutes
+const SESSION_STATE_TIMEOUT_MS = 120_000; // 2 minutes - consider stale if no summary update
 
 // Get heartbeat store from global
 const GLOBAL_HEARTBEAT_KEY = "__ace_ems_heartbeat_store__";
 const g: any = globalThis as any;
 const heartbeatStore: Map<string, { clientId: string; userId?: string; lastSeenMs: number; name?: string | null }> = 
   g[GLOBAL_HEARTBEAT_KEY] || new Map();
+
+// Get session state store from global (populated by /api/session/summary)
+const GLOBAL_SESSION_STATE_KEY = "__ace_ems_session_state_store__";
+if (!g[GLOBAL_SESSION_STATE_KEY]) g[GLOBAL_SESSION_STATE_KEY] = new Map<string, any>();
+const sessionStateStore: Map<string, any> = g[GLOBAL_SESSION_STATE_KEY];
 
 type EmployeeStatus = 'working' | 'idle' | 'break' | 'offline';
 
@@ -171,21 +177,48 @@ export async function GET(request: NextRequest) {
       }
     });
 
+    // Build real-time session state by userId (from /api/session/summary)
+    const realtimeStateByUser = new Map<string, any>();
+    sessionStateStore.forEach((value, key) => {
+      if (key.startsWith('user:')) {
+        const userId = key.replace('user:', '');
+        // Only use if state is recent (within timeout)
+        if (value.lastUpdated && Date.now() - value.lastUpdated <= SESSION_STATE_TIMEOUT_MS) {
+          realtimeStateByUser.set(userId, value);
+        }
+      }
+    });
+
     // Assign seat numbers (based on index for now - could be stored in DB later)
     const floorEmployees: FloorEmployee[] = users.map((user, index) => {
       const heartbeat = heartbeatByUser.get(user.id);
       const session = sessionByUser.get(user.id);
       const latestEvent = latestEventByUser.get(user.id);
-      const currentApp = latestAppByUser.get(user.id) || null;
-      const workDuration = workDurationByUser.get(user.id) || null;
+      const realtimeState = realtimeStateByUser.get(user.id);
+      const currentApp = realtimeState?.appUsage?.topApps?.[0]?.app || latestAppByUser.get(user.id) || null;
+      const workDuration = realtimeState?.workTimeMs || workDurationByUser.get(user.id) || null;
 
-      // Determine status
+      // Determine status - prioritize real-time state from summary endpoint
       let status: EmployeeStatus = 'offline';
       let onBreakSince: string | null = null;
       let idleSince: string | null = null;
 
-      if (heartbeat?.alive && session) {
-        // Online and has active session
+      if (realtimeState?.currentState) {
+        // Use real-time state from desktop app
+        const state = realtimeState.currentState;
+        if (!state.clockedIn) {
+          status = 'offline';
+        } else if (state.onBreak || state.autoBreak) {
+          status = 'break';
+          onBreakSince = realtimeState.timestamp;
+        } else if (state.isIdle) {
+          status = 'idle';
+          idleSince = realtimeState.timestamp;
+        } else {
+          status = 'working';
+        }
+      } else if (heartbeat?.alive && session) {
+        // Fallback to heartbeat + events
         if (latestEvent?.type === 'BREAK_START') {
           status = 'break';
           onBreakSince = latestEvent.timestamp.toISOString();
@@ -209,11 +242,11 @@ export async function GET(request: NextRequest) {
         teamName: user.team?.name || null,
         seatNumber: index + 1, // Assign seat based on index (can be customized)
         status,
-        lastActivity: heartbeat?.lastSeenMs 
-          ? new Date(heartbeat.lastSeenMs).toISOString() 
-          : session?.startedAt.toISOString() || null,
+        lastActivity: realtimeState?.timestamp 
+          || (heartbeat?.lastSeenMs ? new Date(heartbeat.lastSeenMs).toISOString() : null)
+          || session?.startedAt.toISOString() || null,
         currentApp,
-        sessionId: session?.sessionId || null,
+        sessionId: realtimeState?.sessionId || session?.sessionId || null,
         onBreakSince,
         idleSince,
         workingDuration: workDuration,
