@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     try {
       const payload = verifyRefreshToken(refreshToken) as any;
-      const newAccess = signAccessToken({ id: payload.id, email: payload.email });
+      const newAccess = signAccessToken({ userId: payload.userId, email: payload.email });
 
       logger.info("POST /api/auth/refresh - Token refreshed successfully");
       logger.response("POST", "/api/auth/refresh", 200, Date.now() - startTime);

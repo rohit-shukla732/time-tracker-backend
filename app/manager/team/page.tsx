@@ -35,6 +35,16 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper function to format time (hours or minutes)
+  const formatTime = (ms: number): string => {
+    const hours = ms / (1000 * 60 * 60);
+    if (hours < 1) {
+      const minutes = Math.round(ms / (1000 * 60));
+      return `${minutes}m`;
+    }
+    return `${hours.toFixed(1)}h`;
+  };
+
   useEffect(() => {
     const user = validateAuth('MANAGER', '/manager/login');
     if (!user) {
@@ -275,13 +285,13 @@ export default function TeamPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {member.avgWorkMs ? `${(member.avgWorkMs / (1000 * 60 * 60)).toFixed(1)}h` : '-'}
+                    {member.avgWorkMs ? formatTime(member.avgWorkMs) : '-'}
                   </TableCell>
                   <TableCell>
-                    {member.avgBreakMs ? `${(member.avgBreakMs / (1000 * 60 * 60)).toFixed(1)}h` : '-'}
+                    {member.avgBreakMs ? formatTime(member.avgBreakMs) : '-'}
                   </TableCell>
                   <TableCell>
-                    {member.avgIdleMs ? `${(member.avgIdleMs / (1000 * 60 * 60)).toFixed(1)}h` : '-'}
+                    {member.avgIdleMs ? formatTime(member.avgIdleMs) : '-'}
                   </TableCell>
                 </TableRow>
               ))}
@@ -314,6 +324,16 @@ function MemberDetailsDialog({
 }) {
   const [selectedSession, setSelectedSession] = React.useState<any | null>(null);
 
+  // Helper function to format time (hours or minutes)
+  const formatTime = (ms: number): string => {
+    const hours = ms / (1000 * 60 * 60);
+    if (hours < 1) {
+      const minutes = Math.round(ms / (1000 * 60));
+      return `${minutes}m`;
+    }
+    return `${hours.toFixed(1)}h`;
+  };
+
   const topApps = details?.topApps || [];
   const dailyWork = details?.charts?.dailyWorkData || [];
   const recentSessions = details?.recentSessions || [];
@@ -328,15 +348,16 @@ function MemberDetailsDialog({
     const breakTime = selectedSession.summary?.totalBreakMs || selectedSession.breakTimeMs || 0;
     const idleTime = selectedSession.summary?.totalIdleMs || selectedSession.idleTimeMs || 0;
     
+    // Store values in minutes for better display
     return [
-      { name: 'Work', value: parseFloat(((workTime) / (1000 * 60 * 60)).toFixed(1)), fill: '#10b981' },
-      { name: 'Break', value: parseFloat(((breakTime) / (1000 * 60 * 60)).toFixed(1)), fill: '#3b82f6' },
-      { name: 'Idle', value: parseFloat(((idleTime) / (1000 * 60 * 60)).toFixed(1)), fill: '#f59e0b' },
+      { name: 'Work', value: Math.round(workTime / (1000 * 60)), valueMs: workTime, fill: '#10b981' },
+      { name: 'Break', value: Math.round(breakTime / (1000 * 60)), valueMs: breakTime, fill: '#3b82f6' },
+      { name: 'Idle', value: Math.round(idleTime / (1000 * 60)), valueMs: idleTime, fill: '#f59e0b' },
     ];
   }, [selectedSession]);
 
   const totalSessionTime = React.useMemo(() => {
-    const total = sessionData.reduce((acc, curr) => acc + curr.value, 0);
+    const total = sessionData.reduce((acc, curr) => acc + curr.valueMs, 0);
     console.log('Total session time:', total, 'sessionData:', sessionData);
     return total;
   }, [sessionData]);
@@ -392,8 +413,8 @@ function MemberDetailsDialog({
                 <CardContent className="pt-4">
                   <div className="text-xs text-muted-foreground mb-1">Avg Work/Day</div>
                   <div className="text-lg font-bold">
-                    {details?.aggregates?.avgWorkMs 
-                      ? `${((details.aggregates.avgWorkMs || 0) / (1000 * 60 * 60)).toFixed(1)}h`
+                    {details?.aggregates?.avgWorkMs
+                      ? formatTime(details.aggregates.avgWorkMs)
                       : '-'}
                   </div>
                 </CardContent>
@@ -401,10 +422,10 @@ function MemberDetailsDialog({
 
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-xs text-muted-foreground mb-1">Total Work (Month)</div>
+                  <div className="text-xs text-muted-foreground mb-1">Total Work</div>
                   <div className="text-lg font-bold">
-                    {details?.aggregates?.totalWorkMs 
-                      ? `${((details.aggregates.totalWorkMs || 0) / (1000 * 60 * 60)).toFixed(1)}h`
+                    {details?.aggregates?.totalWorkMs
+                      ? formatTime(details.aggregates.totalWorkMs)
                       : '-'}
                   </div>
                 </CardContent>
@@ -452,7 +473,12 @@ function MemberDetailsDialog({
                         <PieChart>
                           <ChartTooltip
                             cursor={false}
-                            content={<ChartTooltipContent hideLabel />}
+                            content={<ChartTooltipContent 
+                              hideLabel 
+                              formatter={(value, name, item) => {
+                                return formatTime(item.payload.valueMs);
+                              }}
+                            />}
                           />
                           <Pie
                             data={sessionData}
@@ -479,7 +505,7 @@ function MemberDetailsDialog({
                                         y={viewBox.cy}
                                         className="fill-foreground text-2xl font-bold"
                                       >
-                                        {totalSessionTime.toFixed(1)}h
+                                        {formatTime(totalSessionTime)}
                                       </tspan>
                                       <tspan
                                         x={viewBox.cx}
@@ -560,7 +586,7 @@ function MemberDetailsDialog({
                     {selectedSession ? 'Session Applications' : 'Top Applications (Last 7 Days)'}
                   </CardTitle>
                   <CardDescription>
-                    {selectedSession ? 'Applications used in this session' : 'Most used applications by time (in hours)'}
+                    {selectedSession ? 'Applications used in this session' : 'Most used applications by time'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -570,14 +596,16 @@ function MemberDetailsDialog({
                         const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
                         acc[app.name || app.appName] = { label: app.name || app.appName, color: colors[idx % 5] };
                         return acc;
-                      }, { hours: { label: 'Hours' } })}
+                      }, { time: { label: 'Time' } })}
                       className="h-[300px] w-full px-6"
                     >
                       <BarChart accessibilityLayer data={(selectedSession ? sessionApps : topApps).slice(0, 5).map((app: any, idx: number) => {
                         const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
+                        const timeMs = app.timeMs || 0;
                         return { 
                           name: app.name || app.appName,
-                          hours: app.hours || ((app.timeMs || 0) / (1000 * 60 * 60)),
+                          time: Math.round(timeMs / (1000 * 60)), // Store in minutes
+                          timeMs: timeMs,
                           fill: colors[idx % 5] 
                         };
                       })}>
@@ -591,10 +619,14 @@ function MemberDetailsDialog({
                         />
                         <ChartTooltip
                           cursor={false}
-                          content={<ChartTooltipContent hideLabel />}
+                          content={<ChartTooltipContent  
+                            formatter={(value, name, item) => {
+                              return formatTime(item.payload.timeMs);
+                            }}
+                          />}
                         />
                         <Bar
-                          dataKey="hours"
+                          dataKey="time"
                           strokeWidth={2}
                           radius={8}
                           activeIndex={0}
@@ -671,22 +703,22 @@ function MemberDetailsDialog({
                               {session.endedAt ? new Date(session.endedAt).toLocaleString() : '-'}
                             </TableCell>
                             <TableCell className="text-sm font-medium">
-                              {(duration / (1000 * 60 * 60)).toFixed(1)}h
+                              {formatTime(duration)}
                             </TableCell>
                             <TableCell className="text-sm text-green-600">
                               {session.summary?.workTimeMs 
-                                ? `${(session.summary.workTimeMs / (1000 * 60 * 60)).toFixed(1)}h` 
-                                : (session.workTimeMs ? `${(session.workTimeMs / (1000 * 60 * 60)).toFixed(1)}h` : '-')}
+                                ? formatTime(session.summary.workTimeMs)
+                                : (session.workTimeMs ? formatTime(session.workTimeMs) : '-')}
                             </TableCell>
                             <TableCell className="text-sm text-blue-600">
                               {session.summary?.totalBreakMs 
-                                ? `${(session.summary.totalBreakMs / (1000 * 60 * 60)).toFixed(1)}h` 
-                                : (session.breakTimeMs ? `${(session.breakTimeMs / (1000 * 60 * 60)).toFixed(1)}h` : '-')}
+                                ? formatTime(session.summary.totalBreakMs)
+                                : (session.breakTimeMs ? formatTime(session.breakTimeMs) : '-')}
                             </TableCell>
                             <TableCell className="text-sm text-yellow-600">
                               {session.summary?.totalIdleMs 
-                                ? `${(session.summary.totalIdleMs / (1000 * 60 * 60)).toFixed(1)}h` 
-                                : (session.idleTimeMs ? `${(session.idleTimeMs / (1000 * 60 * 60)).toFixed(1)}h` : '-')}
+                                ? formatTime(session.summary.totalIdleMs)
+                                : (session.idleTimeMs ? formatTime(session.idleTimeMs) : '-')}
                             </TableCell>
                             <TableCell>
                               {session.isActive ? (

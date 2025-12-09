@@ -38,6 +38,16 @@ export default function ManagerDashboard() {
   const [activeChart, setActiveChart] = useState<'week' | 'month'>('week');
   const [chartType, setChartType] = useState<'sessions' | 'time'>('sessions');
 
+  // Helper function to format time (hours or minutes)
+  const formatTime = (ms: number): string => {
+    const hours = ms / (1000 * 60 * 60);
+    if (hours < 1) {
+      const minutes = Math.round(ms / (1000 * 60));
+      return `${minutes}m`;
+    }
+    return `${hours.toFixed(1)}h`;
+  };
+
   useEffect(() => {
     fetchStats();
     const interval = setInterval(fetchStats, 30000); // Refresh every 30 seconds
@@ -193,7 +203,7 @@ export default function ManagerDashboard() {
     },
     {
       title: 'Avg Work/Day',
-      value: `${((aggregates?.avgWorkMs || 0) / (1000 * 60 * 60)).toFixed(1)}h`,
+      value: formatTime(aggregates?.avgWorkMs || 0),
       subtitle: 'Team average this month',
       icon: Clock,
       color: 'blue',
@@ -204,7 +214,7 @@ export default function ManagerDashboard() {
     },
     {
       title: 'Avg Idle Time',
-        value: `${((aggregates?.avgIdleMs || 0) / (1000 * 60 * 60)).toFixed(1)}h`,
+        value: formatTime(aggregates?.avgIdleMs || 0),
         subtitle: 'Per day',
         icon: Moon,
         color: 'amber',
@@ -215,7 +225,7 @@ export default function ManagerDashboard() {
     },
     {
       title: 'Avg Break Time',
-      value: `${((aggregates?.avgBreakMs || 0) / (1000 * 60 * 60)).toFixed(1)}h`,
+      value: formatTime(aggregates?.avgBreakMs || 0),
       subtitle: 'Per day',
       icon: Coffee,
       color: 'blue',
@@ -359,100 +369,63 @@ export default function ManagerDashboard() {
         </Card>
         
 
-        {/* Top Contributors - Radial Chart */}
+        {/* Top Contributors - Pie Chart */}
         <Card className="flex flex-col">
           <CardHeader className="items-center pb-0">
             <CardTitle>Top Contributors</CardTitle>
             <CardDescription>Top team members by work time this month</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-1 items-center">
+          <CardContent className="flex-1 pb-0">
             {topUsers.length ? (
               <ChartContainer
                 config={{
-                  hours: { label: "Hours", color: "#10b981" },
+                  value: { label: "Time" },
                   ...Object.fromEntries(
                     topUsers.slice(0, 5).map((u: any, i: number) => {
-                      const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
+                      const colors = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
                       return [
-                        `user${i}`,
+                        (u.user?.name || u.userId || 'Unknown').split(' ')[0],
                         {
-                          label: u.user?.name || u.userId || 'Unknown',
+                          label: (u.user?.name || u.userId || 'Unknown').split(' ')[0],
                           color: colors[i % 5]
                         }
                       ];
                     })
                   )
                 }}
-                className="mx-auto aspect-square w-full max-w-[250px]"
+                className="mx-auto aspect-square max-h-[250px]"
               >
-                <RadialBarChart
-                  data={topUsers.slice(0, 5).map((u: any, i: number) => {
-                    const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
-                    return {
-                      name: (u.user?.name || u.userId || 'Unknown').split(' ')[0],
-                      hours: (u.workTimeMs || 0) / (1000 * 60 * 60),
-                      fill: colors[i % 5]
-                    };
-                  })}
-                  endAngle={180}
-                  innerRadius={80}
-                  outerRadius={180}
-                >
+                <PieChart>
                   <ChartTooltip
                     cursor={false}
-                    content={<ChartTooltipContent hideLabel />}
+                    content={<ChartTooltipContent hideLabel 
+                        formatter={(_value, _name, item) => {
+                              const hours = item?.payload?.value || 0;
+                              return formatTime(Math.round(hours * 60 * 60 * 1000));
+                            }}/>}
                   />
-                  <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
-                    {/* <Label
-                      content={({ viewBox }) => {
-                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                          const totalHours = topUsers.slice(0, 5).reduce((acc: number, u: any) => 
-                            acc + ((u.workTimeMs || 0) / (1000 * 60 * 60)), 0
-                          );
-                          return (
-                            <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle">
-                              <tspan
-                                x={viewBox.cx}
-                                y={(viewBox.cy || 0) - 16}
-                                className="fill-foreground text-2xl font-bold"
-                              >
-                                {totalHours.toFixed(1)}
-                              </tspan>
-                              <tspan
-                                x={viewBox.cx}
-                                y={(viewBox.cy || 0) + 4}
-                                className="fill-muted-foreground"
-                              >
-                                Hours
-                              </tspan>
-                            </text>
-                          )
-                        }
-                      }}
-                    /> */}
-                  </PolarRadiusAxis>
-                  {topUsers.slice(0, 5).map((u: any, i: number) => {
-                    const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
-                    return (
-                      <RadialBar
-                        key={i}
-                        dataKey="hours"
-                        stackId="a"
-                        cornerRadius={5}
-                        fill={colors[i % 5]}
-                        className="stroke-transparent stroke-2"
-                      />
-                    );
-                  })}
-                </RadialBarChart>
+                  <Pie 
+                    data={topUsers.slice(0, 5).map((u: any, i: number) => {
+                      const colors = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
+                      const hours = (u.workTimeMs || 0) / (1000 * 60 * 60);
+                      return {
+                        browser: (u.user?.name || u.userId || 'Unknown').split(' ')[0],
+                        value: parseFloat(hours.toFixed(1)),
+                        fill: colors[i % 5]
+                      };
+                    })}
+                    dataKey="value" 
+                    nameKey="browser" 
+                  />
+                </PieChart>
               </ChartContainer>
             ) : (
-              <div className="mx-auto aspect-square w-full max-w-[250px] flex items-center justify-center text-sm text-muted-foreground">
+              <div className="mx-auto aspect-square max-h-[250px] flex items-center justify-center text-sm text-muted-foreground">
                 No user data available
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex-col gap-2 text-sm pt-4">
+          <CardFooter className="flex-col gap-2 text-sm">
             <div className="flex flex-wrap justify-center gap-3">
               {topUsers.slice(0, 5).map((u: any, i: number) => {
                 const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
@@ -460,7 +433,7 @@ export default function ManagerDashboard() {
                   <div key={i} className="flex items-center gap-2 text-xs">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[i % 5] }} />
                     <span className="text-muted-foreground">{(u.user?.name || u.userId || 'Unknown').split(' ')[0]}:</span>
-                    <span className="font-semibold">{((u.workTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)}h</span>
+                    <span className="font-semibold">{formatTime(u.workTimeMs || 0)}</span>
                   </div>
                 );
               })}
