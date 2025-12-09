@@ -1,262 +1,564 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardFooter,
-} from '@/components/ui/card';
+import { useEffect, useState, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Activity, Clock, Coffee, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, Clock, Coffee, TrendingUp, Activity, Zap, Moon, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip as RechartsTooltip,
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
+  Cell,
+  PieChart,
+  Pie,
+  Label,
+  Tooltip as RechartsTooltip,
+  LineChart,
+  Line,
   ResponsiveContainer,
-  Tooltip,
-  LabelList,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  Legend,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  RadialBarChart,
+  RadialBar,
 } from 'recharts';
-
-interface StatsResponse {
-  error: string;
-  success: boolean;
-  stats: any;
-}
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 
 export default function ManagerDashboard() {
   const [stats, setStats] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [activeChart, setActiveChart] = useState<'week' | 'month'>('week');
 
-  const fetchStats = useCallback(async (token?: string | null) => {
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-rotate carousel
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % 7); // 7 total slides
+    }, 4000); // Change slide every 4 seconds
+    return () => clearInterval(timer);
+  }, []);
+
+  async function fetchStats() {
     try {
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      // Prefer team-scoped stats for managers
-      let url = '/api/admin/stats';
-      try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const parsed = JSON.parse(storedUser);
-          if (parsed?.role === 'MANAGER' && parsed?.teamId) {
-            url = `/api/teams/${parsed.teamId}/stats`;
-          }
-        }
-      } catch (e) {}
-
-      const res = await fetch(url, { headers });
-      if (res.status === 401 || res.status === 403) {
-        setError('Unauthorized. Please login.');
+      const token = localStorage.getItem('accessToken');
+      const storedUser = localStorage.getItem('user');
+      
+      if (!token || !storedUser) {
+        setError('Not authenticated');
         setLoading(false);
         return;
       }
 
-      const data: StatsResponse = await res.json();
-      if (data.success) {
-        setStats(data.stats);
-      } else {
-        setError(data.error || 'Failed to retrieve stats');
+      const user = JSON.parse(storedUser);
+      let url = '/api/admin/stats';
+      
+      // If manager, use team-specific stats
+      if (user.role === 'MANAGER' && user.teamId) {
+        url = `/api/teams/${user.teamId}/stats`;
       }
-    } catch (err) {
-      setError('Failed to connect to server');
+
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch stats');
+      }
+
+      const data = await res.json();
+      console.log('Stats API response:', data);
+      // API returns { success: true, stats: {...} }
+      setStats(data.stats || data);
+    } catch (err: any) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }
+  const statusData = [
+    { name: 'Working', value: stats?.realtime?.working || 0, fill: '#10b981' },
+    { name: 'Idle', value: stats?.realtime?.idle || 0, fill: '#f59e0b' },
+    { name: 'Break', value: stats?.realtime?.break || 0, fill: '#3b82f6' },
+    { name: 'Offline', value: (stats?.users?.total || 0) - (stats?.realtime?.total || 0), fill: '#6b7280' },
+  ];
 
-  useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    fetchStats(token);
+  const statusChartConfig = {
+    value: {
+      label: "Members",
+    },
+    Working: {
+      label: "Working",
+      color: "#10b981",
+    },
+    Idle: {
+      label: "Idle",
+      color: "#f59e0b",
+    },
+    Break: {
+      label: "Break",
+      color: "#3b82f6",
+    },
+    Offline: {
+      label: "Offline",
+      color: "#6b7280",
+    },
+  };
 
-    const interval = setInterval(() => {
-      const t = localStorage.getItem('accessToken');
-      fetchStats(t);
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [fetchStats]);
+  const totalMembers = useMemo(() => {
+    return statusData.reduce((acc, curr) => acc + curr.value, 0)
+  }, [statusData]);
 
   if (loading) {
     return (
-      <div className="p-6">Loading manager dashboard…</div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-lg text-muted-foreground">Loading dashboard...</div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6 text-red-600">{error}</div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-lg text-red-500">Error: {error}</div>
+      </div>
     );
   }
 
-  const isTeamScoped = !!stats?.team;
-
-  const total = isTeamScoped ? (stats?.users?.total || 0) : 0;
-  const working = isTeamScoped ? (stats?.realtime?.working || 0) : 0;
-  const idle = isTeamScoped ? (stats?.realtime?.idle || 0) : 0;
-  const onBreak = isTeamScoped ? (stats?.realtime?.break || 0) : 0;
-  const dailyWorkData = stats?.charts?.dailyWorkData || [];
+  const dailyWork = stats?.charts?.dailyWorkData || [];
+  const sessions = stats?.charts?.dailySessions || [];
   const topUsers = stats?.topUsers || [];
-  const realtimeTotal = stats?.realtime?.total || 0;
-  const offline = Math.max(0, (total || 0) - realtimeTotal);
+  const topApps = stats?.charts?.topApps || [];
 
-  const donutData = [
-    { name: 'Active', value: working, color: '#16a34a' },
-    { name: 'Idle', value: idle, color: '#f59e0b' },
-    { name: 'Break', value: onBreak, color: '#3b82f6' },
-    { name: 'Offline', value: offline, color: '#9ca3af' },
+  // Map workTime to aggregates for compatibility
+  const aggregates = stats?.workTime ? {
+    avgWorkMs: stats.workTime.avgWorkTimeMs,
+    totalWorkMs: stats.workTime.totalWorkTimeMs,
+    avgBreakMs: stats.workTime.totalBreakTimeMs / Math.max(1, stats.sessions?.thisMonth || 1),
+  } : stats?.aggregates;
+
+  // Carousel slides data
+  const slides = [
+    {
+      title: 'Working Now',
+      value: stats?.realtime?.working || 0,
+      subtitle: 'Active employees',
+      icon: Zap,
+      color: 'green',
+      bgGradient: 'from-green-500/20 to-green-600/10',
+      iconBg: 'bg-green-500/20',
+      textColor: 'text-green-600',
+      pulse: true,
+    },
+    {
+      title: 'Idle',
+      value: stats?.realtime?.idle || 0,
+      subtitle: 'Inactive now',
+      icon: Moon,
+      color: 'yellow',
+      bgGradient: 'from-yellow-500/20 to-yellow-600/10',
+      iconBg: 'bg-yellow-500/20',
+      textColor: 'text-yellow-600',
+      pulse: false,
+    },
+    {
+      title: 'On Break',
+      value: stats?.realtime?.break || 0,
+      subtitle: 'Taking a break',
+      icon: Coffee,
+      color: 'blue',
+      bgGradient: 'from-blue-500/20 to-blue-600/10',
+      iconBg: 'bg-blue-500/20',
+      textColor: 'text-blue-600',
+      pulse: false,
+    },
+    {
+      title: 'Total Team',
+      value: stats?.users?.total || 0,
+      subtitle: 'Team members',
+      icon: Users,
+      color: 'purple',
+      bgGradient: 'from-purple-500/20 to-purple-600/10',
+      iconBg: 'bg-purple-500/20',
+      textColor: 'text-purple-600',
+      pulse: false,
+    },
+    {
+      title: 'Avg Work/Day',
+      value: `${((aggregates?.avgWorkMs || 0) / (1000 * 60 * 60)).toFixed(1)}h`,
+      subtitle: 'Team average this month',
+      icon: Clock,
+      color: 'blue',
+      bgGradient: 'from-blue-500/20 to-blue-600/10',
+      iconBg: 'bg-blue-500/20',
+      textColor: 'text-blue-600',
+      pulse: false,
+    },
+    {
+      title: 'Total Work Time',
+      value: `${((aggregates?.totalWorkMs || 0) / (1000 * 60 * 60)).toFixed(1)}h`,
+      subtitle: `${stats?.sessions?.thisMonth || 0} sessions this month`,
+      icon: Activity,
+      color: 'emerald',
+      bgGradient: 'from-emerald-500/20 to-emerald-600/10',
+      iconBg: 'bg-emerald-500/20',
+      textColor: 'text-emerald-600',
+      pulse: false,
+    },
+    {
+      title: 'Avg Break Time',
+      value: `${((aggregates?.avgBreakMs || 0) / (1000 * 60 * 60)).toFixed(1)}h`,
+      subtitle: 'Per day',
+      icon: Coffee,
+      color: 'amber',
+      bgGradient: 'from-amber-500/20 to-amber-600/10',
+      iconBg: 'bg-amber-500/20',
+      textColor: 'text-amber-600',
+      pulse: false,
+    },
   ];
 
-  const sessions = stats?.charts?.dailySessions || [];
+  const currentSlideData = slides[currentSlide];
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % slides.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Manager Dashboard</h2>
-          <p className="text-muted-foreground">Team overview and recent activity</p>
-        </div>
-        <Badge variant="outline">Manager View</Badge>
-      </div>
-
-      {/* Additional Charts: Work breakdown and Top users */}
-      <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-4 w-4" /> Work / Break / Idle (7 days)
-              </CardTitle>
-              <CardDescription>Daily breakdown of work, break and idle time</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div style={{ width: '100%', height: 260 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dailyWorkData} margin={{ top: 10, right: 12, left: 4, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="day" />
-                    <RechartsTooltip formatter={(value: number) => `${(value / (1000*60*60)).toFixed(1)}h`} />
-                    <Legend />
-                    <Area type="monotone" dataKey="workTimeMs" stackId="a" stroke="#16a34a" fill="#bbf7d0" />
-                    <Area type="monotone" dataKey="breakTimeMs" stackId="a" stroke="#f59e0b" fill="#fef3c7" />
-                    <Area type="monotone" dataKey="idleTimeMs" stackId="a" stroke="#facc15" fill="#fff7c2" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-4 w-4" /> Top Contributors
-              </CardTitle>
-              <CardDescription>Top team members by work time (this month)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div style={{ width: '100%', height: 260 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topUsers.map((u: any) => ({ name: u.user?.name || u.userId, hours: (u.workTimeMs || 0) / (1000*60*60) }))} layout="vertical" margin={{ left: 16 }}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis type="category" dataKey="name" width={140} />
-                    <RechartsTooltip formatter={(value: number) => `${Number(value).toFixed(1)}h`} />
-                    <Bar dataKey="hours" fill="#3b82f6" radius={[4,0,0,4]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-4 w-4" /> Team Status
-              </CardTitle>
-              <CardDescription>Total team members and status breakdown</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {isTeamScoped ? (
-                <>
-                  <div className="flex items-center justify-center">
-                    <ResponsiveContainer width={250} height={250}>
-                      <PieChart>
-                        <RechartsTooltip />
-                        <Pie
-                          data={donutData}
-                          dataKey="value"
-                          nameKey="name"
-                          innerRadius={68}
-                          outerRadius={90}
-                          paddingAngle={4}
-                          strokeWidth={0}
-                        >
-                          {donutData.map((entry, idx) => (
-                            <Cell key={`cell-${idx}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap justify-center gap-3 text-sm text-muted-foreground">
-                    {donutData.map((d) => (
-                      <div key={d.name} className="flex items-center gap-2">
-                        <span className="h-3 w-3 rounded-full" style={{ background: d.color }} />
-                        <span className="font-medium">{d.name}:</span>
-                        <span>{d.value}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="text-center mt-3 text-sm text-muted-foreground">Total: <span className="font-semibold">{total}</span></div>
-                </>
-              ) : (
-                <div className="p-6 text-center text-sm text-muted-foreground">
-                  Team data not selected. This card shows team-specific status — switch to a team view to see team metrics.
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Stats Carousel */}
+      <Card className="relative overflow-hidden border-2">
+        <div className={`absolute inset-0 bg-linear-to-br ${currentSlideData?.bgGradient} opacity-50`} />
+        <CardContent className="pt-8 pb-8 relative">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex-1 text-center">
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <div className={`p-4 rounded-2xl ${currentSlideData?.iconBg}`}>
+                  {currentSlideData?.icon && <currentSlideData.icon className={`h-8 w-8 ${currentSlideData.textColor}`} />}
                 </div>
-              )}
-            </CardContent>
-            <CardFooter />
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-4 w-4" /> Session Activity (7 days)
-              </CardTitle>
-              <CardDescription>Sessions over the last 7 days</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div style={{ width: '100%', height: 240 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={sessions} margin={{ top: 20, right: 12, left: 4, bottom: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-muted" />
-                    <XAxis dataKey="day" tickLine={false} axisLine={false} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="sessions" stroke="#06b6d4" strokeWidth={2} dot={{ r: 3 }}>
-                      <LabelList dataKey="sessions" position="top" />
-                    </Line>
-                  </LineChart>
-                </ResponsiveContainer>
               </div>
-            </CardContent>
-          </Card>
+              <h3 className={`text-lg font-semibold ${currentSlideData?.textColor} mb-2`}>
+                {currentSlideData?.title}
+              </h3>
+              <div className="text-6xl font-bold mb-2 transition-all duration-500">
+                {currentSlideData?.value}
+              </div>
+              <p className="text-sm text-muted-foreground">{currentSlideData?.subtitle}</p>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter className="text-xs text-muted-foreground text-center justify-center">
+            {/* Slide Indicators */}
+          <div className="flex gap-2">
+            {slides.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentSlide(index)}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  index === currentSlide 
+                    ? 'w-8 bg-primary' 
+                    : 'w-2 bg-primary/30 hover:bg-primary/50'
+                }`}
+              />
+            ))}
+          </div>
+        </CardFooter>
+      </Card>
+
+      {/* Charts */}
+      
+        {/* Team Status Distribution */}
+        <Card className="flex flex-col">
+          <CardHeader className="items-center pb-0">
+            <CardTitle>Team Status Distribution</CardTitle>
+            <CardDescription>Current status of all team members</CardDescription>
+          </CardHeader>
+          <CardContent className="flex-1 pb-0">
+            {statusData.some(d => d.value > 0) ? (
+              <ChartContainer
+                config={statusChartConfig}
+                className="mx-auto aspect-square max-h-[250px]"
+              >
+                <PieChart>
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel />}
+                  />
+                  <Pie
+                    data={statusData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={60}
+                    strokeWidth={5}
+                  >
+                    {statusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                    <Label
+                      content={({ viewBox }) => {
+                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                          return (
+                            <text
+                              x={viewBox.cx}
+                              y={viewBox.cy}
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              <tspan
+                                x={viewBox.cx}
+                                y={viewBox.cy}
+                                className="fill-foreground text-3xl font-bold"
+                              >
+                                {totalMembers.toLocaleString()}
+                              </tspan>
+                              <tspan
+                                x={viewBox.cx}
+                                y={(viewBox.cy || 0) + 24}
+                                className="fill-muted-foreground"
+                              >
+                                Members
+                              </tspan>
+                            </text>
+                          )
+                        }
+                      }}
+                    />
+                  </Pie>
+                </PieChart>
+              </ChartContainer>
+            ) : (
+              <div className="mx-auto aspect-square max-h-[250px] flex items-center justify-center text-sm text-muted-foreground">
+                No status data available
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex-col gap-2 text-sm pt-4">
+            <div className="flex flex-wrap justify-center gap-4">
+              {statusData.map((item) => (
+                <div key={item.name} className="flex items-center gap-2 text-sm">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.fill }} />
+                  <span className="text-muted-foreground">{item.name}:</span>
+                  <span className="font-semibold">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          </CardFooter>
+        </Card>
+        
+
+        {/* Top Contributors - Radial Chart */}
+        <Card className="flex flex-col">
+          <CardHeader className="items-center pb-0">
+            <CardTitle>Top Contributors</CardTitle>
+            <CardDescription>Top team members by work time this month</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-1 items-center">
+            {topUsers.length ? (
+              <ChartContainer
+                config={{
+                  hours: { label: "Hours", color: "#10b981" },
+                  ...Object.fromEntries(
+                    topUsers.slice(0, 5).map((u: any, i: number) => {
+                      const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
+                      return [
+                        `user${i}`,
+                        {
+                          label: u.user?.name || u.userId || 'Unknown',
+                          color: colors[i % 5]
+                        }
+                      ];
+                    })
+                  )
+                }}
+                className="mx-auto aspect-square w-full max-w-[250px]"
+              >
+                <RadialBarChart
+                  data={topUsers.slice(0, 5).map((u: any, i: number) => {
+                    const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
+                    return {
+                      name: (u.user?.name || u.userId || 'Unknown').split(' ')[0],
+                      hours: (u.workTimeMs || 0) / (1000 * 60 * 60),
+                      fill: colors[i % 5]
+                    };
+                  })}
+                  endAngle={180}
+                  innerRadius={80}
+                  outerRadius={180}
+                >
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel />}
+                  />
+                  <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
+                    {/* <Label
+                      content={({ viewBox }) => {
+                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                          const totalHours = topUsers.slice(0, 5).reduce((acc: number, u: any) => 
+                            acc + ((u.workTimeMs || 0) / (1000 * 60 * 60)), 0
+                          );
+                          return (
+                            <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle">
+                              <tspan
+                                x={viewBox.cx}
+                                y={(viewBox.cy || 0) - 16}
+                                className="fill-foreground text-2xl font-bold"
+                              >
+                                {totalHours.toFixed(1)}
+                              </tspan>
+                              <tspan
+                                x={viewBox.cx}
+                                y={(viewBox.cy || 0) + 4}
+                                className="fill-muted-foreground"
+                              >
+                                Hours
+                              </tspan>
+                            </text>
+                          )
+                        }
+                      }}
+                    /> */}
+                  </PolarRadiusAxis>
+                  {topUsers.slice(0, 5).map((u: any, i: number) => {
+                    const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
+                    return (
+                      <RadialBar
+                        key={i}
+                        dataKey="hours"
+                        stackId="a"
+                        cornerRadius={5}
+                        fill={colors[i % 5]}
+                        className="stroke-transparent stroke-2"
+                      />
+                    );
+                  })}
+                </RadialBarChart>
+              </ChartContainer>
+            ) : (
+              <div className="mx-auto aspect-square w-full max-w-[250px] flex items-center justify-center text-sm text-muted-foreground">
+                No user data available
+              </div>
+            )}
+          </CardContent>
+          <CardFooter className="flex-col gap-2 text-sm pt-4">
+            <div className="flex flex-wrap justify-center gap-3">
+              {topUsers.slice(0, 5).map((u: any, i: number) => {
+                const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
+                return (
+                  <div key={i} className="flex items-center gap-2 text-xs">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[i % 5] }} />
+                    <span className="text-muted-foreground">{(u.user?.name || u.userId || 'Unknown').split(' ')[0]}:</span>
+                    <span className="font-semibold">{((u.workTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)}h</span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardFooter>
+        </Card>
+
+        {/* Session Activity - Interactive */}
+        <Card className="col-span-3 py-4 sm:py-0">
+          <CardHeader className="flex flex-col items-stretch border-b p-0! sm:flex-row">
+            <div className="flex flex-1 flex-col justify-center gap-1 px-6 pb-3 sm:pb-0">
+              <CardTitle>Session Activity</CardTitle>
+              <CardDescription>
+                Daily sessions over time
+              </CardDescription>
+            </div>
+            <div className="flex">
+              {[{ key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }].map((period) => {
+                const isActive = activeChart === period.key;
+                const periodSessions = activeChart === 'week' 
+                  ? sessions.slice(-7) 
+                  : sessions.slice(-30);
+                const totalSessions = periodSessions.reduce((acc: number, curr: any) => acc + (curr.sessions || 0), 0);
+                
+                return (
+                  <button
+                    key={period.key}
+                    data-active={isActive}
+                    className="data-[active=true]:bg-muted/50 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-t-0 sm:border-l sm:px-8 sm:py-6"
+                    onClick={() => setActiveChart(period.key as 'week' | 'month')}
+                  >
+                    <span className="text-muted-foreground text-xs">
+                      {period.label}
+                    </span>
+                    <span className="text-lg leading-none font-bold sm:text-3xl">
+                      {totalSessions.toLocaleString()}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardHeader>
+          <CardContent className="px-2 sm:p-6">
+            {sessions.length ? (
+              <ChartContainer
+                config={{
+                  sessions: {
+                    label: "Sessions",
+                    color: "#06b6d4",
+                  },
+                }}
+                className="aspect-auto h-[250px] w-full"
+              >
+                <LineChart
+                  accessibilityLayer
+                  data={activeChart === 'week' ? sessions.slice(-7) : sessions.slice(-30)}
+                  margin={{
+                    left: 12,
+                    right: 12,
+                  }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    minTickGap={32}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        className="w-[150px]"
+                        nameKey="sessions"
+                      />
+                    }
+                  />
+                  <Line
+                    dataKey="sessions"
+                    type="monotone"
+                    stroke="#06b6d4"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ChartContainer>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-sm text-muted-foreground">
+                No session data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        
       </div>
     </div>
   );

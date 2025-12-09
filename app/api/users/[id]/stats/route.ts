@@ -89,7 +89,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const topApps = topAppsGroup.map((a: any) => ({ name: a.appName, timeMs: Number(a._sum.timeMs || 0), hours: Number((Number(a._sum.timeMs || 0) / (1000*60*60)).toFixed(1)) }));
 
-    const recentSessions = await prisma.session.findMany({ where: { userId }, orderBy: { startedAt: 'desc' }, take: 10 });
+    const recentSessions = await prisma.session.findMany({ 
+      where: { userId }, 
+      orderBy: { startedAt: 'desc' }, 
+      take: 10,
+      include: {
+        summary: true,
+        appUsage: {
+          orderBy: { timeMs: 'desc' },
+          take: 10,
+        },
+      },
+    });
 
     // realtime status
     let status = 'Offline';
@@ -109,7 +120,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       stats: {
         userId,
         status,
-        recentSessions: recentSessions.map((s) => ({ id: s.id, startedAt: s.startedAt, endedAt: s.endedAt, isActive: !s.endedAt })),
+        recentSessions: recentSessions.map((s) => ({ 
+          id: s.id, 
+          startedAt: s.startedAt, 
+          endedAt: s.endedAt, 
+          isActive: !s.endedAt,
+          summary: s.summary ? {
+            workTimeMs: Number(s.summary.workTimeMs || 0),
+            totalBreakMs: Number(s.summary.totalBreakMs || 0),
+            totalIdleMs: Number(s.summary.totalIdleMs || 0),
+          } : null,
+          appUsage: s.appUsage.map((app: any) => ({
+            appName: app.appName,
+            timeMs: Number(app.timeMs || 0),
+            hours: Number((Number(app.timeMs || 0) / (1000 * 60 * 60)).toFixed(2)),
+          })),
+        })),
         charts: { dailyWorkData, dailySessions },
         topApps,
         aggregates: {
