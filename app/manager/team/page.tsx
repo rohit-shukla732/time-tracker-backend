@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { authFetch, validateAuth } from '@/lib/authFetch';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -35,23 +36,11 @@ export default function TeamPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    const storedUser = localStorage.getItem('user');
-    if (!token || !storedUser) {
-      router.push('/manager/login');
+    const user = validateAuth('MANAGER', '/manager/login');
+    if (!user) {
       return;
     }
-    try {
-      const user = JSON.parse(storedUser);
-      if (user.role !== 'MANAGER') {
-        router.push('/manager/login');
-        return;
-      }
-      setTeamId(user.teamId);
-    } catch (e) {
-      console.error('Failed to parse user:', e);
-      router.push('/manager/login');
-    }
+    setTeamId(user.teamId);
   }, [router]);
 
   useEffect(() => {
@@ -62,31 +51,27 @@ export default function TeamPage() {
 
   async function fetchTeamStats() {
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch(`/api/teams/${teamId}/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to fetch stats');
-      const data = await res.json();
+      const data = await authFetch(`/api/teams/${teamId}/stats`, {}, '/manager/login');
       console.log('Team stats API response:', data);
       // API returns { success: true, stats: {...} }
       setStats(data.stats || data);
     } catch (err: any) {
-      setError(err.message);
+      // authFetch already handles auth errors with toast
+      if (err.name !== 'AuthError') {
+        setError(err.message);
+      }
     }
   }
 
   async function fetchTeamMembers() {
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch(`/api/teams/${teamId}/members`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to fetch members');
-      const data = await res.json();
+      const data = await authFetch(`/api/teams/${teamId}/members`, {}, '/manager/login');
       setMembers(data.members || []);
     } catch (err: any) {
-      setError(err.message);
+      // authFetch already handles auth errors with toast
+      if (err.name !== 'AuthError') {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -95,18 +80,16 @@ export default function TeamPage() {
   async function fetchMemberDetails(userId: string) {
     setLoadingMember(true);
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch(`/api/users/${userId}/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to fetch member details');
-      const data = await res.json();
+      const data = await authFetch(`/api/users/${userId}/stats`, {}, '/manager/login');
       console.log('Member details API response:', data);
       // API returns { success: true, stats: {...} }
       setMemberDetails(data.stats || data);
     } catch (err: any) {
       console.error('Error fetching member details:', err);
-      setMemberDetails(null);
+      // authFetch already handles auth errors with toast
+      if (err.name !== 'AuthError') {
+        setMemberDetails(null);
+      }
     } finally {
       setLoadingMember(false);
     }
@@ -330,14 +313,6 @@ function MemberDetailsDialog({
   onClose: () => void;
 }) {
   const [selectedSession, setSelectedSession] = React.useState<any | null>(null);
-  
-  const chartColors = [
-    'hsl(var(--chart-1))',
-    'hsl(var(--chart-2))',
-    'hsl(var(--chart-3))',
-    'hsl(var(--chart-4))',
-    'hsl(var(--chart-5))'
-  ];
 
   const topApps = details?.topApps || [];
   const dailyWork = details?.charts?.dailyWorkData || [];
@@ -354,9 +329,9 @@ function MemberDetailsDialog({
     const idleTime = selectedSession.summary?.totalIdleMs || selectedSession.idleTimeMs || 0;
     
     return [
-      { name: 'Work', value: workTime, fill: '#10b981' },
-      { name: 'Break', value: breakTime, fill: '#3b82f6' },
-      { name: 'Idle', value: idleTime, fill: '#f59e0b' },
+      { name: 'Work', value: parseFloat(((workTime) / (1000 * 60 * 60)).toFixed(1)), fill: '#10b981' },
+      { name: 'Break', value: parseFloat(((breakTime) / (1000 * 60 * 60)).toFixed(1)), fill: '#3b82f6' },
+      { name: 'Idle', value: parseFloat(((idleTime) / (1000 * 60 * 60)).toFixed(1)), fill: '#f59e0b' },
     ];
   }, [selectedSession]);
 
@@ -458,7 +433,7 @@ function MemberDetailsDialog({
                   <CardDescription>
                     {selectedSession 
                       ? `Session started: ${new Date(selectedSession.startedAt).toLocaleString()}`
-                      : 'Work, break, and idle time distribution'
+                      : 'Work, break, and idle time distribution (in hours)'
                     }
                   </CardDescription>
                 </CardHeader>
@@ -504,7 +479,7 @@ function MemberDetailsDialog({
                                         y={viewBox.cy}
                                         className="fill-foreground text-2xl font-bold"
                                       >
-                                        {(totalSessionTime / (1000 * 60 * 60)).toFixed(1)}h
+                                        {totalSessionTime.toFixed(1)}h
                                       </tspan>
                                       <tspan
                                         x={viewBox.cx}
@@ -529,13 +504,18 @@ function MemberDetailsDialog({
                   ) : dailyWork.length ? (
                     <ChartContainer 
                       config={{
-                        workTimeMs: { label: 'Work', color: '#10b981' },
-                        breakTimeMs: { label: 'Break', color: '#3b82f6' },
-                        idleTimeMs: { label: 'Idle', color: '#f59e0b' },
+                        workTime: { label: 'Work', color: '#10b981' },
+                        breakTime: { label: 'Break', color: '#3b82f6' },
+                        idleTime: { label: 'Idle', color: '#f59e0b' },
                       }}
-                      className="h-[300px]"
+                      className="h-[300px] w-full px-6"
                     >
-                      <BarChart accessibilityLayer data={dailyWork}>
+                      <BarChart accessibilityLayer data={dailyWork.map((d: any) => ({
+                        day: d.day,
+                        workTime: parseFloat(((d.workTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+                        breakTime: parseFloat(((d.breakTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+                        idleTime: parseFloat(((d.idleTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+                      }))}>
                         <CartesianGrid vertical={false} />
                         <XAxis 
                           dataKey="day" 
@@ -546,19 +526,19 @@ function MemberDetailsDialog({
                         <ChartTooltip content={<ChartTooltipContent hideLabel />} />
                         <ChartLegend content={<ChartLegendContent />} />
                         <Bar
-                          dataKey="workTimeMs"
+                          dataKey="workTime"
                           stackId="a"
                           fill="#10b981"
                           radius={[0, 0, 4, 4]}
                         />
                         <Bar
-                          dataKey="breakTimeMs"
+                          dataKey="breakTime"
                           stackId="a"
                           fill="#3b82f6"
                           radius={[0, 0, 0, 0]}
                         />
                         <Bar
-                          dataKey="idleTimeMs"
+                          dataKey="idleTime"
                           stackId="a"
                           fill="#f59e0b"
                           radius={[4, 4, 0, 0]}
@@ -577,10 +557,10 @@ function MemberDetailsDialog({
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
-                    {selectedSession ? 'Session Applications' : 'Top Applications (This Month)'}
+                    {selectedSession ? 'Session Applications' : 'Top Applications (Last 7 Days)'}
                   </CardTitle>
                   <CardDescription>
-                    {selectedSession ? 'Applications used in this session' : 'Most used applications by time'}
+                    {selectedSession ? 'Applications used in this session' : 'Most used applications by time (in hours)'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -591,7 +571,7 @@ function MemberDetailsDialog({
                         acc[app.name || app.appName] = { label: app.name || app.appName, color: colors[idx % 5] };
                         return acc;
                       }, { hours: { label: 'Hours' } })}
-                      className="h-[300px]"
+                      className="h-[300px] w-full px-6"
                     >
                       <BarChart accessibilityLayer data={(selectedSession ? sessionApps : topApps).slice(0, 5).map((app: any, idx: number) => {
                         const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];

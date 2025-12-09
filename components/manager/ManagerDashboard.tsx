@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from 'react';
+import { authFetch } from '@/lib/authFetch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ export default function ManagerDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [activeChart, setActiveChart] = useState<'week' | 'month'>('week');
+  const [chartType, setChartType] = useState<'sessions' | 'time'>('sessions');
 
   useEffect(() => {
     fetchStats();
@@ -52,10 +54,9 @@ export default function ManagerDashboard() {
 
   async function fetchStats() {
     try {
-      const token = localStorage.getItem('accessToken');
       const storedUser = localStorage.getItem('user');
       
-      if (!token || !storedUser) {
+      if (!storedUser) {
         setError('Not authenticated');
         setLoading(false);
         return;
@@ -69,20 +70,15 @@ export default function ManagerDashboard() {
         url = `/api/teams/${user.teamId}/stats`;
       }
 
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to fetch stats');
-      }
-
-      const data = await res.json();
+      const data = await authFetch(url, {}, '/manager/login');
       console.log('Stats API response:', data);
       // API returns { success: true, stats: {...} }
       setStats(data.stats || data);
     } catch (err: any) {
-      setError(err.message);
+      // authFetch already handles auth errors with toast
+      if (err.name !== 'AuthError') {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -146,6 +142,7 @@ export default function ManagerDashboard() {
     avgWorkMs: stats.workTime.avgWorkTimeMs,
     totalWorkMs: stats.workTime.totalWorkTimeMs,
     avgBreakMs: stats.workTime.totalBreakTimeMs / Math.max(1, stats.sessions?.thisMonth || 1),
+    avgIdleMs: stats.workTime.totalIdleTimeMs / Math.max(1, stats.sessions?.thisMonth || 1),
   } : stats?.aggregates;
 
   // Carousel slides data
@@ -206,25 +203,25 @@ export default function ManagerDashboard() {
       pulse: false,
     },
     {
-      title: 'Total Work Time',
-      value: `${((aggregates?.totalWorkMs || 0) / (1000 * 60 * 60)).toFixed(1)}h`,
-      subtitle: `${stats?.sessions?.thisMonth || 0} sessions this month`,
-      icon: Activity,
-      color: 'emerald',
-      bgGradient: 'from-emerald-500/20 to-emerald-600/10',
-      iconBg: 'bg-emerald-500/20',
-      textColor: 'text-emerald-600',
-      pulse: false,
+      title: 'Avg Idle Time',
+        value: `${((aggregates?.avgIdleMs || 0) / (1000 * 60 * 60)).toFixed(1)}h`,
+        subtitle: 'Per day',
+        icon: Moon,
+        color: 'amber',
+        bgGradient: 'from-amber-500/20 to-amber-600/10',
+        iconBg: 'bg-amber-500/20',
+        textColor: 'text-amber-600',
+        pulse: false,
     },
     {
       title: 'Avg Break Time',
       value: `${((aggregates?.avgBreakMs || 0) / (1000 * 60 * 60)).toFixed(1)}h`,
       subtitle: 'Per day',
       icon: Coffee,
-      color: 'amber',
-      bgGradient: 'from-amber-500/20 to-amber-600/10',
-      iconBg: 'bg-amber-500/20',
-      textColor: 'text-amber-600',
+      color: 'blue',
+      bgGradient: 'from-blue-500/20 to-blue-600/10',
+      iconBg: 'bg-blue-500/20',
+      textColor: 'text-blue-600',
       pulse: false,
     },
   ];
@@ -475,85 +472,206 @@ export default function ManagerDashboard() {
         <Card className="col-span-3 py-4 sm:py-0">
           <CardHeader className="flex flex-col items-stretch border-b p-0! sm:flex-row">
             <div className="flex flex-1 flex-col justify-center gap-1 px-6 pb-3 sm:pb-0">
-              <CardTitle>Session Activity</CardTitle>
+              <CardTitle>{chartType === 'sessions' ? 'Session Activity' : 'Time Trends'}</CardTitle>
               <CardDescription>
-                Daily sessions over time
+                {chartType === 'sessions' ? 'Daily sessions over time' : 'Work, break, and idle time trends'}
               </CardDescription>
             </div>
             <div className="flex">
-              {[{ key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }].map((period) => {
-                const isActive = activeChart === period.key;
-                const periodSessions = activeChart === 'week' 
-                  ? sessions.slice(-7) 
-                  : sessions.slice(-30);
-                const totalSessions = periodSessions.reduce((acc: number, curr: any) => acc + (curr.sessions || 0), 0);
-                
-                return (
-                  <button
-                    key={period.key}
-                    data-active={isActive}
-                    className="data-[active=true]:bg-muted/50 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-t-0 sm:border-l sm:px-8 sm:py-6"
-                    onClick={() => setActiveChart(period.key as 'week' | 'month')}
-                  >
-                    <span className="text-muted-foreground text-xs">
-                      {period.label}
-                    </span>
-                    <span className="text-lg leading-none font-bold sm:text-3xl">
-                      {totalSessions.toLocaleString()}
-                    </span>
-                  </button>
-                );
-              })}
+              {chartType === 'sessions' ? (
+                // Sessions view
+                [{key: 'week', label: 'Week'}, {key: 'month', label: 'Month'}].map((period) => {
+                  const isActive = activeChart === period.key;
+                  const periodSessions = activeChart === 'week' 
+                    ? sessions.slice(-7) 
+                    : sessions.slice(-30);
+                  const totalSessions = periodSessions.reduce((acc: number, curr: any) => acc + (curr.sessions || 0), 0);
+                  
+                  return (
+                    <button
+                      key={period.key}
+                      data-active={isActive}
+                      className="data-[active=true]:bg-muted/50 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-t-0 sm:border-l sm:px-8 sm:py-6 min-w-[140px]"
+                      onClick={() => setActiveChart(period.key as 'week' | 'month')}
+                    >
+                      <span className="text-muted-foreground text-xs">
+                        {period.key === 'week' ? '7 Days' : '30 Days'}
+                      </span>
+                      <span className="text-lg leading-none font-bold sm:text-3xl">
+                        {totalSessions.toLocaleString()}
+                      </span>
+                    </button>
+                  );
+                })
+              ) : (
+                // Time trends view
+                [{key: 'week', label: 'Week'}, {key: 'month', label: 'Month'}].map((period) => {
+                  const isActive = activeChart === period.key;
+                  const periodData = activeChart === 'week' 
+                    ? dailyWork.slice(-7) 
+                    : dailyWork.slice(-30);
+                  const totalHours = periodData.reduce((acc: number, curr: any) => 
+                    acc + ((curr.workTimeMs || 0) / (1000 * 60 * 60)), 0
+                  );
+                  
+                  return (
+                    <button
+                      key={period.key}
+                      data-active={isActive}
+                      className="data-[active=true]:bg-muted/50 flex flex-1 flex-col justify-center gap-1 border-t px-6 py-4 text-left even:border-l sm:border-t-0 sm:border-l sm:px-8 sm:py-6 min-w-[140px]"
+                      onClick={() => setActiveChart(period.key as 'week' | 'month')}
+                    >
+                      <span className="text-muted-foreground text-xs">
+                        {period.key === 'week' ? '7 Days' : '30 Days'}
+                      </span>
+                      <span className="text-lg leading-none font-bold sm:text-3xl">
+                        {totalHours.toFixed(1)}h
+                      </span>
+                    </button>
+                  );
+                })
+              )}
             </div>
           </CardHeader>
           <CardContent className="px-2 sm:p-6">
-            {sessions.length ? (
-              <ChartContainer
-                config={{
-                  sessions: {
-                    label: "Sessions",
-                    color: "#06b6d4",
-                  },
-                }}
-                className="aspect-auto h-[250px] w-full"
-              >
-                <LineChart
-                  accessibilityLayer
-                  data={activeChart === 'week' ? sessions.slice(-7) : sessions.slice(-30)}
-                  margin={{
-                    left: 12,
-                    right: 12,
-                  }}
+            <div className="flex justify-end mb-4">
+              <div className="inline-flex rounded-lg border p-1">
+                <Button
+                  variant={chartType === 'sessions' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setChartType('sessions')}
+                  className="h-7 px-3"
                 >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="day"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    minTickGap={32}
-                  />
-                  <ChartTooltip
-                    content={
-                      <ChartTooltipContent
-                        className="w-[150px]"
-                        nameKey="sessions"
-                      />
-                    }
-                  />
-                  <Line
-                    dataKey="sessions"
-                    type="monotone"
-                    stroke="#06b6d4"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ChartContainer>
-            ) : (
-              <div className="h-[250px] flex items-center justify-center text-sm text-muted-foreground">
-                No session data available
+                  Sessions
+                </Button>
+                <Button
+                  variant={chartType === 'time' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setChartType('time')}
+                  className="h-7 px-3"
+                >
+                  Time Trends
+                </Button>
               </div>
+            </div>
+            {chartType === 'sessions' ? (
+              sessions.length ? (
+                <ChartContainer
+                  config={{
+                    sessions: {
+                      label: "Sessions",
+                      color: "#06b6d4",
+                    },
+                  }}
+                  className="aspect-auto h-[250px] w-full"
+                >
+                  <LineChart
+                    accessibilityLayer
+                    data={activeChart === 'week' ? sessions.slice(-7) : sessions.slice(-30)}
+                    margin={{
+                      left: 12,
+                      right: 12,
+                    }}
+                  >
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="day"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      minTickGap={32}
+                    />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          className="w-[150px]"
+                          nameKey="sessions"
+                        />
+                      }
+                    />
+                    <Line
+                      dataKey="sessions"
+                      type="monotone"
+                      stroke="#06b6d4"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-sm text-muted-foreground">
+                  No session data available
+                </div>
+              )
+            ) : (
+              dailyWork.length ? (
+                <ChartContainer
+                  config={{
+                    workTime: {
+                      label: "Work Time",
+                      color: "#10b981",
+                    },
+                    breakTime: {
+                      label: "Break Time",
+                      color: "#3b82f6",
+                    },
+                    idleTime: {
+                      label: "Idle Time",
+                      color: "#f59e0b",
+                    },
+                  }}
+                  className="aspect-auto h-[250px] w-full"
+                >
+                  <LineChart
+                    accessibilityLayer
+                    data={(activeChart === 'week' ? dailyWork.slice(-7) : dailyWork.slice(-30)).map((d: any) => ({
+                      ...d,
+                      workTime: parseFloat(((d.workTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+                      breakTime: parseFloat(((d.breakTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+                      idleTime: parseFloat(((d.idleTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+                    }))}
+                    margin={{
+                      left: 12,
+                      right: 12,
+                    }}
+                  >
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey="day"
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      minTickGap={32}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Line
+                      dataKey="workTime"
+                      type="monotone"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      dataKey="breakTime"
+                      type="monotone"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      dataKey="idleTime"
+                      type="monotone"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-[250px] flex items-center justify-center text-sm text-muted-foreground">
+                  No time data available
+                </div>
+              )
             )}
           </CardContent>
         </Card>

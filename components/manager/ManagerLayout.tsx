@@ -2,9 +2,10 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Toaster } from '@/components/ui/sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +20,7 @@ import {
   LogOut,
   Settings,
   ChevronDown,
+  Clock,
 } from 'lucide-react';
 
 interface User {
@@ -39,8 +41,9 @@ const navItems = [
 ];
 
 export function ManagerLayout({ children }: ManagerLayoutProps) {
-  const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
   const pathname = usePathname();
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -67,7 +70,7 @@ export function ManagerLayout({ children }: ManagerLayoutProps) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
-      window.location.href = '/manager/login';
+      router.push('/manager/login');
     }
   };
 
@@ -83,37 +86,32 @@ export function ManagerLayout({ children }: ManagerLayoutProps) {
     return email.slice(0, 2).toUpperCase();
   };
 
-  const isActive = (href: string) => {
-    if (href === '/manager') {
-      return pathname === href;
-    }
-    return pathname?.startsWith(href);
-  };
+  const isLoginPage = pathname === '/manager/login';
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background">
-        <div className="container flex h-16 items-center px-4">
-          {/* Logo */}
-          <div className="mr-8 flex">
-            <Link href="/manager" className="flex items-center space-x-2">
-              <LayoutDashboard className="h-6 w-6 text-primary" />
-              <span className="font-bold text-xl">Time Tracker</span>
+    <div className="min-h-screen bg-background container mx-auto flex flex-col px-4">
+      <Toaster />
+      {/* Header - Hidden on login page */}
+      {!isLoginPage && (
+        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+          <div className="container flex h-14 items-center">
+          <div className="mr-4 flex">
+            <Link href="/manager" className="mr-6 flex items-center space-x-2">
+              <Clock className="h-6 w-6" />
+              <span className="font-bold">Time Tracker</span>
             </Link>
           </div>
-
-          {/* Navigation */}
           <nav className="flex items-center space-x-6 text-sm font-medium flex-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const active = isActive(item.href);
+              const isActive = pathname === item.href || 
+                (item.href !== '/manager' && pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={`flex items-center gap-2 transition-colors hover:text-foreground/80 ${
-                    active ? 'text-foreground font-semibold' : 'text-foreground/60'
+                    isActive ? 'text-foreground' : 'text-foreground/60'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -122,28 +120,28 @@ export function ManagerLayout({ children }: ManagerLayoutProps) {
               );
             })}
           </nav>
-
-          {/* User Menu */}
           <div className="flex items-center space-x-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 flex items-center gap-2 px-3">
+                <Button variant="ghost" className="relative h-8 flex items-center gap-2">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-sm">
+                    <AvatarFallback>
                       {user ? getInitials(user.name, user.email) : '??'}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="hidden md:inline-block text-sm">
-                    {user?.name || user?.email || 'Manager'}
+                  <span className="hidden md:inline-block">
+                    {user?.name || user?.email}
                   </span>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user?.name || 'Manager'}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                    <p className="text-sm font-medium leading-none">{user?.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user?.email}
+                    </p>
                     <p className="text-xs leading-none text-muted-foreground mt-1">
                       Role: <span className="font-semibold">{user?.role}</span>
                     </p>
@@ -164,9 +162,10 @@ export function ManagerLayout({ children }: ManagerLayoutProps) {
           </div>
         </div>
       </header>
+      )}
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
+      <main className={isLoginPage ? "flex-1 flex items-center justify-center" : "container py-6"}>
         {children}
       </main>
     </div>

@@ -78,10 +78,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       _max: { createdAt: true },
     });
 
-    // top apps this month
+    // top apps last 7 days
+    const last7DaysStart = last7Days[0];
     const topAppsGroup = await prisma.sessionAppUsage.groupBy({
       by: ['appName'],
-      where: { userId, createdAt: { gte: thisMonthStart } },
+      where: { userId, createdAt: { gte: last7DaysStart } },
       _sum: { timeMs: true },
       orderBy: { _sum: { timeMs: 'desc' } },
       take: 8,
