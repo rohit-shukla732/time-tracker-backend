@@ -58,10 +58,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       user: { 
-        id: user.id, 
-        email: user.email, 
+        id: user.id,
+        email: user.email,
         name: user.name,
-        role: user.role
+        role: user.role,
+        teamId: user.teamId,
       },
       accessToken,
       refreshToken
