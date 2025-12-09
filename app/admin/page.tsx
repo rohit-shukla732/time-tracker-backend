@@ -364,37 +364,6 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Real-time Employee Status */}
-        {stats?.realtime && stats.realtime.total > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Activity className="h-5 w-5 text-green-500 animate-pulse" />
-                Live Employee Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
-                  <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                  <span className="font-semibold text-green-700 dark:text-green-400">{stats.realtime.working}</span>
-                  <span className="text-sm text-green-600 dark:text-green-500">Working</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
-                  <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                  <span className="font-semibold text-yellow-700 dark:text-yellow-400">{stats.realtime.idle}</span>
-                  <span className="text-sm text-yellow-600 dark:text-yellow-500">Idle</span>
-                </div>
-                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
-                  <Coffee className="w-4 h-4 text-blue-500" />
-                  <span className="font-semibold text-blue-700 dark:text-blue-400">{stats.realtime.break}</span>
-                  <span className="text-sm text-blue-600 dark:text-blue-500">On Break</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Charts Row */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
           {/* Sessions Trend Chart - Line Chart with Labels */}
@@ -407,7 +376,7 @@ export default function AdminDashboard() {
               <CardDescription>Daily sessions over the last 7 days</CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={sessionChartConfig} className="h-[200px] w-full">
+              <ChartContainer config={sessionChartConfig} className="h-[220px] w-full">
                 <LineChart
                   accessibilityLayer
                   data={stats?.charts?.dailySessions || []}
@@ -465,7 +434,7 @@ export default function AdminDashboard() {
             <CardContent className="flex-1 pb-0">
               <ChartContainer
                 config={roleChartConfig}
-                className="mx-auto aspect-square max-h-[180px]"
+                className="mx-auto aspect-square max-h-[220px]"
               >
                 <PieChart>
                   <ChartTooltip
@@ -480,7 +449,7 @@ export default function AdminDashboard() {
                     dataKey="value"
                     nameKey="name"
                     innerRadius={45}
-                    outerRadius={70}
+                    outerRadius={80}
                     strokeWidth={4}
                   >
                     <Label
@@ -586,50 +555,6 @@ export default function AdminDashboard() {
                   No app usage data available yet
                 </div>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Work Time Summary */}
-          <Card className="lg:col-span-3">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Timer className="h-5 w-5" />
-                Work Summary
-              </CardTitle>
-              <CardDescription>Monthly statistics</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 rounded-full bg-blue-500" />
-                    <span className="text-sm font-medium">Total Work Time</span>
-                  </div>
-                  <span className="text-2xl font-bold">{totalWorkHours}h</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Coffee className="h-4 w-4 text-orange-500" />
-                    <span className="text-sm font-medium">Total Break Time</span>
-                  </div>
-                  <span className="text-lg font-semibold">
-                    {formatDuration(stats?.workTime.totalBreakTimeMs || 0)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-green-500" />
-                    <span className="text-sm font-medium">Avg Daily Work</span>
-                  </div>
-                  <span className="text-lg font-semibold">{avgWorkHours}h</span>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

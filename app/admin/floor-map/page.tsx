@@ -72,30 +72,30 @@ interface StatusStats {
 
 const STATUS_CONFIG: Record<EmployeeStatus, { color: string; bgColor: string; borderColor: string; icon: any; label: string }> = {
   working: {
-    color: 'text-green-600',
-    bgColor: 'bg-green-500',
-    borderColor: 'border-green-500',
+    color: 'text-green-700',
+    bgColor: 'bg-green-600',
+    borderColor: 'border-transparent',
     icon: Activity,
     label: 'Working'
   },
   idle: {
-    color: 'text-yellow-600',
+    color: 'text-yellow-700',
     bgColor: 'bg-yellow-500',
-    borderColor: 'border-yellow-500',
+    borderColor: 'border-transparent',
     icon: Moon,
     label: 'Idle'
   },
   break: {
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-500',
-    borderColor: 'border-blue-500',
+    color: 'text-sky-700',
+    bgColor: 'bg-sky-500',
+    borderColor: 'border-transparent',
     icon: Coffee,
     label: 'On Break'
   },
   offline: {
-    color: 'text-gray-400',
+    color: 'text-gray-500',
     bgColor: 'bg-gray-400',
-    borderColor: 'border-gray-300',
+    borderColor: 'border-transparent',
     icon: WifiOff,
     label: 'Offline'
   },
@@ -136,10 +136,10 @@ function Workstation({
   onClick?: () => void;
 }) {
   if (!employee) {
-    // Empty workstation
+    // Empty workstation - subtle blank desk
     return (
-      <div className="w-16 h-16 rounded-lg border-2 border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-center bg-gray-50 dark:bg-gray-900/50">
-        <Monitor className="w-5 h-5 text-gray-300 dark:text-gray-600" />
+      <div className="w-20 h-20 rounded-md flex items-center justify-center bg-slate-50 dark:bg-gray-900 shadow-sm">
+        <Monitor className="w-6 h-6 text-gray-300 dark:text-gray-600" />
       </div>
     );
   }
@@ -153,30 +153,27 @@ function Workstation({
         <TooltipTrigger asChild>
           <button
             onClick={onClick}
-            className={`relative w-16 h-16 rounded-lg border-2 ${config.borderColor} 
-              transition-all duration-200 hover:scale-105 hover:shadow-lg cursor-pointer
-              flex flex-col items-center justify-center gap-1 bg-white dark:bg-gray-800`}
+            className={`relative w-20 h-20 rounded-md shadow-sm transition-colors duration-150 cursor-pointer flex items-center justify-center bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/90`}
           >
-            
+            {/* Small status dot */}
+            <span className={`absolute top-2 right-2 w-3 h-3 rounded-full ${config.bgColor} ring-1 ring-white`} />
+
             {/* User avatar/initials */}
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${config.bgColor}`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white ${config.bgColor}`}>
               {employee.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U'}
             </div>
-            
-            {/* Status icon */}
-            <StatusIcon className={`w-3 h-3 ${config.color}`} />
           </button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs">
           <div className="text-sm">
             <p className="font-semibold">{employee.name || employee.email}</p>
             <p className="text-xs text-muted-foreground">{employee.teamName || 'No Team'}</p>
-            <div className="flex items-center gap-1 mt-1">
-              <StatusIcon className={`w-3 h-3 ${config.color}`} />
-              <span className={config.color}>{config.label}</span>
+            <div className="flex items-center gap-2 mt-2">
+              <StatusIcon className={`w-4 h-4 ${config.color}`} />
+              <span className={`text-sm ${config.color}`}>{config.label}</span>
             </div>
             {employee.currentApp && (
-              <p className="text-xs mt-1">Using: {employee.currentApp}</p>
+              <p className="text-xs mt-2">Using: {employee.currentApp}</p>
             )}
           </div>
         </TooltipContent>
@@ -218,7 +215,7 @@ function DeskCluster({
       </div>
       
       {/* Desk divider */}
-      <div className="w-full h-2 bg-amber-700/60 rounded" />
+      <div className="w-full h-1 bg-gray-200 dark:bg-gray-700 rounded" />
       
       {/* Bottom row (2 seats) */}
       <div className="flex gap-1">
@@ -510,69 +507,6 @@ export default function FloorMapPage() {
           </Alert>
         )}
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <Card className="bg-linear-to-br from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/20 border-green-200 dark:border-green-800">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-600 dark:text-green-400">Working</p>
-                  <p className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.working}</p>
-                </div>
-                <Activity className="w-8 h-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-linear-to-br from-yellow-50 to-yellow-100 dark:from-yellow-950/30 dark:to-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-yellow-600 dark:text-yellow-400">Idle</p>
-                  <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-300">{stats.idle}</p>
-                </div>
-                <Moon className="w-8 h-8 text-yellow-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-linear-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200 dark:border-blue-800">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-600 dark:text-blue-400">On Break</p>
-                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.break}</p>
-                </div>
-                <Coffee className="w-8 h-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-950/30 dark:to-gray-900/20 border-gray-200 dark:border-gray-700">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Offline</p>
-                  <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">{stats.offline}</p>
-                </div>
-                <WifiOff className="w-8 h-8 text-gray-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-linear-to-br from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/20 border-purple-200 dark:border-purple-800">
-            <CardContent className="pt-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Total</p>
-                  <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{stats.total}</p>
-                </div>
-                <Users className="w-8 h-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Filters */}
         <Card>
           <CardContent className="pt-4">
@@ -642,26 +576,23 @@ export default function FloorMapPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Legend */}
-              <div className="mb-6 pb-4 border-b">
-                <StatusLegend stats={stats} />
-              </div>
+              {/* Floor Layout (blueprint grid background) */}
+              <div
+                className="relative rounded-xl p-8 overflow-x-auto"
+                style={{
+                  backgroundImage: `linear-gradient(to right, rgba(100,116,139,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(100,116,139,0.06) 1px, transparent 1px)`,
+                  backgroundSize: '40px 40px',
+                }}
+              >
+                {/* Compact legend overlay */}
+                <div className="absolute top-4 left-4 z-10 bg-white/80 dark:bg-gray-800/70 backdrop-blur-sm rounded-md px-3 py-2 shadow-sm border border-slate-200/30">
+                  <StatusLegend stats={stats} />
+                </div>
 
-              {/* Floor Layout */}
-              <div className="relative rounded-xl p-8 overflow-x-auto">
-
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 justify-items-center">
-                  {clusters.map((cluster, idx) => (
-                    <div key={idx} className="relative">
-                      {/* Workstation label */}
-                      <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 text-[10px] text-muted-foreground font-medium">
-                        WS-{(idx + 1).toString().padStart(2, '0')}
-                      </div>
-                      <DeskCluster
-                        employees={cluster}
-                        startIndex={idx * 4}
-                        onEmployeeClick={handleEmployeeClick}
-                      />
+                <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-10 gap-6">
+                  {filteredEmployees.map((emp) => (
+                    <div key={emp.id} className="flex justify-center">
+                      <Workstation employee={emp} onClick={() => handleEmployeeClick(emp)} />
                     </div>
                   ))}
                 </div>
@@ -693,8 +624,8 @@ export default function FloorMapPage() {
                     <div
                       key={employee.id}
                       onClick={() => handleEmployeeClick(employee)}
-                      className={`p-4 rounded-lg border-2 ${config.borderColor} cursor-pointer 
-                        transition-all hover:shadow-lg hover:scale-[1.02] bg-white dark:bg-gray-800`}
+                      className={`p-4 rounded-lg border dark:border-gray-700 cursor-pointer 
+                        transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 bg-white dark:bg-gray-800`}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white ${config.bgColor}`}>
