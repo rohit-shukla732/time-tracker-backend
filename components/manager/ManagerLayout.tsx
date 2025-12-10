@@ -21,6 +21,7 @@ import {
   Settings,
   ChevronDown,
   Clock,
+  LayoutGrid,
 } from 'lucide-react';
 
 interface User {
@@ -38,6 +39,7 @@ interface ManagerLayoutProps {
 const navItems = [
   { href: '/manager', label: 'Overview', icon: LayoutDashboard },
   { href: '/manager/team', label: 'My Team', icon: Users },
+  { href: '/manager/floor-map', label: 'Floor Map', icon: LayoutGrid },
 ];
 
 export function ManagerLayout({ children }: ManagerLayoutProps) {
