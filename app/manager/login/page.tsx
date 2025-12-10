@@ -49,6 +49,9 @@ export default function ManagerLogin() {
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('refreshToken', data.refreshToken);
       localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Dispatch custom event to update UI immediately
+      window.dispatchEvent(new Event('userUpdated'));
 
       // Redirect to manager dashboard
       router.push('/manager');

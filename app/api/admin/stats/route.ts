@@ -64,6 +64,8 @@ export async function GET(req: NextRequest) {
       recentSessions,
       topApps,
       dailySessions,
+      teams,
+      dailyWorkSummaries,
     ] = await Promise.all([
       // Total users
       prisma.user.count(),
@@ -143,6 +145,38 @@ export async function GET(req: NextRequest) {
           sessions: count,
         };
       })),
+      
+      // Teams with member counts
+      prisma.team.findMany({
+        include: {
+          _count: {
+            select: { members: true }
+          }
+        },
+        orderBy: { name: 'asc' }
+      }),
+      
+      // Daily work summaries for last 7 days
+      Promise.all(last7Days.map(async (day) => {
+        const nextDay = new Date(day);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const summaries = await prisma.sessionSummary.aggregate({
+          where: {
+            createdAt: { gte: day, lt: nextDay },
+          },
+          _sum: {
+            workTimeMs: true,
+            totalBreakMs: true,
+            totalIdleMs: true,
+          },
+        });
+        return {
+          day: day.toLocaleDateString('en-US', { weekday: 'short' }),
+          work: Number((Number(summaries._sum.workTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+          break: Number((Number(summaries._sum.totalBreakMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+          idle: Number((Number(summaries._sum.totalIdleMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+        };
+      })),
     ]);
 
     // Get work time statistics
@@ -173,6 +207,14 @@ export async function GET(req: NextRequest) {
       name: app.appName,
       timeMs: Number(app._sum.timeMs || 0),
       hours: Number((Number(app._sum.timeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+    }));
+    
+    // Format team composition
+    const chartColors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+    const teamComposition = teams.map((team: any, index: number) => ({
+      name: team.name,
+      memberCount: team._count.members,
+      fill: chartColors[index % chartColors.length],
     }));
 
     return NextResponse.json({
@@ -211,6 +253,8 @@ export async function GET(req: NextRequest) {
             name: role,
             value: count,
           })),
+          teamComposition,
+          dailyWorkData: dailyWorkSummaries,
         },
         recentSessions: recentSessions.map((s: any) => ({
           id: s.id,

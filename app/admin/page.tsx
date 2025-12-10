@@ -44,7 +44,9 @@ import {
   Bar,
   PieChart,
   Pie,
+  Cell,
   Label,
+  Legend,
   LabelList,
   XAxis,
   YAxis,
@@ -69,6 +71,19 @@ interface RoleDistribution {
   name: string;
   value: number;
   fill: string;
+}
+
+interface TeamComposition {
+  name: string;
+  memberCount: number;
+  fill: string;
+}
+
+interface DailyWorkData {
+  day: string;
+  work: number;
+  break: number;
+  idle: number;
 }
 
 interface Stats {
@@ -100,6 +115,8 @@ interface Stats {
     dailySessions: DailySession[];
     topApps: TopApp[];
     roleDistribution: RoleDistribution[];
+    teamComposition?: TeamComposition[];
+    dailyWorkData?: DailyWorkData[];
   };
   recentSessions: Array<{
     id: string;
@@ -501,61 +518,154 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Second Row - Top Apps & Work Summary */}
+        {/* Second Row - Time Trends & Team Composition */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          {/* Top Applications */}
+          {/* Time Trends Chart */}
           <Card className="lg:col-span-4">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Monitor className="h-5 w-5" />
-                Top Applications
+                <Timer className="h-5 w-5" />
+                Time Trends
               </CardTitle>
-              <CardDescription>Most used apps this month (by time)</CardDescription>
+              <CardDescription>Work, break, and idle time over the last 7 days</CardDescription>
             </CardHeader>
             <CardContent>
-              {(stats?.charts?.topApps?.length || 0) > 0 ? (
-                <div className="h-[200px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart 
-                      data={(stats?.charts?.topApps || []).slice(0, 8)} 
-                      layout="vertical"
-                      margin={{ left: 0, right: 20 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" horizontal={true} vertical={false} />
-                      <XAxis 
-                        type="number" 
-                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                        tickFormatter={(value) => `${value}h`}
-                      />
-                      <YAxis 
-                        type="category" 
-                        dataKey="name" 
-                        width={120}
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                        tickFormatter={(value) => value.length > 15 ? value.substring(0, 15) + '...' : value}
-                      />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '8px',
-                        }}
-                        formatter={(value: number) => [`${value.toFixed(1)} hours`, 'Usage']}
-                      />
-                      <Bar 
-                        dataKey="hours" 
-                        fill="#3b82f6" 
-                        radius={[0, 4, 4, 0]}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-                  No app usage data available yet
-                </div>
-              )}
+              <ChartContainer
+                config={{
+                  work: { label: "Work", color: "#10b981" },
+                  break: { label: "Break", color: "#3b82f6" },
+                  idle: { label: "Idle", color: "#f59e0b" },
+                }}
+                className="h-[220px] w-full"
+              >
+                <LineChart
+                  accessibilityLayer
+                  data={stats?.charts?.dailyWorkData || []}
+                  margin={{
+                    left: 12,
+                    right: 12,
+                  }}
+                >
+                  <CartesianGrid vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    minTickGap={32}
+                  />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Line
+                    dataKey="work"
+                    type="monotone"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    dataKey="break"
+                    type="monotone"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <Line
+                    dataKey="idle"
+                    type="monotone"
+                    stroke="#f59e0b"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ChartContainer>
             </CardContent>
+          </Card>
+
+          {/* Team Composition Donut */}
+          <Card className="lg:col-span-3 flex flex-col">
+            <CardHeader className="items-center pb-0">
+              <CardTitle className="flex items-center gap-2">
+                <UsersRound className="h-5 w-5" />
+                Teams Overview
+              </CardTitle>
+              <CardDescription>Members per team</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 pb-0">
+              <ChartContainer
+                config={{
+                  members: { label: "Members", color: "hsl(var(--chart-1))" },
+                }}
+                className="mx-auto aspect-square max-h-[220px]"
+              >
+                <PieChart>
+                  <ChartTooltip
+                    cursor={false}
+                    content={<ChartTooltipContent hideLabel className="w-[150px]" />}
+
+                  />
+                  
+                  <Pie
+                    data={stats?.charts?.teamComposition || []}
+                    dataKey="memberCount"
+                    nameKey="name"
+                    innerRadius={45}
+                    outerRadius={80}
+                    strokeWidth={4}
+                  >
+                    {(stats?.charts?.teamComposition || []).map((entry, index) => {
+                      const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+                      return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                    })}
+                    <Label
+                      content={({ viewBox }) => {
+                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
+                          const totalMembers = (stats?.charts?.teamComposition || []).reduce(
+                            (acc, curr) => acc + curr.memberCount,
+                            0
+                          );
+                          return (
+                            <text
+                              x={viewBox.cx}
+                              y={viewBox.cy}
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                            >
+                              <tspan
+                                x={viewBox.cx}
+                                y={viewBox.cy}
+                                className="fill-foreground text-2xl font-bold"
+                              >
+                                {totalMembers}
+                              </tspan>
+                              <tspan
+                                x={viewBox.cx}
+                                y={(viewBox.cy || 0) + 24}
+                                className="fill-muted-foreground"
+                              >
+                                Total
+                              </tspan>
+                            </text>
+                          )
+                        }
+                      }}
+                    />
+                  </Pie>
+                </PieChart>
+              </ChartContainer>
+            </CardContent>
+            <CardFooter className="flex-col gap-2 text-sm">
+              <div className="flex flex-wrap justify-center gap-3 text-muted-foreground leading-none">
+                {(stats?.charts?.teamComposition || []).map((entry) => (
+                  <span key={entry.name} className="flex items-center gap-1">
+                    <span 
+                      className="h-2 w-2 rounded-full" 
+                      style={{ backgroundColor: `var(--color-${entry.name})` }}
+                    />
+                    {entry.name}: {entry.memberCount}
+                  </span>
+                ))}
+              </div>
+            </CardFooter>
           </Card>
         </div>
 
