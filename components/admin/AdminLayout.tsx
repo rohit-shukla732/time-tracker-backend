@@ -111,7 +111,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="mr-4 flex">
             <Link href="/admin" className="mr-6 flex items-center space-x-2">
               <Clock className="h-6 w-6" />
-              <span className="font-bold">Time Tracker Admin</span>
+              <span className="font-bold">ACE EMS Admin</span>
             </Link>
           </div>
           <nav className="flex items-center space-x-6 text-sm font-medium flex-1">

@@ -125,7 +125,7 @@ export function ManagerLayout({ children }: ManagerLayoutProps) {
           <div className="mr-4 flex">
             <Link href="/manager" className="mr-6 flex items-center space-x-2">
               <Clock className="h-6 w-6" />
-              <span className="font-bold">Time Tracker</span>
+              <span className="font-bold">ACE EMS</span>
             </Link>
           </div>
           <nav className="flex items-center space-x-6 text-sm font-medium flex-1">

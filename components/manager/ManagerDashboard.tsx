@@ -382,7 +382,7 @@ export default function ManagerDashboard() {
                   value: { label: "Time" },
                   ...Object.fromEntries(
                     topUsers.slice(0, 5).map((u: any, i: number) => {
-                      const colors = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
+                      const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
                       return [
                         (u.user?.name || u.userId || 'Unknown').split(' ')[0],
                         {
@@ -406,7 +406,7 @@ export default function ManagerDashboard() {
                   />
                   <Pie 
                     data={topUsers.slice(0, 5).map((u: any, i: number) => {
-                      const colors = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
+                      const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
                       const hours = (u.workTimeMs || 0) / (1000 * 60 * 60);
                       return {
                         browser: (u.user?.name || u.userId || 'Unknown').split(' ')[0],
