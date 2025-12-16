@@ -46,9 +46,10 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // 2. Insert session summary
-  await prisma.sessionSummary.create({
-    data: {
+  // 2. Upsert session summary (create or update if already exists)
+  await prisma.sessionSummary.upsert({
+    where: { sessionId },
+    create: {
       sessionId,
       userId: auth.user.id,
       sessionDurationMs: sessionLength ? BigInt(sessionLength) : BigInt(0),
@@ -56,10 +57,21 @@ export async function POST(req: NextRequest) {
       totalIdleMs: BigInt(totalIdleMs || 0),
       workTimeMs: totalWorkMs ? BigInt(totalWorkMs) : BigInt(0),
     },
+    update: {
+      sessionDurationMs: sessionLength ? BigInt(sessionLength) : BigInt(0),
+      totalBreakMs: BigInt(totalBreakMs || 0),
+      totalIdleMs: BigInt(totalIdleMs || 0),
+      workTimeMs: totalWorkMs ? BigInt(totalWorkMs) : BigInt(0),
+    },
   });
 
-  // 3. Insert app usage (loop)
+  // 3. Insert app usage (delete existing and recreate to handle duplicate calls)
   if (appUsage?.topApps?.length) {
+    // Delete existing app usage for this session to avoid duplicates
+    await prisma.sessionAppUsage.deleteMany({
+      where: { sessionId }
+    });
+
     const rows = appUsage.topApps.map((app: any) => ({
       sessionId,
       userId: auth.user?.id,
