@@ -175,8 +175,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       nextDay.setDate(nextDay.getDate() + 1);
       const agg = await prisma.sessionSummary.aggregate({
         where: {
-          createdAt: { gte: day, lt: nextDay },
-          user: { teamId },
+          session: {
+            startedAt: { gte: day, lt: nextDay },
+            user: { teamId },
+          },
         },
         _sum: {
           workTimeMs: true,

@@ -48,7 +48,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       const nextDay = new Date(day);
       nextDay.setDate(nextDay.getDate() + 1);
       const agg = await prisma.sessionSummary.aggregate({
-        where: { createdAt: { gte: day, lt: nextDay }, userId },
+        where: {
+          session: {
+            startedAt: { gte: day, lt: nextDay },
+          },
+          userId
+        },
         _sum: { workTimeMs: true, totalBreakMs: true, totalIdleMs: true },
       });
       return {
