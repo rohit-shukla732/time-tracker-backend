@@ -49,18 +49,33 @@ export function AdminTicketLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     const loadUser = () => {
-      const storedUser = localStorage.getItem('user');
+      let storedUser = localStorage.getItem('user');
+      
+      // For demo purposes, create a default admin user if none exists
+      if (!storedUser) {
+        const defaultAdmin = {
+          id: 'admin-1',
+          name: 'Admin User',
+          email: 'admin@example.com',
+          role: 'ADMIN'
+        };
+        localStorage.setItem('user', JSON.stringify(defaultAdmin));
+        storedUser = JSON.stringify(defaultAdmin);
+      }
+      
       if (storedUser) {
         try {
           const userData = JSON.parse(storedUser);
           setUser(userData);
           
-          // Check if user is admin
+          // Check if user is admin - only redirect if they are NOT admin/HR
           if (userData.role !== 'ADMIN' && userData.role !== 'HR') {
-            router.push('/ticketing/dashboard');
+            router.push('/ticketing/employee/dashboard');
+            return;
           }
         } catch (e) {
           console.error('Failed to parse user:', e);
+          router.push('/ticketing/employee/dashboard');
         }
       }
     };
@@ -150,7 +165,7 @@ export function AdminTicketLayout({ children }: AdminLayoutProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push('/ticketing/dashboard')}
+            onClick={() => router.push('/ticketing/employee/dashboard')}
           >
             User View
           </Button>

@@ -38,10 +38,9 @@ interface TicketsLayoutProps {
 }
 
 const navItems = [
-  { href: '/ticketing/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/ticketing/new', label: 'New Ticket', icon: Plus },
-  { href: '/ticketing/my-tickets', label: 'My Tickets', icon: User },
-  { href: '/ticketing/all', label: 'All Tickets', icon: ListFilter },
+  { href: '/ticketing/employee/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/ticketing/employee/new', label: 'New Ticket', icon: Plus },
+  { href: '/ticketing/employee/my-tickets', label: 'My Tickets', icon: User },
 ];
 
 export function TicketsLayout({ children }: TicketsLayoutProps) {

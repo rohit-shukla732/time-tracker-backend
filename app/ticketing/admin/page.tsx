@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AdminTicketLayout } from '@/components/tickets/AdminTicketLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Progress } from '@/components/ui/progress';
 import { 
   Ticket, 
   AlertCircle, 
@@ -14,21 +15,25 @@ import {
   Users,
   TrendingUp,
   ArrowRight,
+  UserPlus,
+  BarChart3,
+  Filter,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { formatDistanceToNow } from '@/lib/utils';
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const [stats, setStats] = useState({
-    total: 6,
-    open: 2,
-    inProgress: 2,
-    pending: 1,
-    resolved: 1,
-    unassigned: 2,
-    urgent: 1,
-    highPriority: 2,
-  });
+  const stats = {
+    total: 24,
+    open: 8,
+    inProgress: 6,
+    pending: 3,
+    resolved: 7,
+    unassigned: 5,
+    urgent: 3,
+    highPriority: 7,
+  };
 
   const quickStats = [
     {
@@ -37,7 +42,9 @@ export default function AdminDashboard() {
       icon: AlertCircle,
       color: 'text-red-500',
       bgColor: 'bg-red-500/10',
-      href: '/ticketing/admin/tickets?filter=unassigned',
+      description: 'Need attention',
+      change: '+2 from yesterday',
+      href: '/ticketing/admin/tickets',
     },
     {
       title: 'Urgent',
@@ -45,15 +52,19 @@ export default function AdminDashboard() {
       icon: Ticket,
       color: 'text-orange-500',
       bgColor: 'bg-orange-500/10',
-      href: '/ticketing/admin/tickets?filter=urgent',
+      description: 'High priority',
+      change: '+1 from yesterday',
+      href: '/ticketing/admin/tickets',
     },
     {
       title: 'In Progress',
       value: stats.inProgress,
       icon: Clock,
-      color: 'text-yellow-500',
-      bgColor: 'bg-yellow-500/10',
-      href: '/ticketing/admin/tickets?filter=in-progress',
+      color: 'text-blue-500',
+      bgColor: 'bg-blue-500/10',
+      description: 'Being worked on',
+      change: 'Same as yesterday',
+      href: '/ticketing/admin/tickets',
     },
     {
       title: 'Resolved Today',
@@ -61,36 +72,91 @@ export default function AdminDashboard() {
       icon: CheckCircle2,
       color: 'text-green-500',
       bgColor: 'bg-green-500/10',
-      href: '/ticketing/admin/tickets?filter=resolved',
+      description: 'Completed',
+      change: '+3 from yesterday',
+      href: '/ticketing/admin/tickets',
     },
   ];
 
   const recentActivity = [
     {
       id: '1',
-      action: 'New ticket created',
+      action: 'created',
       ticket: 'Login page not working on mobile',
-      user: 'John Doe',
-      time: '2 hours ago',
+      user: { name: 'John Doe', initials: 'JD' },
+      time: new Date(Date.now() - 2 * 60 * 60 * 1000),
       priority: 'URGENT',
+      type: 'new',
     },
     {
       id: '2',
-      action: 'Ticket assigned',
+      action: 'assigned to HR Manager',
       ticket: 'Payroll discrepancy for November',
-      user: 'HR Manager',
-      time: '3 hours ago',
+      user: { name: 'Admin User', initials: 'AU' },
+      time: new Date(Date.now() - 3 * 60 * 60 * 1000),
       priority: 'HIGH',
+      type: 'assigned',
     },
     {
       id: '3',
-      action: 'Ticket resolved',
+      action: 'resolved',
       ticket: 'Request for new keyboard',
-      user: 'IT Support',
-      time: '5 hours ago',
+      user: { name: 'IT Support', initials: 'IS' },
+      time: new Date(Date.now() - 5 * 60 * 60 * 1000),
       priority: 'LOW',
+      type: 'resolved',
+    },
+    {
+      id: '4',
+      action: 'updated',
+      ticket: 'Office AC not working',
+      user: { name: 'Jane Smith', initials: 'JS' },
+      time: new Date(Date.now() - 7 * 60 * 60 * 1000),
+      priority: 'HIGH',
+      type: 'updated',
+    },
+    {
+      id: '5',
+      action: 'commented on',
+      ticket: 'Leave application pending',
+      user: { name: 'HR Manager', initials: 'HM' },
+      time: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+      priority: 'MEDIUM',
+      type: 'comment',
     },
   ];
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'URGENT':
+        return 'bg-red-500/10 text-red-600 border-red-200 dark:text-red-400';
+      case 'HIGH':
+        return 'bg-orange-500/10 text-orange-600 border-orange-200 dark:text-orange-400';
+      case 'MEDIUM':
+        return 'bg-yellow-500/10 text-yellow-600 border-yellow-200 dark:text-yellow-400';
+      case 'LOW':
+        return 'bg-green-500/10 text-green-600 border-green-200 dark:text-green-400';
+      default:
+        return 'bg-gray-500/10 text-gray-600 border-gray-200';
+    }
+  };
+
+  const getActionIcon = (type: string) => {
+    switch (type) {
+      case 'new':
+        return <AlertCircle className="h-4 w-4 text-blue-500" />;
+      case 'assigned':
+        return <UserPlus className="h-4 w-4 text-purple-500" />;
+      case 'resolved':
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'updated':
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case 'comment':
+        return <TrendingUp className="h-4 w-4 text-orange-500" />;
+      default:
+        return <Ticket className="h-4 w-4" />;
+    }
+  };
 
   return (
     <AdminTicketLayout>
@@ -110,7 +176,7 @@ export default function AdminDashboard() {
             return (
               <Card
                 key={stat.title}
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                className="cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
                 onClick={() => router.push(stat.href)}
               >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -123,9 +189,10 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{stat.value}</div>
-                  <p className="text-xs text-muted-foreground flex items-center mt-1">
-                    View details
-                    <ArrowRight className="h-3 w-3 ml-1" />
+                  <p className="text-xs text-muted-foreground">{stat.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    {stat.change}
                   </p>
                 </CardContent>
               </Card>
@@ -138,37 +205,46 @@ export default function AdminDashboard() {
           {/* Activity Feed */}
           <Card className="md:col-span-2">
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest updates and actions on tickets</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Recent Activity</CardTitle>
+                  <CardDescription>Latest updates and actions on tickets</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => router.push('/ticketing/admin/tickets')}>
+                  <Filter className="mr-2 h-4 w-4" />
+                  View All
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {recentActivity.map((activity) => (
                   <div
                     key={activity.id}
-                    className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
                   >
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{activity.action}</p>
-                        <Badge variant="outline" className="text-xs">
+                    <div className="mt-1">
+                      {getActionIcon(activity.type)}
+                    </div>
+                    <div className="flex-1 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Avatar className="h-6 w-6">
+                          <AvatarFallback className="text-xs">
+                            {activity.user.initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium text-sm">{activity.user.name}</span>
+                        <span className="text-sm text-muted-foreground">{activity.action}</span>
+                        <Badge variant="outline" className={`text-xs ${getPriorityColor(activity.priority)}`}>
                           {activity.priority}
                         </Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground">
-                        {activity.ticket}
-                      </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        <span>{activity.user}</span>
-                        <span>•</span>
+                      <p className="text-sm text-muted-foreground">{activity.ticket}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        <span>{activity.time}</span>
-                      </div>
+                        {formatDistanceToNow(activity.time)}
+                      </p>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      View
-                    </Button>
                   </div>
                 ))}
               </div>
@@ -180,28 +256,54 @@ export default function AdminDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Ticket Overview</CardTitle>
+                <CardDescription>Current status breakdown</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Total Tickets</span>
-                    <span className="font-bold">{stats.total}</span>
+                    <span className="font-bold text-lg">{stats.total}</span>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Open</span>
-                    <span className="font-semibold text-blue-600">{stats.open}</span>
+                  <div className="h-px bg-border" />
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-blue-500" />
+                        <span>Open</span>
+                      </div>
+                      <span className="font-semibold">{stats.open}</span>
+                    </div>
+                    <Progress value={(stats.open / stats.total) * 100} className="h-1" />
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">In Progress</span>
-                    <span className="font-semibold text-yellow-600">{stats.inProgress}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                        <span>In Progress</span>
+                      </div>
+                      <span className="font-semibold">{stats.inProgress}</span>
+                    </div>
+                    <Progress value={(stats.inProgress / stats.total) * 100} className="h-1" />
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Pending</span>
-                    <span className="font-semibold text-orange-600">{stats.pending}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-orange-500" />
+                        <span>Pending</span>
+                      </div>
+                      <span className="font-semibold">{stats.pending}</span>
+                    </div>
+                    <Progress value={(stats.pending / stats.total) * 100} className="h-1" />
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Resolved</span>
-                    <span className="font-semibold text-green-600">{stats.resolved}</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500" />
+                        <span>Resolved</span>
+                      </div>
+                      <span className="font-semibold">{stats.resolved}</span>
+                    </div>
+                    <Progress value={(stats.resolved / stats.total) * 100} className="h-1" />
                   </div>
                 </div>
               </CardContent>
@@ -210,29 +312,67 @@ export default function AdminDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
-                  Performance
+                  <BarChart3 className="h-4 w-4" />
+                  Performance Metrics
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
                 <div>
-                  <div className="flex items-center justify-between text-sm mb-1">
+                  <div className="flex items-center justify-between text-sm mb-2">
                     <span className="text-muted-foreground">Avg Response Time</span>
                     <span className="font-semibold">2.5 hrs</span>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500 w-3/4"></div>
-                  </div>
+                  <Progress value={75} className="h-2" />
+                  <p className="text-xs text-muted-foreground mt-1">25% faster than last week</p>
                 </div>
+                <div className="h-px bg-border" />
                 <div>
-                  <div className="flex items-center justify-between text-sm mb-1">
+                  <div className="flex items-center justify-between text-sm mb-2">
                     <span className="text-muted-foreground">Resolution Rate</span>
                     <span className="font-semibold">85%</span>
                   </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 w-4/5"></div>
+                  <Progress value={85} className="h-2" />
+                  <p className="text-xs text-muted-foreground mt-1">+5% from last month</p>
+                </div>
+                <div className="h-px bg-border" />
+                <div>
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">Customer Satisfaction</span>
+                    <span className="font-semibold">4.7/5.0</span>
+                  </div>
+                  <Progress value={94} className="h-2" />
+                  <p className="text-xs text-muted-foreground mt-1">Based on 156 ratings</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Team Workload</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="text-xs">AU</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <p className="font-medium">Admin User</p>
+                    <p className="text-xs text-muted-foreground">4 active tickets</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Avatar className="h-8 w-8">
+                    <AvatarFallback className="text-xs">HM</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <p className="font-medium">HR Manager</p>
+                    <p className="text-xs text-muted-foreground">2 active tickets</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => router.push('/ticketing/admin/users')}>
+                  <Users className="mr-2 h-4 w-4" />
+                  View All Users
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -248,35 +388,55 @@ export default function AdminDashboard() {
             <div className="grid gap-3 md:grid-cols-4">
               <Button 
                 variant="outline" 
-                className="justify-start"
-                onClick={() => router.push('/ticketing/admin/tickets?filter=unassigned')}
-              >
-                <AlertCircle className="mr-2 h-4 w-4" />
-                Assign Tickets
-              </Button>
-              <Button 
-                variant="outline" 
-                className="justify-start"
+                className="justify-start h-auto py-4"
                 onClick={() => router.push('/ticketing/admin/tickets')}
               >
-                <Ticket className="mr-2 h-4 w-4" />
-                View All Tickets
+                <div className="flex flex-col items-start gap-1">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="font-semibold">Assign Tickets</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{stats.unassigned} unassigned</span>
+                </div>
               </Button>
               <Button 
                 variant="outline" 
-                className="justify-start"
+                className="justify-start h-auto py-4"
+                onClick={() => router.push('/ticketing/admin/tickets')}
+              >
+                <div className="flex flex-col items-start gap-1">
+                  <div className="flex items-center gap-2">
+                    <Ticket className="h-4 w-4" />
+                    <span className="font-semibold">All Tickets</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">View & manage all</span>
+                </div>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="justify-start h-auto py-4"
                 onClick={() => router.push('/ticketing/admin/reports')}
               >
-                <TrendingUp className="mr-2 h-4 w-4" />
-                Generate Report
+                <div className="flex flex-col items-start gap-1">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    <span className="font-semibold">Reports</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Analytics & insights</span>
+                </div>
               </Button>
               <Button 
                 variant="outline" 
-                className="justify-start"
+                className="justify-start h-auto py-4"
                 onClick={() => router.push('/ticketing/admin/users')}
               >
-                <Users className="mr-2 h-4 w-4" />
-                Manage Users
+                <div className="flex flex-col items-start gap-1">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span className="font-semibold">Users</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">Manage team</span>
+                </div>
               </Button>
             </div>
           </CardContent>
