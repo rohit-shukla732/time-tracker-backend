@@ -36,22 +36,24 @@ interface User {
 
 interface AdminLayoutProps {
   children: React.ReactNode;
+  loginPath?: string;
+  basePath?: string;
 }
 
-const navItems = [
-  { href: '/admin', label: 'Overview', icon: LayoutDashboard },
-  { href: '/admin/floor-map', label: 'Floor Map', icon: LayoutGrid },
-  { href: '/admin/users', label: 'Users', icon: Users },
-  { href: '/admin/sessions', label: 'Sessions', icon: Clock },
-  { href: '/admin/activity', label: 'Activity', icon: Activity },
-  { href: '/admin/devices', label: 'Devices', icon: Shield },
-  { href: '/admin/reports', label: 'Reports', icon: FileBarChart },
-];
-
-export function AdminLayout({ children }: AdminLayoutProps) {
+export function AdminLayout({ children, loginPath = '/admin/login', basePath = '/admin' }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+
+  const navItems = [
+    { href: `${basePath}`, label: 'Overview', icon: LayoutDashboard },
+    { href: `${basePath}/floor-map`, label: 'Floor Map', icon: LayoutGrid },
+    { href: `${basePath}/users`, label: 'Users', icon: Users },
+    { href: `${basePath}/sessions`, label: 'Sessions', icon: Clock },
+    { href: `${basePath}/activity`, label: 'Activity', icon: Activity },
+    { href: `${basePath}/devices`, label: 'Devices', icon: Shield },
+    { href: `${basePath}/reports`, label: 'Reports', icon: FileBarChart },
+  ];
 
   useEffect(() => {
     const loadUser = () => {
@@ -93,7 +95,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
-    router.push('/admin/login');
+    router.push(loginPath);
   };
 
   const getInitials = (name: string | undefined, email: string) => {
@@ -109,7 +111,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="container flex h-14 items-center">
           <div className="mr-4 flex">
-            <Link href="/admin" className="mr-6 flex items-center space-x-2">
+            <Link href={basePath} className="mr-6 flex items-center space-x-2">
               <Clock className="h-6 w-6" />
               <span className="font-bold">ACE EMS Admin</span>
             </Link>

@@ -293,7 +293,7 @@ export default function AdminDeviceControl() {
   }
 
   return (
-    <AdminLayout>
+    <AdminLayout loginPath="/time-tracker/admin/login" basePath="/time-tracker/admin">
       <div className="space-y-6">
         {/* Page Header */}
         <div>

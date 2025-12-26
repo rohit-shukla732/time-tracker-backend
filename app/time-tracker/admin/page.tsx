@@ -196,7 +196,7 @@ export default function AdminDashboard() {
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('user');
-        router.push('/admin/login');
+        router.push('/time-tracker/admin/login');
         return;
       }
 
@@ -244,7 +244,7 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <AdminLayout>
+      <AdminLayout loginPath="/time-tracker/admin/login" basePath="/time-tracker/admin">
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
@@ -297,7 +297,7 @@ export default function AdminDashboard() {
   const avgWorkHours = ((stats?.workTime.avgWorkTimeMs || 0) / (1000 * 60 * 60)).toFixed(1);
 
   return (
-    <AdminLayout>
+    <AdminLayout loginPath="/time-tracker/admin/login" basePath="/time-tracker/admin">
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">

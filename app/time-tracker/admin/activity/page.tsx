@@ -154,7 +154,7 @@ export default function AdminActivity() {
   }
 
   return (
-    <AdminLayout>
+    <AdminLayout loginPath="/time-tracker/admin/login" basePath="/time-tracker/admin">
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center justify-between">

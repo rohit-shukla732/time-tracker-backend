@@ -80,15 +80,8 @@ function handleAuthError(message: string, redirectPath: string) {
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
 
-  // Show toast notification
-  toast.error(message, {
-    duration: 3000,
-  });
-
-  // Redirect after 3 seconds
-  setTimeout(() => {
-    window.location.href = redirectPath;
-  }, 3000);
+  // Redirect immediately
+  window.location.href = redirectPath;
 }
 
 /**

@@ -109,7 +109,7 @@ function ReportsContent() {
   const fetchReport = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      router.push('/admin/login');
+      router.push('/time-tracker/admin/login');
       return;
     }
 
@@ -431,7 +431,7 @@ function ReportsContent() {
 
 export default function AdminReports() {
   return (
-    <AdminLayout>
+    <AdminLayout loginPath="/time-tracker/admin/login" basePath="/time-tracker/admin">
       <Suspense fallback={
         <div className="space-y-6">
           <Skeleton className="h-10 w-48" />

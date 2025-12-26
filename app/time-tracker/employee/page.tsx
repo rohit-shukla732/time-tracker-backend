@@ -9,7 +9,7 @@ export default function EmployeePage() {
   const router = useRouter();
 
   useEffect(() => {
-    const user = validateAuth('EMPLOYEE', '/employee/login');
+    const user = validateAuth('EMPLOYEE', '/time-tracker/employee/login');
     if (!user) {
       // validateAuth handles the redirect
       return;

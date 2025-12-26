@@ -46,7 +46,7 @@ export default function TeamPage() {
   };
 
   useEffect(() => {
-    const user = validateAuth('MANAGER', '/manager/login');
+    const user = validateAuth('MANAGER', '/time-tracker/manager/login');
     if (!user) {
       return;
     }

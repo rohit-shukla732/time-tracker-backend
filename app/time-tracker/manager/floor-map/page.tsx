@@ -311,7 +311,7 @@ export default function FloorMapPage() {
     // Get team ID from stored user
     const storedUser = localStorage.getItem('user');
     if (!storedUser) {
-      router.push('/manager/login');
+      router.push('/time-tracker/manager/login');
       return;
     }
 

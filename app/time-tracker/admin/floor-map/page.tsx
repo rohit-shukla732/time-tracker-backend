@@ -369,7 +369,7 @@ export default function FloorMapPage() {
   const fetchData = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      router.push('/admin/login');
+      router.push('/time-tracker/admin/login');
       return;
     }
 
@@ -380,7 +380,7 @@ export default function FloorMapPage() {
 
       if (response.status === 401) {
         localStorage.removeItem('accessToken');
-        router.push('/admin/login');
+        router.push('/time-tracker/admin/login');
         return;
       }
 
@@ -465,8 +465,8 @@ export default function FloorMapPage() {
   }
 
   return (
-    <AdminLayout>
-      <div className="space-y-6 p-6">
+    <AdminLayout loginPath="/time-tracker/admin/login" basePath="/time-tracker/admin">
+      <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>

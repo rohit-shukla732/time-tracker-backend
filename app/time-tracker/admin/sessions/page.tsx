@@ -182,7 +182,7 @@ export default function AdminSessions() {
   const fetchSessions = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      router.push('/admin/login');
+      router.push('/time-tracker/admin/login');
       return;
     }
 
@@ -329,7 +329,7 @@ export default function AdminSessions() {
   }
 
   return (
-    <AdminLayout>
+    <AdminLayout loginPath="/time-tracker/admin/login" basePath="/time-tracker/admin">
       <div className="space-y-6">
         {/* Page Header */}
         <div>

@@ -9,7 +9,7 @@ export default function ManagerPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const user = validateAuth('MANAGER', '/manager/login');
+    const user = validateAuth('MANAGER', '/time-tracker/manager/login');
     if (!user) {
       // validateAuth handles the redirect
       return;

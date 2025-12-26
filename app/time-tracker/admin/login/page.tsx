@@ -54,7 +54,7 @@ export default function AdminLogin() {
       window.dispatchEvent(new Event('userUpdated'));
 
       // Redirect to admin dashboard
-      router.push('/admin');
+      router.push('/time-tracker/admin');
     } catch (err) {
       setError('Failed to connect to server');
       setLoading(false);
