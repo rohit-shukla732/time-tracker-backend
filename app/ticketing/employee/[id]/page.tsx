@@ -39,7 +39,7 @@ export default function TicketDetailsPage() {
       description: 'Getting 404 error when trying to access payroll. This has been happening since yesterday morning. I have tried clearing cache and using different browsers but the issue persists.',
       priority: TicketPriority.HIGH,
       status: TicketStatus.OPEN,
-      category: TicketCategory.PAYROLL,
+      category: TicketCategory.IT_SUPPORT,
       createdBy: 'user-1',
       assignedTo: null,
       createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),

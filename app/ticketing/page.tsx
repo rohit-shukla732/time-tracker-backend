@@ -45,29 +45,29 @@ export default function TicketingPage() {
 
   return(
     <div className="p-8 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-4">Ticketing System</h1>
-      <p className="text-muted-foreground mb-6">Choose your role to continue</p>
+      <h1 className="text-3xl font-bold mb-4">IT Support System</h1>
+      <p className="text-muted-foreground mb-6">Submit and track your IT support requests</p>
       
       <div className="space-y-4">
         <Button 
           className="w-full h-auto py-6" 
-          onClick={setAdminUser}
+          onClick={setEmployeeUser}
           variant="default"
         >
           <div className="flex flex-col items-start w-full">
-            <span className="text-lg font-semibold">Admin Dashboard</span>
-            <span className="text-sm opacity-90">Manage all tickets, users, and system settings</span>
+            <span className="text-lg font-semibold">Employee Dashboard</span>
+            <span className="text-sm opacity-90">Create and manage your IT support tickets</span>
           </div>
         </Button>
         
         <Button 
           className="w-full h-auto py-6" 
-          onClick={setEmployeeUser}
+          onClick={setAdminUser}
           variant="outline"
         >
           <div className="flex flex-col items-start w-full">
-            <span className="text-lg font-semibold">Employee Dashboard</span>
-            <span className="text-sm">Create and manage your tickets</span>
+            <span className="text-lg font-semibold">IT Admin Dashboard</span>
+            <span className="text-sm">Manage all IT support tickets</span>
           </div>
         </Button>
       </div>

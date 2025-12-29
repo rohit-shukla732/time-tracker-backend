@@ -21,7 +21,7 @@ export default function EmployeeDashboardPage() {
       description: 'Getting 404 error when trying to access payroll',
       priority: TicketPriority.HIGH,
       status: TicketStatus.OPEN,
-      category: TicketCategory.PAYROLL,
+      category: TicketCategory.IT_SUPPORT,
       createdBy: 'user-1',
       assignedTo: null,
       createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
@@ -35,7 +35,7 @@ export default function EmployeeDashboardPage() {
       description: 'My leave application has been pending for 2 weeks',
       priority: TicketPriority.HIGH,
       status: TicketStatus.PENDING,
-      category: TicketCategory.LEAVE,
+      category: TicketCategory.IT_SUPPORT,
       createdBy: 'user-1',
       assignedTo: 'hr-1',
       createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
@@ -88,7 +88,7 @@ export default function EmployeeDashboardPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Welcome back!</h1>
-            <p className="text-muted-foreground">Manage your support tickets</p>
+            <p className="text-muted-foreground">Manage your IT support tickets</p>
           </div>
           <Button size="lg" onClick={() => router.push('/ticketing/employee/new')}>
             <Plus className="mr-2 h-4 w-4" />

@@ -50,7 +50,7 @@ export default function AdminTicketDetailsPage() {
       description: 'Users are unable to log in from mobile devices. The login button does not respond to touches.',
       priority: TicketPriority.URGENT,
       status: TicketStatus.IN_PROGRESS,
-      category: TicketCategory.TECHNICAL,
+      category: TicketCategory.IT_SUPPORT,
       createdBy: 'user-1',
       assignedTo: 'admin-1',
       createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),

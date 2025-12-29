@@ -37,9 +37,9 @@ interface ManagerLayoutProps {
 }
 
 const navItems = [
-  { href: '/manager', label: 'Overview', icon: LayoutDashboard },
-  { href: '/manager/team', label: 'My Team', icon: Users },
-  { href: '/manager/floor-map', label: 'Floor Map', icon: LayoutGrid },
+  { href: '/time-tracker/manager', label: 'Overview', icon: LayoutDashboard },
+  { href: '/time-tracker/manager/team', label: 'My Team', icon: Users },
+  { href: '/time-tracker/manager/floor-map', label: 'Floor Map', icon: LayoutGrid },
 ];
 
 export function ManagerLayout({ children }: ManagerLayoutProps) {
@@ -97,7 +97,7 @@ export function ManagerLayout({ children }: ManagerLayoutProps) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
-      router.push('/manager/login');
+      router.push('/time-tracker/manager/login');
     }
   };
 
@@ -113,7 +113,7 @@ export function ManagerLayout({ children }: ManagerLayoutProps) {
     return email.slice(0, 2).toUpperCase();
   };
 
-  const isLoginPage = pathname === '/manager/login';
+  const isLoginPage = pathname === '/time-tracker/manager/login';
 
   return (
     <div className="min-h-screen bg-background container mx-auto flex flex-col px-4">
@@ -123,7 +123,7 @@ export function ManagerLayout({ children }: ManagerLayoutProps) {
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
           <div className="container flex h-14 items-center">
           <div className="mr-4 flex">
-            <Link href="/manager" className="mr-6 flex items-center space-x-2">
+            <Link href="/time-tracker/manager" className="mr-6 flex items-center space-x-2">
               <Clock className="h-6 w-6" />
               <span className="font-bold">ACE EMS</span>
             </Link>
@@ -132,7 +132,7 @@ export function ManagerLayout({ children }: ManagerLayoutProps) {
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || 
-                (item.href !== '/manager' && pathname.startsWith(item.href));
+                (item.href !== '/time-tracker/manager' && pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.href}

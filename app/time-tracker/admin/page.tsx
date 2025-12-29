@@ -218,7 +218,7 @@ export default function AdminDashboard() {
     const storedUser = localStorage.getItem('user');
 
     if (!token || !storedUser) {
-      router.push('/admin/login');
+      router.push('/time-tracker/admin/login');
       return;
     }
 

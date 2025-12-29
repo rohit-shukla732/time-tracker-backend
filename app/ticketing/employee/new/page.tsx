@@ -24,7 +24,7 @@ export default function NewTicketPage() {
     title: '',
     description: '',
     priority: TicketPriority.MEDIUM,
-    category: TicketCategory.OTHER,
+    category: TicketCategory.IT_SUPPORT,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,8 +44,8 @@ export default function NewTicketPage() {
     <TicketsLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create New Ticket</h1>
-          <p className="text-muted-foreground">Submit a new support ticket</p>
+          <h1 className="text-3xl font-bold tracking-tight">Create IT Support Ticket</h1>
+          <p className="text-muted-foreground">Submit a technical issue or IT request</p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -88,31 +88,7 @@ export default function NewTicketPage() {
                     </p>
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="category">Category *</Label>
-                      <Select
-                        value={formData.category}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, category: value as TicketCategory })
-                        }
-                      >
-                        <SelectTrigger id="category">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={TicketCategory.TECHNICAL}>Technical</SelectItem>
-                          <SelectItem value={TicketCategory.HR}>HR</SelectItem>
-                          <SelectItem value={TicketCategory.FACILITIES}>Facilities</SelectItem>
-                          <SelectItem value={TicketCategory.IT_SUPPORT}>IT Support</SelectItem>
-                          <SelectItem value={TicketCategory.PAYROLL}>Payroll</SelectItem>
-                          <SelectItem value={TicketCategory.LEAVE}>Leave</SelectItem>
-                          <SelectItem value={TicketCategory.OTHER}>Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
+                  <div className="space-y-2">
                       <Label htmlFor="priority">Priority *</Label>
                       <Select
                         value={formData.priority}
@@ -130,7 +106,6 @@ export default function NewTicketPage() {
                           <SelectItem value={TicketPriority.URGENT}>Urgent</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
                   </div>
 
                   <div className="flex gap-3 pt-4">

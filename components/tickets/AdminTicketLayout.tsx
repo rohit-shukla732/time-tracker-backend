@@ -38,8 +38,6 @@ interface AdminLayoutProps {
 const adminNavItems = [
   { href: '/ticketing/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/ticketing/admin/tickets', label: 'All Tickets', icon: Ticket },
-  { href: '/ticketing/admin/users', label: 'Users', icon: Users },
-  { href: '/ticketing/admin/reports', label: 'Reports', icon: BarChart3 },
 ];
 
 export function AdminTicketLayout({ children }: AdminLayoutProps) {

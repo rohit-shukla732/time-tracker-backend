@@ -36,6 +36,55 @@ export default function AdminTicketsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
 
+  // IT Team Members
+  const itTeamMembers = [
+    { id: 'it-1', name: 'IT Support Lead', email: 'itlead@example.com' },
+    { id: 'it-2', name: 'John IT Tech', email: 'johnit@example.com' },
+    { id: 'it-3', name: 'Sarah IT Admin', email: 'sarahit@example.com' },
+    { id: 'it-4', name: 'Mike Support', email: 'mikesupport@example.com' },
+  ];
+
+  const handleStatusChange = (ticketId: string, newStatus: TicketStatus) => {
+    setTickets(prevTickets => 
+      prevTickets.map(ticket => 
+        ticket.id === ticketId 
+          ? { ...ticket, status: newStatus, updatedAt: new Date() }
+          : ticket
+      )
+    );
+    // TODO: API call to update ticket status
+    console.log(`Updated ticket ${ticketId} status to ${newStatus}`);
+  };
+
+  const handleAssignmentChange = (ticketId: string, assigneeId: string | null) => {
+    setTickets(prevTickets => 
+      prevTickets.map(ticket => {
+        if (ticket.id === ticketId) {
+          const assignee = assigneeId 
+            ? itTeamMembers.find(member => member.id === assigneeId)
+            : null;
+          return { 
+            ...ticket, 
+            assignedTo: assigneeId,
+            assignee: assignee ? {
+              id: assignee.id,
+              name: assignee.name,
+              email: assignee.email,
+              role: Role.ADMIN,
+              teamId: null,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            } : undefined,
+            updatedAt: new Date()
+          };
+        }
+        return ticket;
+      })
+    );
+    // TODO: API call to assign ticket
+    console.log(`Assigned ticket ${ticketId} to ${assigneeId}`);
+  };
+
   // Mock data
   useEffect(() => {
     const mockTickets: Ticket[] = [
@@ -45,7 +94,7 @@ export default function AdminTicketsPage() {
         description: 'Users are unable to log in from mobile devices.',
         priority: TicketPriority.URGENT,
         status: TicketStatus.OPEN,
-        category: TicketCategory.TECHNICAL,
+        category: TicketCategory.IT_SUPPORT,
         createdBy: 'user-1',
         assignedTo: null,
         createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
@@ -59,7 +108,7 @@ export default function AdminTicketsPage() {
         description: 'I need access to the HR portal.',
         priority: TicketPriority.MEDIUM,
         status: TicketStatus.IN_PROGRESS,
-        category: TicketCategory.HR,
+        category: TicketCategory.IT_SUPPORT,
         createdBy: 'user-2',
         assignedTo: 'admin-1',
         createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
@@ -74,7 +123,7 @@ export default function AdminTicketsPage() {
         description: 'AC unit in conference room 301 is not functioning.',
         priority: TicketPriority.HIGH,
         status: TicketStatus.OPEN,
-        category: TicketCategory.FACILITIES,
+        category: TicketCategory.IT_SUPPORT,
         createdBy: 'user-3',
         assignedTo: null,
         createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
@@ -154,9 +203,9 @@ export default function AdminTicketsPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ticket Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">IT Support Tickets</h1>
           <p className="text-muted-foreground">
-            View, assign, and manage all support tickets
+            View, assign, and manage all IT support tickets
           </p>
         </div>
 
@@ -274,30 +323,90 @@ export default function AdminTicketsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge className={getStatusColor(ticket.status)}>
-                            {ticket.status.replace(/_/g, ' ')}
-                          </Badge>
+                          <Select
+                            value={ticket.status}
+                            onValueChange={(value) => handleStatusChange(ticket.id, value as TicketStatus)}
+                          >
+                            <SelectTrigger className="w-[140px] h-8">
+                              <SelectValue>
+                                <Badge className={getStatusColor(ticket.status)}>
+                                  {ticket.status.replace(/_/g, ' ')}
+                                </Badge>
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={TicketStatus.OPEN}>
+                                <span className="flex items-center gap-2">
+                                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                  Open
+                                </span>
+                              </SelectItem>
+                              <SelectItem value={TicketStatus.IN_PROGRESS}>
+                                <span className="flex items-center gap-2">
+                                  <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                                  In Progress
+                                </span>
+                              </SelectItem>
+                              <SelectItem value={TicketStatus.PENDING}>
+                                <span className="flex items-center gap-2">
+                                  <div className="h-2 w-2 rounded-full bg-orange-500" />
+                                  Pending
+                                </span>
+                              </SelectItem>
+                              <SelectItem value={TicketStatus.RESOLVED}>
+                                <span className="flex items-center gap-2">
+                                  <div className="h-2 w-2 rounded-full bg-green-500" />
+                                  Resolved
+                                </span>
+                              </SelectItem>
+                              <SelectItem value={TicketStatus.CLOSED}>
+                                <span className="flex items-center gap-2">
+                                  <div className="h-2 w-2 rounded-full bg-gray-500" />
+                                  Closed
+                                </span>
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>
-                          {ticket.assignee ? (
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-6 w-6">
-                                <AvatarFallback className="text-xs">
-                                  {getInitials(ticket.assignee.name)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm">{ticket.assignee.name}</span>
-                            </div>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleAssignToMe(ticket.id)}
-                            >
-                              <UserPlus className="h-3 w-3 mr-1" />
-                              Assign to me
-                            </Button>
-                          )}
+                          <Select
+                            value={ticket.assignedTo || 'unassigned'}
+                            onValueChange={(value) => handleAssignmentChange(ticket.id, value === 'unassigned' ? null : value)}
+                          >
+                            <SelectTrigger className="w-[180px] h-8">
+                              <SelectValue>
+                                {ticket.assignee ? (
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarFallback className="text-[10px]">
+                                        {getInitials(ticket.assignee.name)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-sm truncate">{ticket.assignee.name}</span>
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">Unassigned</span>
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">
+                                <span className="text-muted-foreground">Unassigned</span>
+                              </SelectItem>
+                              {itTeamMembers.map((member) => (
+                                <SelectItem key={member.id} value={member.id}>
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-5 w-5">
+                                      <AvatarFallback className="text-[10px]">
+                                        {getInitials(member.name)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span>{member.name}</span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {formatDistanceToNow(new Date(ticket.createdAt))}

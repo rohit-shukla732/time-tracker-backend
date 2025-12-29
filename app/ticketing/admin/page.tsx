@@ -163,9 +163,9 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">IT Support Dashboard</h1>
           <p className="text-muted-foreground">
-            Manage and monitor all support tickets
+            Manage and monitor all IT support tickets
           </p>
         </div>
 

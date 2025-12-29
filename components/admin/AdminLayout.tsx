@@ -40,7 +40,7 @@ interface AdminLayoutProps {
   basePath?: string;
 }
 
-export function AdminLayout({ children, loginPath = '/admin/login', basePath = '/admin' }: AdminLayoutProps) {
+export function AdminLayout({ children, loginPath = '/time-tracker/admin/login', basePath = '/time-tracker/admin' }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);

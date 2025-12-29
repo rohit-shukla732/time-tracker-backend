@@ -51,13 +51,7 @@ export enum TicketStatus {
 }
 
 export enum TicketCategory {
-  TECHNICAL = 'TECHNICAL',
-  HR = 'HR',
-  FACILITIES = 'FACILITIES',
   IT_SUPPORT = 'IT_SUPPORT',
-  PAYROLL = 'PAYROLL',
-  LEAVE = 'LEAVE',
-  OTHER = 'OTHER',
 }
 
 export interface Ticket {
