@@ -113,7 +113,7 @@ export default function AdminUsers() {
 
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('accessToken');
-        router.push('/admin/login');
+        router.push('/time-tracker/admin/login');
         return;
       }
 

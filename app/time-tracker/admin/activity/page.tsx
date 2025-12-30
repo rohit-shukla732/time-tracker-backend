@@ -95,7 +95,7 @@ export default function AdminActivity() {
   const fetchActivity = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      router.push('/admin/login');
+      router.push('/time-tracker/admin/login');
       return;
     }
 
@@ -113,7 +113,7 @@ export default function AdminActivity() {
 
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('accessToken');
-        router.push('/admin/login');
+        router.push('/time-tracker/admin/login');
         return;
       }
 

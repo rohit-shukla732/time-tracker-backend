@@ -115,7 +115,7 @@ export default function AdminDeviceControl() {
   const fetchData = useCallback(async () => {
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      router.push('/admin/login');
+      router.push('/time-tracker/admin/login');
       return;
     }
 
@@ -135,7 +135,7 @@ export default function AdminDeviceControl() {
 
       if (usersRes.status === 401 || controlsRes.status === 401) {
         localStorage.removeItem('accessToken');
-        router.push('/admin/login');
+        router.push('/time-tracker/admin/login');
         return;
       }
 

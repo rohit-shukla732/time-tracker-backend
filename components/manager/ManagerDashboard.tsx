@@ -80,7 +80,7 @@ export default function ManagerDashboard() {
         url = `/api/teams/${user.teamId}/stats`;
       }
 
-      const data = await authFetch(url, {}, '/manager/login');
+      const data = await authFetch(url, {}, '/time-tracker/manager/login');
       console.log('Stats API response:', data);
       // API returns { success: true, stats: {...} }
       setStats(data.stats || data);

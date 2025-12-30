@@ -92,7 +92,7 @@ function handleAuthError(message: string, redirectPath: string) {
  */
 export function validateAuth(
   requiredRole?: string,
-  redirectPath: string = '/manager/login'
+  redirectPath: string = '/time-tracker/manager/login'
 ): any | null {
   const token = localStorage.getItem('accessToken');
   const storedUser = localStorage.getItem('user');
