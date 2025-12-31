@@ -47,34 +47,25 @@ export function AdminTicketLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => {
     const loadUser = () => {
-      let storedUser = localStorage.getItem('user');
+      const storedUser = localStorage.getItem('user');
       
-      // For demo purposes, create a default admin user if none exists
       if (!storedUser) {
-        const defaultAdmin = {
-          id: 'admin-1',
-          name: 'Admin User',
-          email: 'admin@example.com',
-          role: 'ADMIN'
-        };
-        localStorage.setItem('user', JSON.stringify(defaultAdmin));
-        storedUser = JSON.stringify(defaultAdmin);
+        router.push('/ticketing/admin/login');
+        return;
       }
       
-      if (storedUser) {
-        try {
-          const userData = JSON.parse(storedUser);
-          setUser(userData);
-          
-          // Check if user is admin - only redirect if they are NOT admin/HR
-          if (userData.role !== 'ADMIN' && userData.role !== 'HR') {
-            router.push('/ticketing/employee/dashboard');
-            return;
-          }
-        } catch (e) {
-          console.error('Failed to parse user:', e);
+      try {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+        
+        // Check if user is admin - only redirect if they are NOT admin/HR
+        if (userData.role !== 'ADMIN' && userData.role !== 'HR') {
           router.push('/ticketing/employee/dashboard');
+          return;
         }
+      } catch (e) {
+        console.error('Failed to parse user:', e);
+        router.push('/ticketing/admin/login');
       }
     };
     
@@ -101,18 +92,27 @@ export function AdminTicketLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = async () => {
     try {
+      const token = localStorage.getItem('accessToken');
       const response = await fetch('/api/auth/logout', {
         method: 'POST',
+        headers: token ? {
+          'Authorization': `Bearer ${token}`,
+        } : {},
         credentials: 'include',
       });
 
       if (response.ok) {
-        localStorage.removeItem('token');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
         localStorage.removeItem('user');
-        router.push('/');
+        router.push('/ticketing/admin/login');
       }
     } catch (error) {
       console.error('Logout failed:', error);
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      router.push('/ticketing/admin/login');
     }
   };
 
@@ -135,7 +135,6 @@ export function AdminTicketLayout({ children }: AdminLayoutProps) {
             <Shield className="h-6 w-6 text-primary" />
             <div>
               <span className="text-xl font-bold">Ticket Admin</span>
-              <span className="ml-2 text-xs text-muted-foreground">Management Portal</span>
             </div>
           </div>
 
@@ -158,15 +157,6 @@ export function AdminTicketLayout({ children }: AdminLayoutProps) {
               );
             })}
           </div>
-
-          {/* User Section Link */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => router.push('/ticketing/employee/dashboard')}
-          >
-            User View
-          </Button>
 
           {/* User Menu */}
           <DropdownMenu>
@@ -191,11 +181,6 @@ export function AdminTicketLayout({ children }: AdminLayoutProps) {
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push('/ticketing/admin/settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />

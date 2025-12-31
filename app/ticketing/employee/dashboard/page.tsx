@@ -1,50 +1,63 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TicketsLayout } from '@/components/tickets/TicketsLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Ticket, TicketPriority, TicketStatus, TicketCategory, Role } from '@/types';
-import { Plus, Clock, AlertCircle, CheckCircle2, FileText } from 'lucide-react';
+import { Ticket, TicketPriority, TicketStatus, TicketCategory, Role, ITSupportSubcategory } from '@/types';
+import { Plus, Clock, AlertCircle, CheckCircle2, FileText, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function EmployeeDashboardPage() {
   const router = useRouter();
-  const currentUserId = 'user-1'; // Get from auth context
+  const [myTickets, setMyTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - only showing current user's tickets
-  const myTickets: Ticket[] = [
-    {
-      id: '1',
-      title: 'Cannot access payroll system',
-      description: 'Getting 404 error when trying to access payroll',
-      priority: TicketPriority.HIGH,
-      status: TicketStatus.OPEN,
-      category: TicketCategory.IT_SUPPORT,
-      createdBy: 'user-1',
-      assignedTo: null,
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      resolvedAt: null,
-      creator: { id: 'user-1', name: 'John Doe', email: 'john@example.com', role: Role.EMPLOYEE, teamId: null, createdAt: new Date(), updatedAt: new Date() },
-    },
-    {
-      id: '4',
-      title: 'Leave application pending',
-      description: 'My leave application has been pending for 2 weeks',
-      priority: TicketPriority.HIGH,
-      status: TicketStatus.PENDING,
-      category: TicketCategory.IT_SUPPORT,
-      createdBy: 'user-1',
-      assignedTo: 'hr-1',
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
-      resolvedAt: null,
-      creator: { id: 'user-1', name: 'John Doe', email: 'john@example.com', role: Role.EMPLOYEE, teamId: null, createdAt: new Date(), updatedAt: new Date() },
-      assignee: { id: 'hr-1', name: 'HR Manager', email: 'hr@example.com', role: Role.HR, teamId: null, createdAt: new Date(), updatedAt: new Date() },
-    },
-  ];
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  const fetchTickets = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('Please log in to continue');
+        router.push('/ticketing/employee/login');
+        return;
+      }
+
+      const response = await fetch('/api/tickets', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/employee/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch tickets');
+      }
+
+      const tickets = await response.json();
+      setMyTickets(tickets);
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+      toast.error('Failed to load tickets');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const stats = {
     total: myTickets.length,
@@ -79,6 +92,21 @@ export default function EmployeeDashboardPage() {
       case TicketStatus.CLOSED:
         return 'bg-gray-500/10 text-gray-600 dark:text-gray-400';
     }
+  };
+
+  const getSubcategoryLabel = (subcategory?: ITSupportSubcategory) => {
+    if (!subcategory) return 'Not specified';
+    const labels: Record<ITSupportSubcategory, string> = {
+      [ITSupportSubcategory.HARDWARE]: 'Hardware',
+      [ITSupportSubcategory.SOFTWARE]: 'Software',
+      [ITSupportSubcategory.NETWORK]: 'Network',
+      [ITSupportSubcategory.EMAIL]: 'Email',
+      [ITSupportSubcategory.ACCESS]: 'Access & Permissions',
+      [ITSupportSubcategory.PRINTER]: 'Printer & Scanner',
+      [ITSupportSubcategory.PHONE]: 'Phone & Communication',
+      [ITSupportSubcategory.OTHER]: 'Other',
+    };
+    return labels[subcategory];
   };
 
   return (
@@ -157,7 +185,11 @@ export default function EmployeeDashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {myTickets.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : myTickets.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
                 <h3 className="mt-4 text-lg font-semibold">No tickets yet</h3>
@@ -191,7 +223,7 @@ export default function EmployeeDashboardPage() {
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <FileText className="h-3 w-3" />
-                          {ticket.category}
+                          {getSubcategoryLabel(ticket.subcategory)}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />

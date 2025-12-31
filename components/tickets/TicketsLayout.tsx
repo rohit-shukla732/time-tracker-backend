@@ -86,18 +86,30 @@ export function TicketsLayout({ children }: TicketsLayoutProps) {
 
   const handleLogout = async () => {
     try {
+      const token = localStorage.getItem('accessToken');
       const response = await fetch('/api/auth/logout', {
         method: 'POST',
+        headers: token ? {
+          'Authorization': `Bearer ${token}`,
+        } : {},
         credentials: 'include',
       });
 
       if (response.ok) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        router.push('/');
+        router.push('/ticketing/employee/login');
       }
     } catch (error) {
       console.error('Logout failed:', error);
+      // Clear tokens even if logout API fails
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      router.push('/ticketing/employee/login');
     }
   };
 
@@ -141,18 +153,6 @@ export function TicketsLayout({ children }: TicketsLayoutProps) {
             })}
           </div>
 
-          {/* Admin Link */}
-          {isAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push('/ticketing/admin')}
-            >
-              <Settings className="mr-2 h-4 w-4" />
-              Admin Panel
-            </Button>
-          )}
-
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -176,11 +176,6 @@ export function TicketsLayout({ children }: TicketsLayoutProps) {
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => router.push('/ticketing/settings')}>
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />

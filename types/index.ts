@@ -54,6 +54,17 @@ export enum TicketCategory {
   IT_SUPPORT = 'IT_SUPPORT',
 }
 
+export enum ITSupportSubcategory {
+  HARDWARE = 'HARDWARE',
+  SOFTWARE = 'SOFTWARE',
+  NETWORK = 'NETWORK',
+  EMAIL = 'EMAIL',
+  ACCESS = 'ACCESS',
+  PRINTER = 'PRINTER',
+  PHONE = 'PHONE',
+  OTHER = 'OTHER',
+}
+
 export interface Ticket {
   id: string;
   title: string;
@@ -61,6 +72,7 @@ export interface Ticket {
   priority: TicketPriority;
   status: TicketStatus;
   category: TicketCategory;
+  subcategory?: ITSupportSubcategory;
   createdBy: string;
   assignedTo: string | null;
   createdAt: Date;
@@ -69,6 +81,7 @@ export interface Ticket {
   creator?: User;
   assignee?: User;
   comments?: TicketComment[];
+  screenshots?: TicketScreenshot[];
 }
 
 export interface TicketComment {
@@ -78,6 +91,16 @@ export interface TicketComment {
   content: string;
   createdAt: Date;
   user?: User;
+}
+
+export interface TicketScreenshot {
+  id: string;
+  ticketId: string;
+  filename: string;
+  url: string;
+  size: number;
+  mimeType: string;
+  createdAt: Date;
 }
 
 export interface TicketStats {

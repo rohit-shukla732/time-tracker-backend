@@ -2,74 +2,61 @@
 
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function TicketingPage() {
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    // Create default admin user for testing
+    // Check if user is logged in
     const storedUser = localStorage.getItem('user');
-    if (!storedUser) {
-      const defaultAdmin = {
-        id: 'admin-1',
-        name: 'Admin User',
-        email: 'admin@example.com',
-        role: 'ADMIN'
-      };
-      localStorage.setItem('user', JSON.stringify(defaultAdmin));
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+      
+      // Redirect based on role
+      if (parsedUser.role === 'ADMIN') {
+        router.push('/ticketing/admin/tickets');
+      } else {
+        router.push('/ticketing/employee/dashboard');
+      }
     }
-  }, []);
-
-  const setAdminUser = () => {
-    const adminUser = {
-      id: 'admin-1',
-      name: 'Admin User',
-      email: 'admin@example.com',
-      role: 'ADMIN'
-    };
-    localStorage.setItem('user', JSON.stringify(adminUser));
-    router.push('/ticketing/admin');
-  };
-
-  const setEmployeeUser = () => {
-    const employeeUser = {
-      id: 'user-1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      role: 'EMPLOYEE'
-    };
-    localStorage.setItem('user', JSON.stringify(employeeUser));
-    router.push('/ticketing/employee/dashboard');
-  };
+  }, [router]);
 
   return(
-    <div className="p-8 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-4">IT Support System</h1>
-      <p className="text-muted-foreground mb-6">Submit and track your IT support requests</p>
-      
-      <div className="space-y-4">
-        <Button 
-          className="w-full h-auto py-6" 
-          onClick={setEmployeeUser}
-          variant="default"
-        >
-          <div className="flex flex-col items-start w-full">
-            <span className="text-lg font-semibold">Employee Dashboard</span>
-            <span className="text-sm opacity-90">Create and manage your IT support tickets</span>
-          </div>
-        </Button>
+    <div className="min-h-screen flex items-center justify-center p-8">
+      <div className="max-w-2xl mx-auto w-full">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold mb-4">IT Support Ticketing System</h1>
+          <p className="text-muted-foreground text-lg">Choose your portal to continue</p>
+        </div>
         
-        <Button 
-          className="w-full h-auto py-6" 
-          onClick={setAdminUser}
-          variant="outline"
-        >
-          <div className="flex flex-col items-start w-full">
-            <span className="text-lg font-semibold">IT Admin Dashboard</span>
-            <span className="text-sm">Manage all IT support tickets</span>
-          </div>
-        </Button>
+        <div className="grid md:grid-cols-2 gap-6">
+          <Button 
+            className="w-full h-auto py-8" 
+            onClick={() => router.push('/ticketing/employee/login')}
+            variant="default"
+            size="lg"
+          >
+            <div className="flex flex-col items-center w-full gap-2">
+              <span className="text-2xl font-semibold">Employee Portal</span>
+              <span className="text-sm opacity-90">Create and track your IT support tickets</span>
+            </div>
+          </Button>
+          
+          <Button 
+            className="w-full h-auto py-8" 
+            onClick={() => router.push('/ticketing/admin/login')}
+            variant="outline"
+            size="lg"
+          >
+            <div className="flex flex-col items-center w-full gap-2">
+              <span className="text-2xl font-semibold">IT Admin Portal</span>
+              <span className="text-sm">Manage and resolve support tickets</span>
+            </div>
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -23,10 +23,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Ticket, TicketStatus, TicketPriority, TicketCategory, Role } from '@/types';
-import { Search, Filter, UserPlus, Eye, Edit } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Ticket, TicketStatus, TicketPriority, TicketCategory, Role, ITSupportSubcategory } from '@/types';
+import { Search, Filter, UserPlus, Eye, Edit, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function AdminTicketsPage() {
   const router = useRouter();
@@ -35,107 +44,266 @@ export default function AdminTicketsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [loading, setLoading] = useState(true);
+  const [itTeamMembers, setItTeamMembers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [ticketToDelete, setTicketToDelete] = useState<string | null>(null);
 
-  // IT Team Members
-  const itTeamMembers = [
-    { id: 'it-1', name: 'IT Support Lead', email: 'itlead@example.com' },
-    { id: 'it-2', name: 'John IT Tech', email: 'johnit@example.com' },
-    { id: 'it-3', name: 'Sarah IT Admin', email: 'sarahit@example.com' },
-    { id: 'it-4', name: 'Mike Support', email: 'mikesupport@example.com' },
-  ];
-
-  const handleStatusChange = (ticketId: string, newStatus: TicketStatus) => {
-    setTickets(prevTickets => 
-      prevTickets.map(ticket => 
-        ticket.id === ticketId 
-          ? { ...ticket, status: newStatus, updatedAt: new Date() }
-          : ticket
-      )
-    );
-    // TODO: API call to update ticket status
-    console.log(`Updated ticket ${ticketId} status to ${newStatus}`);
-  };
-
-  const handleAssignmentChange = (ticketId: string, assigneeId: string | null) => {
-    setTickets(prevTickets => 
-      prevTickets.map(ticket => {
-        if (ticket.id === ticketId) {
-          const assignee = assigneeId 
-            ? itTeamMembers.find(member => member.id === assigneeId)
-            : null;
-          return { 
-            ...ticket, 
-            assignedTo: assigneeId,
-            assignee: assignee ? {
-              id: assignee.id,
-              name: assignee.name,
-              email: assignee.email,
-              role: Role.ADMIN,
-              teamId: null,
-              createdAt: new Date(),
-              updatedAt: new Date()
-            } : undefined,
-            updatedAt: new Date()
-          };
-        }
-        return ticket;
-      })
-    );
-    // TODO: API call to assign ticket
-    console.log(`Assigned ticket ${ticketId} to ${assigneeId}`);
-  };
-
-  // Mock data
   useEffect(() => {
-    const mockTickets: Ticket[] = [
-      {
-        id: '1',
-        title: 'Login page not working on mobile',
-        description: 'Users are unable to log in from mobile devices.',
-        priority: TicketPriority.URGENT,
-        status: TicketStatus.OPEN,
-        category: TicketCategory.IT_SUPPORT,
-        createdBy: 'user-1',
-        assignedTo: null,
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        resolvedAt: null,
-        creator: { id: 'user-1', name: 'John Doe', email: 'john@example.com', role: Role.EMPLOYEE, teamId: null, createdAt: new Date(), updatedAt: new Date() },
-      },
-      {
-        id: '2',
-        title: 'Need access to HR portal',
-        description: 'I need access to the HR portal.',
-        priority: TicketPriority.MEDIUM,
-        status: TicketStatus.IN_PROGRESS,
-        category: TicketCategory.IT_SUPPORT,
-        createdBy: 'user-2',
-        assignedTo: 'admin-1',
-        createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
-        updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
-        resolvedAt: null,
-        creator: { id: 'user-2', name: 'Jane Smith', email: 'jane@example.com', role: Role.EMPLOYEE, teamId: null, createdAt: new Date(), updatedAt: new Date() },
-        assignee: { id: 'admin-1', name: 'Admin User', email: 'admin@example.com', role: Role.ADMIN, teamId: null, createdAt: new Date(), updatedAt: new Date() },
-      },
-      {
-        id: '3',
-        title: 'Air conditioning not working',
-        description: 'AC unit in conference room 301 is not functioning.',
-        priority: TicketPriority.HIGH,
-        status: TicketStatus.OPEN,
-        category: TicketCategory.IT_SUPPORT,
-        createdBy: 'user-3',
-        assignedTo: null,
-        createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
-        updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
-        resolvedAt: null,
-        creator: { id: 'user-3', name: 'Mike Johnson', email: 'mike@example.com', role: Role.MANAGER, teamId: null, createdAt: new Date(), updatedAt: new Date() },
-      },
-    ];
-
-    setTickets(mockTickets);
-    setFilteredTickets(mockTickets);
+    fetchTickets();
+    fetchItTeam();
   }, []);
+
+  const fetchItTeam = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
+
+      const response = await fetch('/api/users/it-team', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setItTeamMembers(data);
+      }
+    } catch (error) {
+      console.error('Error fetching IT team:', error);
+    }
+  };
+
+  const fetchTickets = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('Please log in to continue');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      const response = await fetch('/api/tickets', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch tickets');
+      }
+
+      const data = await response.json();
+      setTickets(data);
+      setFilteredTickets(data);
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+      toast.error('Failed to load tickets');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (ticketId: string, newStatus: TicketStatus) => {
+    const ticket = tickets.find(t => t.id === ticketId);
+    
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('Please log in to continue');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      const response = await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          status: newStatus,
+          resolvedAt: newStatus === TicketStatus.RESOLVED ? new Date() : null,
+        }),
+      });
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to update ticket status');
+      }
+
+      const updatedTicket = await response.json();
+      
+      setTickets(prevTickets => 
+        prevTickets.map(t => 
+          t.id === ticketId ? updatedTicket : t
+        )
+      );
+      
+      toast.success('Status updated successfully');
+
+      // Send email notification via API
+      try {
+        await fetch(`/api/tickets/${ticketId}/send-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            type: 'status_update',
+            newStatus,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to send status update email:', error);
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update status');
+    }
+  };
+
+  const handleAssignmentChange = async (ticketId: string, assigneeId: string | null) => {
+    const ticket = tickets.find(t => t.id === ticketId);
+    const assignee = assigneeId 
+      ? itTeamMembers.find(member => member.id === assigneeId)
+      : null;
+    
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('Please log in to continue');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      const response = await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          assignedTo: assigneeId,
+        }),
+      });
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to assign ticket');
+      }
+
+      const updatedTicket = await response.json();
+      
+      setTickets(prevTickets => 
+        prevTickets.map(t => 
+          t.id === ticketId ? updatedTicket : t
+        )
+      );
+      
+      toast.success('Ticket assigned successfully');
+
+      // Send email notification via API
+      try {
+        await fetch(`/api/tickets/${ticketId}/send-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            type: 'assignment',
+            assignedToId: assigneeId,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to send assignment email:', error);
+      }
+    } catch (error) {
+      console.error('Error assigning ticket:', error);
+      toast.error('Failed to assign ticket');
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!ticketToDelete) return;
+
+    try {
+      const ticketId = ticketToDelete;
+      setDeleteDialogOpen(false);
+      setTicketToDelete(null);
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('Please log in to continue');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      const response = await fetch(`/api/tickets/${ticketId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to delete ticket');
+      }
+
+      setTickets(prevTickets => prevTickets.filter(t => t.id !== ticketId));
+      toast.success('Ticket deleted successfully');
+    } catch (error) {
+      console.error('Error deleting ticket:', error);
+      toast.error('Failed to delete ticket');
+    }
+  };
+
+  const handleDeleteTicket = (ticketId: string) => {
+    setTicketToDelete(ticketId);
+    setDeleteDialogOpen(true);
+  };
 
   // Apply filters
   useEffect(() => {
@@ -191,6 +359,21 @@ export default function AdminTicketsPage() {
 
   const getInitials = (name: string) => {
     return name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+  };
+
+  const getSubcategoryLabel = (subcategory?: ITSupportSubcategory) => {
+    if (!subcategory) return 'Not specified';
+    const labels: Record<ITSupportSubcategory, string> = {
+      [ITSupportSubcategory.HARDWARE]: 'Hardware',
+      [ITSupportSubcategory.SOFTWARE]: 'Software',
+      [ITSupportSubcategory.NETWORK]: 'Network',
+      [ITSupportSubcategory.EMAIL]: 'Email',
+      [ITSupportSubcategory.ACCESS]: 'Access & Permissions',
+      [ITSupportSubcategory.PRINTER]: 'Printer & Scanner',
+      [ITSupportSubcategory.PHONE]: 'Phone & Communication',
+      [ITSupportSubcategory.OTHER]: 'Other',
+    };
+    return labels[subcategory];
   };
 
   const handleAssignToMe = async (ticketId: string) => {
@@ -281,6 +464,7 @@ export default function AdminTicketsPage() {
                     <TableHead className="w-[50px]">ID</TableHead>
                     <TableHead>Title</TableHead>
                     <TableHead>Creator</TableHead>
+                    <TableHead>Issue Type</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Assigned To</TableHead>
@@ -291,7 +475,7 @@ export default function AdminTicketsPage() {
                 <TableBody>
                   {filteredTickets.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                         No tickets found
                       </TableCell>
                     </TableRow>
@@ -316,6 +500,11 @@ export default function AdminTicketsPage() {
                             </Avatar>
                             <span className="text-sm">{ticket.creator?.name}</span>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-normal">
+                            {getSubcategoryLabel(ticket.subcategory)}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge className={getPriorityColor(ticket.priority)}>
@@ -420,6 +609,17 @@ export default function AdminTicketsPage() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteTicket(ticket.id);
+                              }}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -431,6 +631,36 @@ export default function AdminTicketsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Ticket</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this ticket? This action cannot be undone.
+              All comments and screenshots associated with this ticket will also be deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setTicketToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+            >
+              Delete Ticket
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminTicketLayout>
   );
 }

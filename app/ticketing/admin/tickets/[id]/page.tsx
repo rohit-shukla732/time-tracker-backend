@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Ticket, TicketComment, TicketStatus, TicketPriority, TicketCategory, Role } from '@/types';
+import { Ticket, TicketComment, TicketStatus, TicketPriority, TicketCategory, Role, ITSupportSubcategory } from '@/types';
 import { 
   ArrowLeft, 
   Clock, 
@@ -27,6 +27,7 @@ import {
   Send,
   Save,
   UserPlus,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { formatDistanceToNow } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -41,75 +42,182 @@ export default function AdminTicketDetailsPage() {
   const [newComment, setNewComment] = useState('');
   const [internalNote, setInternalNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [itTeamMembers, setItTeamMembers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
 
-  // Mock data
   useEffect(() => {
-    const mockTicket: Ticket = {
-      id: ticketId,
-      title: 'Login page not working on mobile',
-      description: 'Users are unable to log in from mobile devices. The login button does not respond to touches.',
-      priority: TicketPriority.URGENT,
-      status: TicketStatus.IN_PROGRESS,
-      category: TicketCategory.IT_SUPPORT,
-      createdBy: 'user-1',
-      assignedTo: 'admin-1',
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 30 * 60 * 1000),
-      resolvedAt: null,
-      creator: { 
-        id: 'user-1', 
-        name: 'John Doe', 
-        email: 'john@example.com', 
-        role: Role.EMPLOYEE, 
-        teamId: null, 
-        createdAt: new Date(), 
-        updatedAt: new Date() 
-      },
-      assignee: { 
-        id: 'admin-1', 
-        name: 'Admin User', 
-        email: 'admin@example.com', 
-        role: Role.ADMIN, 
-        teamId: null, 
-        createdAt: new Date(), 
-        updatedAt: new Date() 
-      },
-    };
-
-    const mockComments: TicketComment[] = [
-      {
-        id: 'comment-1',
-        ticketId: ticketId,
-        userId: 'user-1',
-        content: 'This is affecting multiple users in our department.',
-        createdAt: new Date(Date.now() - 90 * 60 * 1000),
-        user: { 
-          id: 'user-1', 
-          name: 'John Doe', 
-          email: 'john@example.com', 
-          role: Role.EMPLOYEE, 
-          teamId: null, 
-          createdAt: new Date(), 
-          updatedAt: new Date() 
-        },
-      },
-    ];
-
-    setTicket(mockTicket);
-    setComments(mockComments);
+    fetchTicket();
+    fetchItTeam();
   }, [ticketId]);
 
+  const fetchItTeam = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
+
+      const response = await fetch('/api/users/it-team', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setItTeamMembers(data);
+      }
+    } catch (error) {
+      console.error('Error fetching IT team:', error);
+    }
+  };
+
+  const fetchTicket = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('Please log in to continue');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      const response = await fetch(`/api/tickets/${ticketId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch ticket');
+      }
+
+      const data = await response.json();
+      setTicket(data);
+      setComments(data.comments || []);
+    } catch (error) {
+      console.error('Error fetching ticket:', error);
+      toast.error('Failed to load ticket');
+      router.push('/ticketing/admin/tickets');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleStatusChange = async (newStatus: TicketStatus) => {
-    if (ticket) {
-      setTicket({ ...ticket, status: newStatus, updatedAt: new Date() });
+    if (!ticket) return;
+
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('Please log in to continue');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      const response = await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          status: newStatus,
+          resolvedAt: newStatus === TicketStatus.RESOLVED ? new Date() : null,
+        }),
+      });
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to update ticket status');
+      }
+
+      const updatedTicket = await response.json();
+      setTicket(updatedTicket);
       toast.success('Ticket status updated');
+      
+      // Send email notification via API
+      try {
+        await fetch(`/api/tickets/${ticketId}/send-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            type: 'status_update',
+            newStatus,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to send status update email:', error);
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update status');
     }
   };
 
   const handlePriorityChange = async (newPriority: TicketPriority) => {
-    if (ticket) {
-      setTicket({ ...ticket, priority: newPriority, updatedAt: new Date() });
+    if (!ticket) return;
+
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('Please log in to continue');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      const response = await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          priority: newPriority,
+        }),
+      });
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to update ticket priority');
+      }
+
+      const updatedTicket = await response.json();
+      setTicket(updatedTicket);
       toast.success('Ticket priority updated');
+    } catch (error) {
+      console.error('Error updating priority:', error);
+      toast.error('Failed to update priority');
     }
   };
 
@@ -118,33 +226,88 @@ export default function AdminTicketDetailsPage() {
     if (!newComment.trim()) return;
 
     setSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('Please log in to continue');
+        router.push('/ticketing/admin/login');
+        return;
+      }
 
-    const comment: TicketComment = {
-      id: `comment-${Date.now()}`,
-      ticketId: ticketId,
-      userId: 'admin-1',
-      content: newComment,
-      createdAt: new Date(),
-      user: { 
-        id: 'admin-1', 
-        name: 'Admin User', 
-        email: 'admin@example.com', 
-        role: Role.ADMIN, 
-        teamId: null, 
-        createdAt: new Date(), 
-        updatedAt: new Date() 
-      },
-    };
+      const response = await fetch(`/api/tickets/${ticketId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          content: newComment,
+        }),
+      });
 
-    setComments([...comments, comment]);
-    setNewComment('');
-    setSubmitting(false);
-    toast.success('Comment added');
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to add comment');
+      }
+
+      const comment = await response.json();
+      setComments([...comments, comment]);
+      const commentText = newComment;
+      setNewComment('');
+      toast.success('Comment added');
+
+      // Send email notification via API
+      try {
+        await fetch(`/api/tickets/${ticketId}/send-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            type: 'comment',
+            comment: commentText,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to send comment email:', error);
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      toast.error('Failed to add comment');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const getInitials = (name: string) => {
-    return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+    return name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+  };
+
+  const getSubcategoryLabel = (subcategory?: ITSupportSubcategory) => {
+    if (!subcategory) return 'Not specified';
+    const labels: Record<ITSupportSubcategory, string> = {
+      [ITSupportSubcategory.HARDWARE]: 'Hardware',
+      [ITSupportSubcategory.SOFTWARE]: 'Software',
+      [ITSupportSubcategory.NETWORK]: 'Network',
+      [ITSupportSubcategory.EMAIL]: 'Email',
+      [ITSupportSubcategory.ACCESS]: 'Access & Permissions',
+      [ITSupportSubcategory.PRINTER]: 'Printer & Scanner',
+      [ITSupportSubcategory.PHONE]: 'Phone & Communication',
+      [ITSupportSubcategory.OTHER]: 'Other',
+    };
+    return labels[subcategory];
   };
 
   const getPriorityColor = (priority: TicketPriority) => {
@@ -175,11 +338,14 @@ export default function AdminTicketDetailsPage() {
     }
   };
 
-  if (!ticket) {
+  if (loading || !ticket) {
     return (
       <AdminTicketLayout>
         <div className="flex items-center justify-center py-16">
-          <p className="text-muted-foreground">Loading ticket...</p>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading ticket...</p>
+          </div>
         </div>
       </AdminTicketLayout>
     );
@@ -228,6 +394,37 @@ export default function AdminTicketDetailsPage() {
                   <p className="text-muted-foreground whitespace-pre-wrap">
                     {ticket.description}
                   </p>
+                </div>
+
+                {/* Screenshots Section */}
+                <div>
+                  <h4 className="font-semibold mb-3 flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    Screenshots
+                  </h4>
+                  {!ticket.screenshots || ticket.screenshots.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                      No screenshots attached
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3">
+                      {ticket.screenshots.map((screenshot: any, index: number) => (
+                        <div key={screenshot.id} className="relative group cursor-pointer">
+                          <div className="aspect-video rounded-lg border bg-muted overflow-hidden">
+                            <img
+                              src={screenshot.url}
+                              alt={screenshot.filename}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform"
+                              onClick={() => window.open(screenshot.url, '_blank')}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 truncate">
+                            {screenshot.filename}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
@@ -355,28 +552,109 @@ export default function AdminTicketDetailsPage() {
             {/* Assignment */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Assignment</CardTitle>
+                <CardTitle className="text-base">Assign To</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {ticket.assignee ? (
-                  <div className="flex items-center gap-2 p-2 border rounded-lg">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>
-                        {getInitials(ticket.assignee.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{ticket.assignee.name}</p>
-                      <p className="text-xs text-muted-foreground">{ticket.assignee.email}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Unassigned</p>
-                )}
-                <Button variant="outline" className="w-full" size="sm">
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Reassign
-                </Button>
+              <CardContent>
+                <Select 
+                  value={ticket.assignedTo || 'unassigned'} 
+                  onValueChange={async (value) => {
+                    const assigneeId = value === 'unassigned' ? null : value;
+                    const assignee = assigneeId ? itTeamMembers.find(m => m.id === assigneeId) : null;
+
+                    try {
+                      const token = localStorage.getItem('accessToken');
+                      if (!token) {
+                        toast.error('Please log in to continue');
+                        router.push('/ticketing/admin/login');
+                        return;
+                      }
+
+                      const response = await fetch(`/api/tickets/${ticketId}`, {
+                        method: 'PATCH',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`,
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          assignedTo: assigneeId,
+                        }),
+                      });
+
+                      if (response.status === 401) {
+                        toast.error('Session expired. Please log in again.');
+                        localStorage.removeItem('accessToken');
+                        localStorage.removeItem('refreshToken');
+                        localStorage.removeItem('user');
+                        router.push('/ticketing/admin/login');
+                        return;
+                      }
+
+                      if (!response.ok) {
+                        throw new Error('Failed to assign ticket');
+                      }
+
+                      const updatedTicket = await response.json();
+                      setTicket(updatedTicket);
+                      toast.success('Assignment updated');
+
+                      // Send email notification via API
+                      try {
+                        await fetch(`/api/tickets/${ticketId}/send-email`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                          },
+                          credentials: 'include',
+                          body: JSON.stringify({
+                            type: 'assignment',
+                            assignedToId: assigneeId,
+                          }),
+                        });
+                      } catch (error) {
+                        console.error('Failed to send assignment email:', error);
+                      }
+                    } catch (error) {
+                      console.error('Error assigning ticket:', error);
+                      toast.error('Failed to assign ticket');
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue>
+                      {ticket.assignee ? (
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5">
+                            <AvatarFallback className="text-[10px]">
+                              {getInitials(ticket.assignee.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{ticket.assignee.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Unassigned</span>
+                      )}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">
+                      <span className="text-muted-foreground">Unassigned</span>
+                    </SelectItem>
+                    {itTeamMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-5 w-5">
+                            <AvatarFallback className="text-[10px]">
+                              {getInitials(member.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span>{member.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </CardContent>
             </Card>
 
@@ -389,6 +667,11 @@ export default function AdminTicketDetailsPage() {
                 <div>
                   <span className="text-muted-foreground">Category</span>
                   <p className="font-medium">{ticket.category}</p>
+                </div>
+                <Separator />
+                <div>
+                  <span className="text-muted-foreground">Issue Type</span>
+                  <p className="font-medium">{getSubcategoryLabel(ticket.subcategory)}</p>
                 </div>
                 <Separator />
                 <div>

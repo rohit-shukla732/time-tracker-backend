@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminTicketLayout } from '@/components/tickets/AdminTicketLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,110 +21,127 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const stats = {
-    total: 24,
-    open: 8,
-    inProgress: 6,
-    pending: 3,
-    resolved: 7,
-    unassigned: 5,
-    urgent: 3,
-    highPriority: 7,
+  const [stats, setStats] = useState({
+    total: 0,
+    open: 0,
+    inProgress: 0,
+    pending: 0,
+    resolved: 0,
+    closed: 0,
+    unassigned: 0,
+    urgent: 0,
+    high: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('Please log in to continue');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      const response = await fetch('/api/tickets/stats', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch stats');
+      }
+
+      const data = await response.json();
+      setStats({
+        total: data.total || 0,
+        open: data.open || 0,
+        inProgress: data.inProgress || 0,
+        pending: data.pending || 0,
+        resolved: data.resolved || 0,
+        closed: data.closed || 0,
+        unassigned: 0, // TODO: Add unassigned count to API
+        urgent: data.byPriority?.urgent || 0,
+        high: data.byPriority?.high || 0,
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      toast.error('Failed to load statistics');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const quickStats = [
     {
-      title: 'Unassigned',
-      value: stats.unassigned,
+      title: 'Open Tickets',
+      value: stats.open,
       icon: AlertCircle,
-      color: 'text-red-500',
-      bgColor: 'bg-red-500/10',
+      color: 'text-blue-500',
+      bgColor: 'bg-blue-500/10',
       description: 'Need attention',
-      change: '+2 from yesterday',
       href: '/ticketing/admin/tickets',
     },
     {
       title: 'Urgent',
       value: stats.urgent,
       icon: Ticket,
-      color: 'text-orange-500',
-      bgColor: 'bg-orange-500/10',
+      color: 'text-red-500',
+      bgColor: 'bg-red-500/10',
       description: 'High priority',
-      change: '+1 from yesterday',
       href: '/ticketing/admin/tickets',
     },
     {
       title: 'In Progress',
       value: stats.inProgress,
       icon: Clock,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-500/10',
+      color: 'text-yellow-500',
+      bgColor: 'bg-yellow-500/10',
       description: 'Being worked on',
-      change: 'Same as yesterday',
       href: '/ticketing/admin/tickets',
     },
     {
-      title: 'Resolved Today',
+      title: 'Resolved',
       value: stats.resolved,
       icon: CheckCircle2,
       color: 'text-green-500',
       bgColor: 'bg-green-500/10',
       description: 'Completed',
-      change: '+3 from yesterday',
       href: '/ticketing/admin/tickets',
     },
   ];
 
-  const recentActivity = [
-    {
-      id: '1',
-      action: 'created',
-      ticket: 'Login page not working on mobile',
-      user: { name: 'John Doe', initials: 'JD' },
-      time: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      priority: 'URGENT',
-      type: 'new',
-    },
-    {
-      id: '2',
-      action: 'assigned to HR Manager',
-      ticket: 'Payroll discrepancy for November',
-      user: { name: 'Admin User', initials: 'AU' },
-      time: new Date(Date.now() - 3 * 60 * 60 * 1000),
-      priority: 'HIGH',
-      type: 'assigned',
-    },
-    {
-      id: '3',
-      action: 'resolved',
-      ticket: 'Request for new keyboard',
-      user: { name: 'IT Support', initials: 'IS' },
-      time: new Date(Date.now() - 5 * 60 * 60 * 1000),
-      priority: 'LOW',
-      type: 'resolved',
-    },
-    {
-      id: '4',
-      action: 'updated',
-      ticket: 'Office AC not working',
-      user: { name: 'Jane Smith', initials: 'JS' },
-      time: new Date(Date.now() - 7 * 60 * 60 * 1000),
-      priority: 'HIGH',
-      type: 'updated',
-    },
-    {
-      id: '5',
-      action: 'commented on',
-      ticket: 'Leave application pending',
-      user: { name: 'HR Manager', initials: 'HM' },
-      time: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-      priority: 'MEDIUM',
-      type: 'comment',
-    },
-  ];
+  if (loading) {
+    return (
+      <AdminTicketLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading dashboard...</p>
+          </div>
+        </div>
+      </AdminTicketLayout>
+    );
+  }
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -190,10 +207,6 @@ export default function AdminDashboard() {
                 <CardContent>
                   <div className="text-2xl font-bold">{stat.value}</div>
                   <p className="text-xs text-muted-foreground">{stat.description}</p>
-                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3" />
-                    {stat.change}
-                  </p>
                 </CardContent>
               </Card>
             );
@@ -202,51 +215,68 @@ export default function AdminDashboard() {
 
         {/* Main Content Grid */}
         <div className="grid gap-6 md:grid-cols-3">
-          {/* Activity Feed */}
+          {/* Quick Overview */}
           <Card className="md:col-span-2">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Latest updates and actions on tickets</CardDescription>
+                  <CardTitle>Ticket Overview</CardTitle>
+                  <CardDescription>Current status of all tickets in the system</CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => router.push('/ticketing/admin/tickets')}>
-                  <Filter className="mr-2 h-4 w-4" />
-                  View All
+                  <Ticket className="mr-2 h-4 w-4" />
+                  View All Tickets
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {recentActivity.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                  >
-                    <div className="mt-1">
-                      {getActionIcon(activity.type)}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Total Tickets</span>
+                    <Badge variant="secondary">{stats.total}</Badge>
+                  </div>
+                  <Progress value={100} className="h-2" />
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Open</span>
+                    <Badge className="bg-blue-500/10 text-blue-600">{stats.open}</Badge>
+                  </div>
+                  <Progress value={(stats.open / Math.max(stats.total, 1)) * 100} className="h-2" />
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">In Progress</span>
+                    <Badge className="bg-yellow-500/10 text-yellow-600">{stats.inProgress}</Badge>
+                  </div>
+                  <Progress value={(stats.inProgress / Math.max(stats.total, 1)) * 100} className="h-2" />
+                </div>
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">Resolved</span>
+                    <Badge className="bg-green-500/10 text-green-600">{stats.resolved}</Badge>
+                  </div>
+                  <Progress value={(stats.resolved / Math.max(stats.total, 1)) * 100} className="h-2" />
+                </div>
+              </div>
+              <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">Priority Breakdown</p>
+                    <p className="text-sm text-muted-foreground">Tickets by urgency level</p>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-red-500">{stats.urgent}</p>
+                      <p className="text-xs text-muted-foreground">Urgent</p>
                     </div>
-                    <div className="flex-1 space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs">
-                            {activity.user.initials}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium text-sm">{activity.user.name}</span>
-                        <span className="text-sm text-muted-foreground">{activity.action}</span>
-                        <Badge variant="outline" className={`text-xs ${getPriorityColor(activity.priority)}`}>
-                          {activity.priority}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{activity.ticket}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatDistanceToNow(activity.time)}
-                      </p>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-orange-500">{stats.high}</p>
+                      <p className="text-xs text-muted-foreground">High</p>
                     </div>
                   </div>
-                ))}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -319,60 +349,27 @@ export default function AdminDashboard() {
               <CardContent className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">Avg Response Time</span>
-                    <span className="font-semibold">2.5 hrs</span>
-                  </div>
-                  <Progress value={75} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-1">25% faster than last week</p>
-                </div>
-                <div className="h-px bg-border" />
-                <div>
-                  <div className="flex items-center justify-between text-sm mb-2">
                     <span className="text-muted-foreground">Resolution Rate</span>
-                    <span className="font-semibold">85%</span>
+                    <span className="font-semibold">
+                      {stats.total > 0 ? Math.round(((stats.resolved + stats.closed) / stats.total) * 100) : 0}%
+                    </span>
                   </div>
-                  <Progress value={85} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-1">+5% from last month</p>
+                  <Progress value={stats.total > 0 ? ((stats.resolved + stats.closed) / stats.total) * 100 : 0} className="h-2" />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stats.resolved + stats.closed} of {stats.total} tickets resolved
+                  </p>
                 </div>
                 <div className="h-px bg-border" />
                 <div>
                   <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">Customer Satisfaction</span>
-                    <span className="font-semibold">4.7/5.0</span>
+                    <span className="text-muted-foreground">Active Tickets</span>
+                    <span className="font-semibold">{stats.open + stats.inProgress + stats.pending}</span>
                   </div>
-                  <Progress value={94} className="h-2" />
-                  <p className="text-xs text-muted-foreground mt-1">Based on 156 ratings</p>
+                  <Progress value={stats.total > 0 ? ((stats.open + stats.inProgress + stats.pending) / stats.total) * 100 : 0} className="h-2" />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stats.open + stats.inProgress + stats.pending} tickets in progress
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Team Workload</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs">AU</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-medium">Admin User</p>
-                    <p className="text-xs text-muted-foreground">4 active tickets</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs">HM</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-medium">HR Manager</p>
-                    <p className="text-xs text-muted-foreground">2 active tickets</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => router.push('/ticketing/admin/users')}>
-                  <Users className="mr-2 h-4 w-4" />
-                  View All Users
-                </Button>
               </CardContent>
             </Card>
           </div>
@@ -385,7 +382,7 @@ export default function AdminDashboard() {
             <CardDescription>Common administrative tasks</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-3 md:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-3">
               <Button 
                 variant="outline" 
                 className="justify-start h-auto py-4"
@@ -394,9 +391,9 @@ export default function AdminDashboard() {
                 <div className="flex flex-col items-start gap-1">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" />
-                    <span className="font-semibold">Assign Tickets</span>
+                    <span className="font-semibold">Open Tickets</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{stats.unassigned} unassigned</span>
+                  <span className="text-xs text-muted-foreground">{stats.open} need attention</span>
                 </div>
               </Button>
               <Button 
@@ -423,19 +420,6 @@ export default function AdminDashboard() {
                     <span className="font-semibold">Reports</span>
                   </div>
                   <span className="text-xs text-muted-foreground">Analytics & insights</span>
-                </div>
-              </Button>
-              <Button 
-                variant="outline" 
-                className="justify-start h-auto py-4"
-                onClick={() => router.push('/ticketing/admin/users')}
-              >
-                <div className="flex flex-col items-start gap-1">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    <span className="font-semibold">Users</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">Manage team</span>
                 </div>
               </Button>
             </div>

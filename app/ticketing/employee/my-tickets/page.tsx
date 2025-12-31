@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { TicketsLayout } from '@/components/tickets/TicketsLayout';
 import { TicketList } from '@/components/tickets/TicketList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,45 +9,56 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Ticket, TicketPriority, TicketStatus, TicketCategory, Role } from '@/types';
 import { Search, FileText, Clock, CheckCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function MyTicketsPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const currentUserId = 'user-1'; // Get from auth context
+  const [myTickets, setMyTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - replace with API call filtered by user
-  const allTickets: Ticket[] = [
-    {
-      id: '1',
-      title: 'Cannot access payroll system',
-      description: 'Getting 404 error when trying to access payroll',
-      priority: TicketPriority.HIGH,
-      status: TicketStatus.OPEN,
-      category: TicketCategory.IT_SUPPORT,
-      createdBy: 'user-1',
-      assignedTo: null,
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-      resolvedAt: null,
-      creator: { id: 'user-1', name: 'John Doe', email: 'john@example.com', role: Role.EMPLOYEE, teamId: null, createdAt: new Date(), updatedAt: new Date() },
-    },
-    {
-      id: '4',
-      title: 'Leave application pending',
-      description: 'My leave application has been pending for 2 weeks',
-      priority: TicketPriority.HIGH,
-      status: TicketStatus.PENDING,
-      category: TicketCategory.IT_SUPPORT,
-      createdBy: 'user-1',
-      assignedTo: 'hr-1',
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-      updatedAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
-      resolvedAt: null,
-      creator: { id: 'user-1', name: 'John Doe', email: 'john@example.com', role: Role.EMPLOYEE, teamId: null, createdAt: new Date(), updatedAt: new Date() },
-      assignee: { id: 'hr-1', name: 'HR Manager', email: 'hr@example.com', role: Role.HR, teamId: null, createdAt: new Date(), updatedAt: new Date() },
-    },
-  ];
+  useEffect(() => {
+    fetchMyTickets();
+  }, []);
 
-  const myTickets = allTickets.filter((t) => t.createdBy === currentUserId);
+  const fetchMyTickets = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        toast.error('Please log in to continue');
+        router.push('/ticketing/employee/login');
+        return;
+      }
+
+      const response = await fetch('/api/tickets', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        credentials: 'include',
+      });
+
+      if (response.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/employee/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch tickets');
+      }
+
+      const tickets = await response.json();
+      setMyTickets(tickets);
+    } catch (error) {
+      console.error('Error fetching tickets:', error);
+      toast.error('Failed to load tickets');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const stats = {
     total: myTickets.length,
@@ -79,37 +91,46 @@ export default function MyTicketsPage() {
           <p className="text-muted-foreground">View and manage your submitted tickets</p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </CardContent>
-          </Card>
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading your tickets...</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.total}</div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.active}</div>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Active</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.active}</div>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Resolved</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.resolved}</div>
-            </CardContent>
-          </Card>
-        </div>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Resolved</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.resolved}</div>
+                </CardContent>
+              </Card>
+            </div>
 
         <Card>
           <CardHeader>
@@ -152,6 +173,8 @@ export default function MyTicketsPage() {
             </Tabs>
           </CardContent>
         </Card>
+          </>
+        )}
       </div>
     </TicketsLayout>
   );
