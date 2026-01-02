@@ -5,7 +5,7 @@ import { requireAuth } from '@/lib/roleAuth';
 // POST /api/tickets/[id]/comments - Add a comment to a ticket
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireAuth(req);
@@ -17,7 +17,7 @@ export async function POST(
     }
 
     const user = authResult.user;
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
 
     const { content, isInternal } = body;
@@ -84,7 +84,7 @@ export async function POST(
 // GET /api/tickets/[id]/comments - Get all comments for a ticket
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireAuth(req);
@@ -96,7 +96,7 @@ export async function GET(
     }
 
     const user = authResult.user;
-    const { id } = params;
+    const { id } = await params;
 
     // Check if ticket exists and user has access
     const ticket = await prisma.ticket.findUnique({

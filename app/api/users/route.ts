@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const includeTeam = url.searchParams.get('includeTeam') === 'true';
     const role = url.searchParams.get('role');
 
-    let whereCondition: any = {};
+    const whereCondition: any = {};
     
     // Role-based filtering
     if (authResult.user.role === 'ADMIN' || authResult.user.role === 'HR') {

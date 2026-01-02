@@ -55,7 +55,7 @@ export default function TicketingAdminLogin() {
       window.dispatchEvent(new Event('userUpdated'));
 
       // Redirect to admin dashboard
-      router.push('/ticketing/admin/tickets');
+      router.push('/ticketing/admin');
     } catch (err) {
       setError('Failed to connect to server');
       setLoading(false);

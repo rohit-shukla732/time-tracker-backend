@@ -1,4 +1,4 @@
-import { Ticket, TicketPriority, TicketStatus, TicketCategory } from '@/types';
+import { Ticket, TicketPriority, TicketStatus } from '@/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

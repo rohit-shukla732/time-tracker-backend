@@ -13,15 +13,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Separator } from '@/components/ui/separator';
 import {
   LayoutDashboard,
-  Ticket,
   Plus,
-  ListFilter,
   User,
   LogOut,
-  Settings,
   ChevronDown,
   MessageSquare,
 } from 'lucide-react';

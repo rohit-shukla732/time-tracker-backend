@@ -236,7 +236,6 @@ export default function AdminSessions() {
 
     try {
       const response = await makeAuthenticatedRequest(`/api/admin/sessions/${sessionId}`);
-      });
 
       const data = await response.json();
       if (data.success) {

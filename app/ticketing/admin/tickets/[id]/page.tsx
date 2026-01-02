@@ -32,6 +32,7 @@ import {
 import { formatDistanceToNow } from '@/lib/utils';
 import { toast } from 'sonner';
 import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
+import Image from 'next/image';
 
 export default function AdminTicketDetailsPage() {
   const router = useRouter();
@@ -408,7 +409,7 @@ export default function AdminTicketDetailsPage() {
                       {ticket.screenshots.map((screenshot: any, index: number) => (
                         <div key={screenshot.id} className="relative group cursor-pointer">
                           <div className="aspect-video rounded-lg border bg-muted overflow-hidden">
-                            <img
+                            <Image
                               src={screenshot.url}
                               alt={screenshot.filename}
                               className="w-full h-full object-cover hover:scale-105 transition-transform"

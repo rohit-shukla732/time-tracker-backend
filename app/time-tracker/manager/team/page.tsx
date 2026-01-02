@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { authFetch, validateAuth } from '@/lib/authFetch';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -14,7 +14,6 @@ import {
   BarChart,
   Bar,
   XAxis,
-  YAxis,
   CartesianGrid,
   Cell,
   Rectangle,
@@ -24,13 +23,81 @@ import {
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 
+interface TeamMember {
+  id: string;
+  name?: string;
+  email: string;
+  status?: 'Active' | 'Idle' | 'Break' | 'Offline';
+  avgWorkMs?: number;
+  avgBreakMs?: number;
+  avgIdleMs?: number;
+  lastActive?: string;
+}
+
+interface SessionSummary {
+  workTimeMs?: number;
+  totalBreakMs?: number;
+  totalIdleMs?: number;
+}
+
+interface AppUsage {
+  appName?: string;
+  name?: string;
+  timeMs?: number;
+}
+
+interface Session {
+  id: string;
+  startedAt: string;
+  endedAt?: string;
+  isActive: boolean;
+  summary?: SessionSummary;
+  workTimeMs?: number;
+  breakTimeMs?: number;
+  idleTimeMs?: number;
+  appUsage?: AppUsage[];
+}
+
+interface DailyWorkData {
+  day: string;
+  workTimeMs?: number;
+  breakTimeMs?: number;
+  idleTimeMs?: number;
+}
+
+interface MemberDetails {
+  status?: 'Active' | 'Idle' | 'Break' | 'Offline';
+  aggregates?: {
+    avgWorkMs?: number;
+    totalWorkMs?: number;
+    lastActive?: string;
+  };
+  topApps?: AppUsage[];
+  charts?: {
+    dailyWorkData?: DailyWorkData[];
+  };
+  recentSessions?: Session[];
+}
+
+interface TeamStats {
+  realtime?: {
+    working?: number;
+    idle?: number;
+    break?: number;
+    total?: number;
+  };
+  users?: {
+    total?: number;
+  };
+}
+
 export default function TeamPage() {
   const router = useRouter();
   const [teamId, setTeamId] = useState<string | null>(null);
-  const [stats, setStats] = useState<any | null>(null);
-  const [members, setMembers] = useState<any[]>([]);
-  const [selectedMember, setSelectedMember] = useState<any | null>(null);
-  const [memberDetails, setMemberDetails] = useState<any | null>(null);
+  const [stats, setStats] = useState<TeamStats | null>(null);
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  const [memberDetails, setMemberDetails] = useState<MemberDetails | null>(null);
   const [loadingMember, setLoadingMember] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,51 +120,53 @@ export default function TeamPage() {
     setTeamId(user.teamId);
   }, [router]);
 
-  useEffect(() => {
+  const fetchTeamStats = useCallback(async () => {
     if (!teamId) return;
-    fetchTeamStats();
-    fetchTeamMembers();
-  }, [teamId]);
-
-  async function fetchTeamStats() {
     try {
-      const data = await authFetch(`/api/teams/${teamId}/stats`, {}, '/manager/login');
+      const data = await authFetch(`/api/teams/${teamId}/stats`, {}, '/manager/login') as { stats?: TeamStats } & TeamStats;
       console.log('Team stats API response:', data);
       // API returns { success: true, stats: {...} }
       setStats(data.stats || data);
-    } catch (err: any) {
+    } catch (err) {
       // authFetch already handles auth errors with toast
-      if (err.name !== 'AuthError') {
+      if (err instanceof Error && err.name !== 'AuthError') {
         setError(err.message);
       }
     }
-  }
+  }, [teamId]);
 
-  async function fetchTeamMembers() {
+  const fetchTeamMembers = useCallback(async () => {
+    if (!teamId) return;
     try {
-      const data = await authFetch(`/api/teams/${teamId}/members`, {}, '/manager/login');
+      const data = await authFetch(`/api/teams/${teamId}/members`, {}, '/manager/login') as { members?: TeamMember[] };
       setMembers(data.members || []);
-    } catch (err: any) {
+    } catch (err) {
       // authFetch already handles auth errors with toast
-      if (err.name !== 'AuthError') {
+      if (err instanceof Error && err.name !== 'AuthError') {
         setError(err.message);
       }
     } finally {
       setLoading(false);
     }
-  }
+  }, [teamId]);
+
+  useEffect(() => {
+    if (!teamId) return;
+    fetchTeamStats();
+    fetchTeamMembers();
+  }, [teamId, fetchTeamStats, fetchTeamMembers]);
 
   async function fetchMemberDetails(userId: string) {
     setLoadingMember(true);
     try {
-      const data = await authFetch(`/api/users/${userId}/stats`, {}, '/manager/login');
+      const data = await authFetch(`/api/users/${userId}/stats`, {}, '/manager/login') as { stats?: MemberDetails } & MemberDetails;
       console.log('Member details API response:', data);
       // API returns { success: true, stats: {...} }
       setMemberDetails(data.stats || data);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching member details:', err);
       // authFetch already handles auth errors with toast
-      if (err.name !== 'AuthError') {
+      if (err instanceof Error && err.name !== 'AuthError') {
         setMemberDetails(null);
       }
     } finally {
@@ -105,7 +174,7 @@ export default function TeamPage() {
     }
   }
 
-  function handleMemberClick(member: any) {
+  function handleMemberClick(member: TeamMember) {
     setSelectedMember(member);
     fetchMemberDetails(member.id);
   }
@@ -274,13 +343,13 @@ export default function TeamPage() {
                       </Avatar>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{member.name || 'Unknown'}</span>
-                        <div className={`w-2 h-2 rounded-full ${getStatusColor(member.status)}`} />
+                        <div className={`w-2 h-2 rounded-full ${getStatusColor(member.status || 'Offline')}`} />
                       </div>
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{member.email}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={getStatusBadge(member.status)}>
+                    <Badge variant="outline" className={getStatusBadge(member.status || 'Offline')}>
                       {member.status || 'Offline'}
                     </Badge>
                   </TableCell>
@@ -317,12 +386,12 @@ function MemberDetailsDialog({
   loading,
   onClose
 }: {
-  member: any;
-  details: any;
+  member: TeamMember | null;
+  details: MemberDetails | null;
   loading: boolean;
   onClose: () => void;
 }) {
-  const [selectedSession, setSelectedSession] = React.useState<any | null>(null);
+  const [selectedSession, setSelectedSession] = React.useState<Session | null>(null);
 
   // Helper function to format time (hours or minutes)
   const formatTime = (ms: number): string => {
@@ -536,7 +605,7 @@ function MemberDetailsDialog({
                       }}
                       className="h-[300px] w-full px-6"
                     >
-                      <BarChart accessibilityLayer data={dailyWork.map((d: any) => ({
+                      <BarChart accessibilityLayer data={dailyWork.map((d: DailyWorkData) => ({
                         day: d.day,
                         workTime: parseFloat(((d.workTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
                         breakTime: parseFloat(((d.breakTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
@@ -592,14 +661,14 @@ function MemberDetailsDialog({
                 <CardContent>
                   {(selectedSession ? sessionApps : topApps).length ? (
                     <ChartContainer
-                      config={(selectedSession ? sessionApps : topApps).slice(0, 5).reduce((acc: any, app: any, idx: number) => {
+                      config={(selectedSession ? sessionApps : topApps).slice(0, 5).reduce((acc: Record<string, { label: string; color: string }>, app: AppUsage, idx: number) => {
                         const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
-                        acc[app.name || app.appName] = { label: app.name || app.appName, color: colors[idx % 5] };
+                        acc[app.name || app.appName || 'Unknown'] = { label: app.name || app.appName || 'Unknown', color: colors[idx % 5] };
                         return acc;
-                      }, { time: { label: 'Time' } })}
+                      }, { time: { label: 'Time', color: '' } })}
                       className="h-[300px] w-full px-6"
                     >
-                      <BarChart accessibilityLayer data={(selectedSession ? sessionApps : topApps).slice(0, 5).map((app: any, idx: number) => {
+                      <BarChart accessibilityLayer data={(selectedSession ? sessionApps : topApps).slice(0, 5).map((app: AppUsage, idx: number) => {
                         const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
                         const timeMs = app.timeMs || 0;
                         return { 
@@ -620,8 +689,9 @@ function MemberDetailsDialog({
                         <ChartTooltip
                           cursor={false}
                           content={<ChartTooltipContent  
-                            formatter={(value, name, item) => {
-                              return formatTime(item.payload.timeMs);
+                            formatter={(_value, _name, item: any) => {
+                              const timeMs = item?.payload?.timeMs ?? 0;
+                              return formatTime(timeMs);
                             }}
                           />}
                         />
@@ -684,7 +754,7 @@ function MemberDetailsDialog({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {recentSessions.map((session: any) => {
+                      {recentSessions.map((session: Session) => {
                         const duration = session.endedAt 
                           ? new Date(session.endedAt).getTime() - new Date(session.startedAt).getTime()
                           : Date.now() - new Date(session.startedAt).getTime();

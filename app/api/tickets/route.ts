@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     const priority = searchParams.get('priority');
     const assignedTo = searchParams.get('assignedTo');
 
-    let where: any = {};
+    const where: any = {};
 
     // Non-admin users can only see their own tickets
     if (user.role !== 'ADMIN') {

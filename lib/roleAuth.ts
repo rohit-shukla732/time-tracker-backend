@@ -27,7 +27,7 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
 
   try {
     const token = header.replace("Bearer ", "");
-    const payload = verifyAccessToken(token) as any;
+    const payload = verifyAccessToken(token) as { userId: string };
     
     // Get full user info including role and team from database
     const user = await prisma.user.findUnique({
@@ -50,7 +50,7 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
         teamId: user.teamId || undefined
       }
     };
-  } catch (err) {
+  } catch {
     return { user: null, error: "Invalid token" };
   }
 }
@@ -143,7 +143,7 @@ export async function getAccessibleUsers(currentUser: AuthenticatedUser): Promis
     const allUsers = await prisma.user.findMany({
       select: { id: true }
     });
-    return allUsers.map((u: any) => u.id);
+    return allUsers.map((u: { id: string }) => u.id);
   }
 
   // Managers can access their team members
@@ -152,7 +152,7 @@ export async function getAccessibleUsers(currentUser: AuthenticatedUser): Promis
       where: { teamId: currentUser.teamId },
       select: { id: true }
     });
-    return teamMembers.map((u: any) => u.id);
+    return teamMembers.map((u: { id: string }) => u.id);
   }
 
   // Employees can only access their own data

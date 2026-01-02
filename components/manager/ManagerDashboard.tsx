@@ -3,35 +3,75 @@
 import { useEffect, useState, useMemo } from 'react';
 import { authFetch } from '@/lib/authFetch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, Clock, Coffee, TrendingUp, Activity, Zap, Moon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Clock, Coffee, Zap, Moon } from 'lucide-react';
 import {
-  BarChart,
-  Bar,
   XAxis,
-  YAxis,
   CartesianGrid,
   Cell,
   PieChart,
   Pie,
   Label,
-  Tooltip as RechartsTooltip,
   LineChart,
   Line,
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  RadialBarChart,
-  RadialBar,
 } from 'recharts';
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
+import { ChartContainer, ChartTooltip, ChartTooltipContent,  } from '@/components/ui/chart';
+
+interface StatsData {
+  realtime?: {
+    working?: number;
+    idle?: number;
+    break?: number;
+    total?: number;
+  };
+  users?: {
+    total?: number;
+  };
+  charts?: {
+    dailyWorkData?: DailyWorkData[];
+    dailySessions?: DailySession[];
+    topApps?: unknown[];
+  };
+  workTime?: {
+    avgWorkTimeMs?: number;
+    totalWorkTimeMs?: number;
+    totalBreakTimeMs?: number;
+    totalIdleTimeMs?: number;
+  };
+  sessions?: {
+    thisMonth?: number;
+  };
+  aggregates?: {
+    avgWorkMs?: number;
+    totalWorkMs?: number;
+    avgBreakMs?: number;
+    avgIdleMs?: number;
+  };
+  topUsers?: TopUser[];
+}
+
+interface DailyWorkData {
+  day: string;
+  workTimeMs?: number;
+  breakTimeMs?: number;
+  idleTimeMs?: number;
+}
+
+interface DailySession {
+  day: string;
+  sessions?: number;
+}
+
+interface TopUser {
+  userId?: string;
+  workTimeMs?: number;
+  user?: {
+    name?: string;
+  };
+}
 
 export default function ManagerDashboard() {
-  const [stats, setStats] = useState<any | null>(null);
+  const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -80,25 +120,25 @@ export default function ManagerDashboard() {
         url = `/api/teams/${user.teamId}/stats`;
       }
 
-      const data = await authFetch(url, {}, '/time-tracker/manager/login');
+      const data = await authFetch(url, {}, '/time-tracker/manager/login') as { stats?: StatsData } & StatsData;
       console.log('Stats API response:', data);
       // API returns { success: true, stats: {...} }
       setStats(data.stats || data);
-    } catch (err: any) {
+    } catch (err) {
       // authFetch already handles auth errors with toast
-      if (err.name !== 'AuthError') {
+      if (err instanceof Error && err.name !== 'AuthError') {
         setError(err.message);
       }
     } finally {
       setLoading(false);
     }
   }
-  const statusData = [
+  const statusData = useMemo(() => [
     { name: 'Working', value: stats?.realtime?.working || 0, fill: '#10b981' },
     { name: 'Idle', value: stats?.realtime?.idle || 0, fill: '#f59e0b' },
     { name: 'Break', value: stats?.realtime?.break || 0, fill: '#3b82f6' },
     { name: 'Offline', value: (stats?.users?.total || 0) - (stats?.realtime?.total || 0), fill: '#6b7280' },
-  ];
+  ], [stats?.realtime?.working, stats?.realtime?.idle, stats?.realtime?.break, stats?.users?.total, stats?.realtime?.total]);
 
   const statusChartConfig = {
     value: {
@@ -145,14 +185,13 @@ export default function ManagerDashboard() {
   const dailyWork = stats?.charts?.dailyWorkData || [];
   const sessions = stats?.charts?.dailySessions || [];
   const topUsers = stats?.topUsers || [];
-  const topApps = stats?.charts?.topApps || [];
 
   // Map workTime to aggregates for compatibility
   const aggregates = stats?.workTime ? {
     avgWorkMs: stats.workTime.avgWorkTimeMs,
     totalWorkMs: stats.workTime.totalWorkTimeMs,
-    avgBreakMs: stats.workTime.totalBreakTimeMs / Math.max(1, stats.sessions?.thisMonth || 1),
-    avgIdleMs: stats.workTime.totalIdleTimeMs / Math.max(1, stats.sessions?.thisMonth || 1),
+    avgBreakMs: (stats.workTime.totalBreakTimeMs || 0) / Math.max(1, stats.sessions?.thisMonth || 1),
+    avgIdleMs: (stats.workTime.totalIdleTimeMs || 0) / Math.max(1, stats.sessions?.thisMonth || 1),
   } : stats?.aggregates;
 
   // Carousel slides data
@@ -237,14 +276,6 @@ export default function ManagerDashboard() {
   ];
 
   const currentSlideData = slides[currentSlide];
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % slides.length);
-  };
-
-  const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
-  };
 
   return (
     <div className="space-y-6">
@@ -381,7 +412,7 @@ export default function ManagerDashboard() {
                 config={{
                   value: { label: "Time" },
                   ...Object.fromEntries(
-                    topUsers.slice(0, 5).map((u: any, i: number) => {
+                    topUsers.slice(0, 5).map((u: TopUser, i: number) => {
                       const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
                       return [
                         (u.user?.name || u.userId || 'Unknown').split(' ')[0],
@@ -399,13 +430,13 @@ export default function ManagerDashboard() {
                   <ChartTooltip
                     cursor={false}
                     content={<ChartTooltipContent hideLabel 
-                        formatter={(_value, _name, item) => {
+                        formatter={(_value, _name, item: { payload?: { value?: number } }) => {
                               const hours = item?.payload?.value || 0;
                               return formatTime(Math.round(hours * 60 * 60 * 1000));
                             }}/>}
                   />
                   <Pie 
-                    data={topUsers.slice(0, 5).map((u: any, i: number) => {
+                    data={topUsers.slice(0, 5).map((u: TopUser, i: number) => {
                       const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
                       const hours = (u.workTimeMs || 0) / (1000 * 60 * 60);
                       return {
@@ -427,7 +458,7 @@ export default function ManagerDashboard() {
           </CardContent>
           <CardFooter className="flex-col gap-2 text-sm">
             <div className="flex flex-wrap justify-center gap-3">
-              {topUsers.slice(0, 5).map((u: any, i: number) => {
+              {topUsers.slice(0, 5).map((u: TopUser, i: number) => {
                 const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
                 return (
                   <div key={i} className="flex items-center gap-2 text-xs">
@@ -458,7 +489,7 @@ export default function ManagerDashboard() {
                   const periodSessions = activeChart === 'week' 
                     ? sessions.slice(-7) 
                     : sessions.slice(-30);
-                  const totalSessions = periodSessions.reduce((acc: number, curr: any) => acc + (curr.sessions || 0), 0);
+                  const totalSessions = periodSessions.reduce((acc: number, curr: DailySession) => acc + (curr.sessions || 0), 0);
                   
                   return (
                     <button
@@ -483,7 +514,7 @@ export default function ManagerDashboard() {
                   const periodData = activeChart === 'week' 
                     ? dailyWork.slice(-7) 
                     : dailyWork.slice(-30);
-                  const totalHours = periodData.reduce((acc: number, curr: any) => 
+                  const totalHours = periodData.reduce((acc: number, curr: DailyWorkData) => 
                     acc + ((curr.workTimeMs || 0) / (1000 * 60 * 60)), 0
                   );
                   
@@ -597,7 +628,7 @@ export default function ManagerDashboard() {
                 >
                   <LineChart
                     accessibilityLayer
-                    data={(activeChart === 'week' ? dailyWork.slice(-7) : dailyWork.slice(-30)).map((d: any) => ({
+                    data={(activeChart === 'week' ? dailyWork.slice(-7) : dailyWork.slice(-30)).map((d: DailyWorkData) => ({
                       ...d,
                       workTime: parseFloat(((d.workTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
                       breakTime: parseFloat(((d.breakTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),

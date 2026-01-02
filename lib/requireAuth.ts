@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { verifyAccessToken } from "./auth";
 
 export function requireAuth(req: Request) {
@@ -10,7 +9,7 @@ export function requireAuth(req: Request) {
     const token = header.replace("Bearer ", "");
     const user = verifyAccessToken(token);
     return { user };
-  } catch (err) {
+  } catch {
     return { error: "Invalid token", user: null };
   }
 }

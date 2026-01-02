@@ -3,9 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Ticket, 
   Clock, 
-  CheckCircle2, 
-  XCircle,
-  TrendingUp,
+  CheckCircle2,
   AlertCircle,
   Activity
 } from 'lucide-react';

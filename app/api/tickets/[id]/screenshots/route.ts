@@ -8,7 +8,7 @@ import { existsSync } from 'fs';
 // POST /api/tickets/[id]/screenshots - Upload screenshots
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireAuth(req);
@@ -20,7 +20,8 @@ export async function POST(
     }
 
     const user = authResult.user;
-    const ticketId = params.id;
+    const { id } = await params;
+    const ticketId = id;
 
     // Check if ticket exists and user has access
     const ticket = await prisma.ticket.findUnique({
@@ -111,7 +112,7 @@ export async function POST(
 // GET /api/tickets/[id]/screenshots - Get ticket screenshots
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireAuth(req);
@@ -123,7 +124,8 @@ export async function GET(
     }
 
     const user = authResult.user;
-    const ticketId = params.id;
+    const { id } = await params;
+    const ticketId = id;
 
     // Check if ticket exists and user has access
     const ticket = await prisma.ticket.findUnique({
@@ -157,7 +159,7 @@ export async function GET(
 // DELETE /api/tickets/[id]/screenshots/[screenshotId] - Delete a screenshot
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireAuth(req);

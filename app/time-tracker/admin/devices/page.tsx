@@ -443,7 +443,7 @@ export default function AdminDeviceControl() {
           <CardHeader>
             <CardTitle>All Users</CardTitle>
             <CardDescription>
-              Click Stop to force-stop a user's time tracker, or Resume to allow it to run again
+              Click Stop to force-stop a user&apos;s time tracker, or Resume to allow it to run again
             </CardDescription>
           </CardHeader>
           <CardContent>

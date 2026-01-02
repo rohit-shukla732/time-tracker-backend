@@ -5,7 +5,7 @@ import { requireAuth } from '@/lib/roleAuth';
 // GET /api/tickets/[id] - Get a single ticket
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireAuth(req);
@@ -17,7 +17,7 @@ export async function GET(
     }
 
     const user = authResult.user;
-    const { id } = params;
+    const { id } = await params;
 
     const ticket = await prisma.ticket.findUnique({
       where: { id },
@@ -79,7 +79,7 @@ export async function GET(
 // PATCH /api/tickets/[id] - Update a ticket
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireAuth(req);
@@ -91,7 +91,7 @@ export async function PATCH(
     }
 
     const user = authResult.user;
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
 
     const { status, priority, assignedTo, resolvedAt } = body;
@@ -168,7 +168,7 @@ export async function PATCH(
 // DELETE /api/tickets/[id] - Delete a ticket (admin only)
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireAuth(req);
@@ -180,7 +180,7 @@ export async function DELETE(
     }
 
     const user = authResult.user;
-    const { id } = params;
+    const { id } = await params;
 
     if (user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });

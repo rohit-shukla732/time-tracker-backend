@@ -1,0 +1,12 @@
+
+ticketing.acehcs.in {
+    tls internal
+    reverse_proxy localhost:3000/ticketing
+
+}
+
+
+ems.acehcs.in {
+    tls internal
+    reverse_proxy localhost:3000/time-tracker
+}

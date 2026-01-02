@@ -16,12 +16,9 @@ import {
 import {
   LayoutDashboard,
   Ticket,
-  Users,
-  Settings,
   LogOut,
   ChevronDown,
   Shield,
-  BarChart3,
 } from 'lucide-react';
 
 interface User {

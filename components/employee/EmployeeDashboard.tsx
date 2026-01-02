@@ -5,9 +5,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { authFetch } from '@/lib/authFetch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Clock, Coffee, Activity, Moon, TrendingUp, Zap } from 'lucide-react';
+import { Clock, Coffee, Activity, Moon, TrendingUp } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -19,19 +18,66 @@ import {
   Pie,
   Label,
   Legend,
-  Tooltip as RechartsTooltip,
   LineChart,
   Line,
   ResponsiveContainer,
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 
+interface SessionSummary {
+  workTimeMs?: number;
+  totalBreakMs?: number;
+  totalIdleMs?: number;
+}
+
+interface AppUsage {
+  appName: string;
+  timeMs?: number;
+}
+
+interface Session {
+  id: string;
+  startedAt: string;
+  endedAt?: string;
+  isActive: boolean;
+  summary?: SessionSummary;
+  appUsage?: AppUsage[];
+}
+
+interface DailyWorkData {
+  day: string;
+  workTimeMs: number;
+  breakTimeMs: number;
+  idleTimeMs: number;
+}
+
+interface TopApp {
+  name: string;
+  timeMs?: number;
+}
+
+interface StatsData {
+  status?: 'Active' | 'Idle' | 'Break' | 'Offline';
+  aggregates?: {
+    totalWorkMs?: number;
+    avgWorkMs?: number;
+    totalBreakMs?: number;
+    totalIdleMs?: number;
+    lastActive?: string;
+  };
+  charts?: {
+    dailyWorkData?: DailyWorkData[];
+  };
+  topApps?: TopApp[];
+  recentSessions?: Session[];
+}
+
 export default function EmployeeDashboard() {
-  const [stats, setStats] = useState<any | null>(null);
+  const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeChart, setActiveChart] = useState<'week' | 'month'>('week');
-  const [selectedSession, setSelectedSession] = useState<any | null>(null);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
 
   // Helper function to format time (hours or minutes)
   const formatTime = (ms: number): string => {
@@ -60,11 +106,11 @@ export default function EmployeeDashboard() {
       }
 
       const user = JSON.parse(storedUser);
-      const data = await authFetch(`/api/users/${user.id}/stats`, {}, '/employee/login');
+      const data = await authFetch(`/api/users/${user.id}/stats`, {}, '/employee/login') as { stats?: StatsData } & StatsData;
       
       setStats(data.stats || data);
-    } catch (err: any) {
-      if (err.name !== 'AuthError') {
+    } catch (err) {
+      if (err instanceof Error && err.name !== 'AuthError') {
         setError(err.message);
       }
     } finally {
@@ -97,7 +143,7 @@ export default function EmployeeDashboard() {
   const sessionApps = selectedSession?.appUsage || [];
 
   // Prepare chart data
-  const dailyWorkChartData = stats?.charts?.dailyWorkData?.map((d: any) => ({
+  const dailyWorkChartData = stats?.charts?.dailyWorkData?.map((d: DailyWorkData) => ({
     day: d.day,
     work: Number((d.workTimeMs / (1000 * 60 * 60)).toFixed(1)),
     break: Number((d.breakTimeMs / (1000 * 60 * 60)).toFixed(1)),
@@ -105,13 +151,13 @@ export default function EmployeeDashboard() {
   })) || [];
 
   const topAppsData = selectedSession 
-    ? sessionApps.slice(0, 5).map((app: any, index: number) => ({
+    ? sessionApps.slice(0, 5).map((app: AppUsage, index: number) => ({
         name: app.appName,
         timeMs: app.timeMs || 0,
         time: formatTime(app.timeMs || 0),
         fill: `var(--chart-${(index % 5) + 1})`,
       }))
-    : stats?.topApps?.slice(0, 5).map((app: any, index: number) => ({
+    : stats?.topApps?.slice(0, 5).map((app: TopApp, index: number) => ({
         name: app.name,
         timeMs: app.timeMs || 0,
         time: formatTime(app.timeMs || 0),
@@ -341,7 +387,7 @@ export default function EmployeeDashboard() {
                   const periodData = activeChart === 'week' 
                     ? dailyWorkChartData.slice(-7) 
                     : dailyWorkChartData.slice(-30);
-                  const totalHours = periodData.reduce((acc: number, curr: any) => 
+                  const totalHours = periodData.reduce((acc: number, curr: { work?: number; break?: number; idle?: number }) => 
                     acc + (curr.work || 0) + (curr.break || 0) + (curr.idle || 0), 0
                   );
                   
@@ -455,7 +501,7 @@ export default function EmployeeDashboard() {
                     />} 
                   />
                   <Bar dataKey="timeMs" radius={[4, 4, 0, 0]}>
-                    {topAppsData.map((entry: any, index: number) => (
+                    {topAppsData.map((entry: { fill: string }, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Bar>
@@ -496,7 +542,7 @@ export default function EmployeeDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {stats?.recentSessions?.map((session: any) => {
+              {stats?.recentSessions?.map((session: Session) => {
                 const duration = session.endedAt 
                   ? new Date(session.endedAt).getTime() - new Date(session.startedAt).getTime()
                   : Date.now() - new Date(session.startedAt).getTime();

@@ -39,7 +39,6 @@ import {
   LayoutGrid,
   List,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { authFetch } from '@/lib/authFetch';
 
 type EmployeeStatus = 'working' | 'idle' | 'break' | 'offline';

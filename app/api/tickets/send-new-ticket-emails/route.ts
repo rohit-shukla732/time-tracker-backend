@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
     }
 
-    let emailsSent = { confirmationToCreator: false, notificationToAdmin: false };
+    const emailsSent = { confirmationToCreator: false, notificationToAdmin: false };
 
     try {
       // Send confirmation email to ticket creator
