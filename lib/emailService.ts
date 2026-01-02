@@ -602,6 +602,83 @@ class EmailService {
     // Send to helpdesk email
     return this.sendEmail({ to: process.env.HELPDESK_EMAIL!, subject, body });
   }
+
+  async sendPasswordResetOTP(
+    userEmail: string,
+    userName: string,
+    otp: string
+  ) {
+    const subject = `Password Reset OTP - ACE Healthcare`;
+    const body = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
+          .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
+          .enterprise .header { background: #4f46e5; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
+          .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
+          .enterprise .header-right { text-align: right; }
+          .enterprise .ticket-number { color: #c7d2fe; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .enterprise .status-badge { background: #6366f1; color: #ffffff; padding: 6px 14px; border-radius: 3px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; display: inline-block; }
+          .enterprise .content { padding: 45px 50px; color: #374151; }
+          .enterprise .greeting { font-size: 16px; margin-bottom: 25px; color: #111827; font-weight: 500; }
+          .enterprise .message { margin-bottom: 35px; line-height: 1.8; }
+          .enterprise .otp-box { background: #eef2ff; border-left: 4px solid #4f46e5; padding: 30px; margin: 30px 0; text-align: center; }
+          .enterprise .otp-label { font-weight: 700; color: #4f46e5; margin-bottom: 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+          .enterprise .otp-code { font-size: 36px; font-weight: 700; color: #4f46e5; letter-spacing: 8px; font-family: 'Courier New', monospace; margin: 10px 0; }
+          .enterprise .otp-expiry { font-size: 12px; color: #6b7280; margin-top: 15px; }
+          .enterprise .warning-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; }
+          .enterprise .warning-text { color: #92400e; font-size: 13px; line-height: 1.6; }
+          .enterprise .footer { padding: 30px 50px; background: #4f46e5; color: #c7d2fe; font-size: 11px; text-align: center; }
+          .enterprise .footer-divider { width: 50px; height: 2px; background: #6366f1; margin: 15px auto; }
+        </style>
+      </head>
+      <body>
+        <div class="enterprise">
+          <div class="header">
+            <div class="logo-text">ACE Healthcare Solutions</div>
+            <div class="header-right">
+              <div class="ticket-number">Password Reset</div>
+              <div class="status-badge">🔐 OTP Verification</div>
+            </div>
+          </div>
+          <div class="content">
+            <div class="greeting">Dear ${userName},</div>
+            <div class="message">
+              We received a request to reset your password. Use the One-Time Password (OTP) below to complete the password reset process.
+            </div>
+            <div class="otp-box">
+              <div class="otp-label">Your OTP Code</div>
+              <div class="otp-code">${otp}</div>
+              <div class="otp-expiry">⏱ Valid for 15 minutes</div>
+            </div>
+            <div class="warning-box">
+              <div class="warning-text">
+                <strong>⚠️ Security Notice:</strong><br>
+                • Never share this OTP with anyone<br>
+                • ACE Healthcare will never ask for your OTP via phone or email<br>
+                • If you didn't request this reset, please ignore this email
+              </div>
+            </div>
+            <div class="message">
+              This OTP will expire in 15 minutes. If you need a new code, you can request another password reset.
+            </div>
+          </div>
+          <div class="footer">
+            <div class="footer-divider"></div>
+            This is an automated message from ACE Healthcare Solutions.<br>
+            Please do not reply to this email.<br>
+            © 2026 ACE Healthcare Solutions. All rights reserved.
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return this.sendEmail({ to: userEmail, subject, body });
+  }
 }
 
 export const emailService = new EmailService();

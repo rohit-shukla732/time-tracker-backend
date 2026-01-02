@@ -97,6 +97,19 @@ model RefreshToken {
   createdAt DateTime @default(now())
 }
 
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  otp       String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  @@index([email])
+  @@index([token])
+}
+
 model Session {
   id          String   @id @default(uuid())
   sessionId   String   @unique
