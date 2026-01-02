@@ -1,12 +1,11 @@
-
-ticketing.acehcs.in {
-    tls internal
-    reverse_proxy localhost:3000/ticketing
-
+{
+    auto_https off
 }
 
+http://ticketing.acehcs.in {
+    reverse_proxy 127.0.0.1:3000
+}
 
-ems.acehcs.in {
-    tls internal
-    reverse_proxy localhost:3000/time-tracker
+http://ems.acehcs.in {
+    reverse_proxy 127.0.0.1:3000
 }
