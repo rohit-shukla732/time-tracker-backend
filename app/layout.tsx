@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ACE Tickteting System",
-  description: "ACE IT Support Ticketing System",
+  title: "ACE Internal System",
+  description: "ACE Internal System",
 };
 
 export default function RootLayout({

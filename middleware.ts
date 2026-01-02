@@ -1,44 +1,48 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from "next/server";
 
-export function middleware(request: NextRequest) {
-  const hostname = request.headers.get('host') || ''
-  const url = request.nextUrl.clone()
+export function middleware(req: NextRequest) {
+  const hostname = req.headers.get("host") || "";
+  const { pathname } = req.nextUrl;
 
-  // Domain-based routing
-  if (hostname.includes('ticketing.acehcs.in')) {
-    // Redirect to /ticketing path if not already there
-    if (!url.pathname.startsWith('/ticketing')) {
-      url.pathname = `/ticketing${url.pathname}`
-      return NextResponse.rewrite(url)
-    }
-  } else if (hostname.includes('ems.acehcs.in')) {
-    // Redirect to /time-tracker path if not already there
-    if (!url.pathname.startsWith('/time-tracker')) {
-      url.pathname = `/time-tracker${url.pathname}`
-      return NextResponse.rewrite(url)
+  // ✅ 1. Never touch APIs or Next internals
+  if (
+    pathname.startsWith("/api") ||
+    pathname.startsWith("/_next") ||
+    pathname === "/favicon.ico" ||
+    pathname.startsWith("/auth")
+  ) {
+    return NextResponse.next();
+  }
+
+  // ✅ 2. Ticketing subdomain → ticketing UI
+  if (hostname.startsWith("ticketing.")) {
+    if (!pathname.startsWith("/ticketing")) {
+      return NextResponse.rewrite(
+        new URL(`/ticketing${pathname}`, req.url)
+      );
     }
   }
 
-  // Handle CORS
-  const response = NextResponse.next()
-
-  // Set CORS headers - allow all origins or specific domains
-  const origin = request.headers.get('origin') || '*'
-  response.headers.set('Access-Control-Allow-Origin', origin)
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-  response.headers.set('Access-Control-Allow-Credentials', 'true')
-
-  // Handle preflight requests
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: response.headers })
+  // ✅ 3. EMS subdomain → time-tracker UI
+  if (hostname.startsWith("ems.")) {
+    if (!pathname.startsWith("/time-tracker")) {
+      return NextResponse.rewrite(
+        new URL(`/time-tracker${pathname}`, req.url)
+      );
+    }
   }
 
-  return response
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ]
-}
+    /*
+     * Apply middleware to all paths EXCEPT:
+     * - /api
+     * - /_next
+     * - /favicon.ico
+     */
+    "/((?!api|_next|favicon.ico).*)",
+  ],
+};

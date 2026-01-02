@@ -6,6 +6,8 @@ export default function Home() {
   const router = useRouter();
 
   return (
-    router.push('/time-tracker/employee')
+    <main className="flex min-h-screen flex-col items-center justify-center p-24">
+      <h1 className="text-4xl font-bold">Welcome to ACE Internal System</h1>
+    </main>
   );
 }

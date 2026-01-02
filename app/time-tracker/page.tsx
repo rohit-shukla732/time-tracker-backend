@@ -15,14 +15,16 @@ export default function TicketingPage() {
       
       // Redirect based on role
       if (parsedUser.role === 'ADMIN') {
-        router.push('/ticketing/admin/tickets');
-      } else {
-        router.push('/ticketing/employee/dashboard');
+        router.push('/time-tracker/admin');
+      } else if (parsedUser.role === 'MANAGER') {
+        router.push('/time-tracker/manager');
+        } else {
+        router.push('/time-tracker/employee');
       }
     }
   }, [router]);
 
   return(
-    router.push('ticketing/employee')
+    router.push('/time-tracker/employee')
   );
 }
