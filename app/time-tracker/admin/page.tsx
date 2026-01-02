@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -185,13 +186,15 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStats = useCallback(async (token: string) => {
+  const fetchStats = useCallback(async (isInitialLoad = true) => {
     try {
-      const response = await fetch('/api/admin/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const token = localStorage.getItem('accessToken');
+      if (!token && isInitialLoad) {
+        router.push('/time-tracker/admin/login');
+        return;
+      }
+
+      const response = await makeAuthenticatedRequest('/api/admin/stats');
 
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('accessToken');
@@ -229,17 +232,20 @@ export default function AdminDashboard() {
       return;
     }
 
-    fetchStats(token);
+    fetchStats(true);
+
+    // Setup automatic token refresh for admin
+    const cleanupTokenRefresh = setupAutoRefresh();
 
     // Refresh stats every 30 seconds
-    const interval = setInterval(() => {
-      const currentToken = localStorage.getItem('accessToken');
-      if (currentToken) {
-        fetchStats(currentToken);
-      }
+    const statsInterval = setInterval(() => {
+      fetchStats(false);
     }, 30000);
 
-    return () => clearInterval(interval);
+    return () => {
+      cleanupTokenRefresh();
+      clearInterval(statsInterval);
+    };
   }, [router, fetchStats]);
 
   if (loading) {

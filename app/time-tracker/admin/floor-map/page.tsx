@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -374,9 +375,7 @@ export default function FloorMapPage() {
     }
 
     try {
-      const response = await fetch('/api/admin/floor-status', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      const response = await makeAuthenticatedRequest('/api/admin/floor-status');
 
       if (response.status === 401) {
         localStorage.removeItem('accessToken');
@@ -403,6 +402,11 @@ export default function FloorMapPage() {
 
   useEffect(() => {
     fetchData();
+
+    // Setup automatic token refresh for admin
+    const cleanupTokenRefresh = setupAutoRefresh();
+
+    return () => cleanupTokenRefresh();
   }, [fetchData]);
 
   // Auto-refresh every 30 seconds

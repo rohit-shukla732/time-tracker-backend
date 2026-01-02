@@ -143,7 +143,7 @@ export function TicketCard({ ticket }: TicketCardProps) {
 
           {/* Actions */}
           <div className="flex justify-end pt-2">
-            <Link href={`/ticketing/${ticket.id}`}>
+            <Link href={`/ticketing/employee/${ticket.id}`}>
               <Button variant="ghost" size="sm" className="gap-1">
                 View Details
                 <ArrowRight className="h-3.5 w-3.5" />

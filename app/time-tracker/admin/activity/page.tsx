@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -105,11 +106,7 @@ export default function AdminActivity() {
         type: activityType,
       });
 
-      const response = await fetch(`/api/admin/activity?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await makeAuthenticatedRequest(`/api/admin/activity?${params}`);
 
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('accessToken');
@@ -134,9 +131,16 @@ export default function AdminActivity() {
   useEffect(() => {
     fetchActivity();
 
+    // Setup automatic token refresh for admin
+    const cleanupTokenRefresh = setupAutoRefresh();
+
     // Auto-refresh every 10 seconds
-    const interval = setInterval(fetchActivity, 10000);
-    return () => clearInterval(interval);
+    const activityInterval = setInterval(fetchActivity, 10000);
+    
+    return () => {
+      cleanupTokenRefresh();
+      clearInterval(activityInterval);
+    };
   }, [fetchActivity]);
 
   if (loading) {

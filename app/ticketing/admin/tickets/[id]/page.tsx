@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from '@/lib/utils';
 import { toast } from 'sonner';
+import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 
 export default function AdminTicketDetailsPage() {
   const router = useRouter();
@@ -48,6 +49,11 @@ export default function AdminTicketDetailsPage() {
   useEffect(() => {
     fetchTicket();
     fetchItTeam();
+
+    // Setup automatic token refresh for admin
+    const cleanupTokenRefresh = setupAutoRefresh();
+
+    return () => cleanupTokenRefresh();
   }, [ticketId]);
 
   const fetchItTeam = async () => {
@@ -55,12 +61,7 @@ export default function AdminTicketDetailsPage() {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      const response = await fetch('/api/users/it-team', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        credentials: 'include',
-      });
+      const response = await makeAuthenticatedRequest('/api/users/it-team');
 
       if (response.ok) {
         const data = await response.json();
@@ -363,10 +364,6 @@ export default function AdminTicketDetailsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Ticket #{ticket.id}</h1>
             <p className="text-muted-foreground">Manage and resolve ticket</p>
           </div>
-          <Button variant="default">
-            <Save className="mr-2 h-4 w-4" />
-            Save Changes
-          </Button>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -508,153 +505,159 @@ export default function AdminTicketDetailsPage() {
 
           {/* Sidebar - Admin Controls */}
           <div className="space-y-4">
-            {/* Status */}
+            {/* Ticket Management */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Status</CardTitle>
+                <CardTitle className="text-base">Ticket Management</CardTitle>
               </CardHeader>
-              <CardContent>
-                <Select value={ticket.status} onValueChange={(value) => handleStatusChange(value as TicketStatus)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={TicketStatus.OPEN}>Open</SelectItem>
-                    <SelectItem value={TicketStatus.IN_PROGRESS}>In Progress</SelectItem>
-                    <SelectItem value={TicketStatus.PENDING}>Pending</SelectItem>
-                    <SelectItem value={TicketStatus.RESOLVED}>Resolved</SelectItem>
-                    <SelectItem value={TicketStatus.CLOSED}>Closed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
+              <CardContent className="space-y-4">
+                {/* Status */}
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="status-select" className="text-sm font-medium whitespace-nowrap">
+                    Status
+                  </Label>
+                  <Select value={ticket.status} onValueChange={(value) => handleStatusChange(value as TicketStatus)}>
+                    <SelectTrigger id="status-select" className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={TicketStatus.OPEN}>Open</SelectItem>
+                      <SelectItem value={TicketStatus.IN_PROGRESS}>In Progress</SelectItem>
+                      <SelectItem value={TicketStatus.PENDING}>Pending</SelectItem>
+                      <SelectItem value={TicketStatus.RESOLVED}>Resolved</SelectItem>
+                      <SelectItem value={TicketStatus.CLOSED}>Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {/* Priority */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Priority</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Select value={ticket.priority} onValueChange={(value) => handlePriorityChange(value as TicketPriority)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={TicketPriority.LOW}>Low</SelectItem>
-                    <SelectItem value={TicketPriority.MEDIUM}>Medium</SelectItem>
-                    <SelectItem value={TicketPriority.HIGH}>High</SelectItem>
-                    <SelectItem value={TicketPriority.URGENT}>Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </CardContent>
-            </Card>
+                <Separator />
 
-            {/* Assignment */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Assign To</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Select 
-                  value={ticket.assignedTo || 'unassigned'} 
-                  onValueChange={async (value) => {
-                    const assigneeId = value === 'unassigned' ? null : value;
-                    const assignee = assigneeId ? itTeamMembers.find(m => m.id === assigneeId) : null;
+                {/* Priority */}
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="priority-select" className="text-sm font-medium whitespace-nowrap">
+                    Priority
+                  </Label>
+                  <Select value={ticket.priority} onValueChange={(value) => handlePriorityChange(value as TicketPriority)}>
+                    <SelectTrigger id="priority-select" className="w-[180px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={TicketPriority.LOW}>Low</SelectItem>
+                      <SelectItem value={TicketPriority.MEDIUM}>Medium</SelectItem>
+                      <SelectItem value={TicketPriority.HIGH}>High</SelectItem>
+                      <SelectItem value={TicketPriority.URGENT}>Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                    try {
-                      const token = localStorage.getItem('accessToken');
-                      if (!token) {
-                        toast.error('Please log in to continue');
-                        router.push('/ticketing/admin/login');
-                        return;
-                      }
+                <Separator />
 
-                      const response = await fetch(`/api/tickets/${ticketId}`, {
-                        method: 'PATCH',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${token}`,
-                        },
-                        credentials: 'include',
-                        body: JSON.stringify({
-                          assignedTo: assigneeId,
-                        }),
-                      });
+                {/* Assignment */}
+                <div className="flex items-center justify-between gap-3">
+                  <Label htmlFor="assignee-select" className="text-sm font-medium whitespace-nowrap">
+                    Assign To
+                  </Label>
+                  <Select 
+                    value={ticket.assignedTo || 'unassigned'} 
+                    onValueChange={async (value) => {
+                      const assigneeId = value === 'unassigned' ? null : value;
+                      const assignee = assigneeId ? itTeamMembers.find(m => m.id === assigneeId) : null;
 
-                      if (response.status === 401) {
-                        toast.error('Session expired. Please log in again.');
-                        localStorage.removeItem('accessToken');
-                        localStorage.removeItem('refreshToken');
-                        localStorage.removeItem('user');
-                        router.push('/ticketing/admin/login');
-                        return;
-                      }
-
-                      if (!response.ok) {
-                        throw new Error('Failed to assign ticket');
-                      }
-
-                      const updatedTicket = await response.json();
-                      setTicket(updatedTicket);
-                      toast.success('Assignment updated');
-
-                      // Send email notification via API
                       try {
-                        await fetch(`/api/tickets/${ticketId}/send-email`, {
-                          method: 'POST',
+                        const token = localStorage.getItem('accessToken');
+                        if (!token) {
+                          toast.error('Please log in to continue');
+                          router.push('/ticketing/admin/login');
+                          return;
+                        }
+
+                        const response = await fetch(`/api/tickets/${ticketId}`, {
+                          method: 'PATCH',
                           headers: {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${token}`,
                           },
                           credentials: 'include',
                           body: JSON.stringify({
-                            type: 'assignment',
-                            assignedToId: assigneeId,
+                            assignedTo: assigneeId,
                           }),
                         });
+
+                        if (response.status === 401) {
+                          toast.error('Session expired. Please log in again.');
+                          localStorage.removeItem('accessToken');
+                          localStorage.removeItem('refreshToken');
+                          localStorage.removeItem('user');
+                          router.push('/ticketing/admin/login');
+                          return;
+                        }
+
+                        if (!response.ok) {
+                          throw new Error('Failed to assign ticket');
+                        }
+
+                        const updatedTicket = await response.json();
+                        setTicket(updatedTicket);
+                        toast.success('Assignment updated');
+
+                        // Send email notification via API
+                        try {
+                          await fetch(`/api/tickets/${ticketId}/send-email`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${token}`,
+                            },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                              type: 'assignment',
+                              assignedToId: assigneeId,
+                            }),
+                          });
+                        } catch (error) {
+                          console.error('Failed to send assignment email:', error);
+                        }
                       } catch (error) {
-                        console.error('Failed to send assignment email:', error);
+                        console.error('Error assigning ticket:', error);
+                        toast.error('Failed to assign ticket');
                       }
-                    } catch (error) {
-                      console.error('Error assigning ticket:', error);
-                      toast.error('Failed to assign ticket');
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue>
-                      {ticket.assignee ? (
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-5 w-5">
-                            <AvatarFallback className="text-[10px]">
-                              {getInitials(ticket.assignee.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm">{ticket.assignee.name}</span>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">Unassigned</span>
-                      )}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">
-                      <span className="text-muted-foreground">Unassigned</span>
-                    </SelectItem>
-                    {itTeamMembers.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-5 w-5">
-                            <AvatarFallback className="text-[10px]">
-                              {getInitials(member.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span>{member.name}</span>
-                        </div>
+                    }}
+                  >
+                    <SelectTrigger id="assignee-select" className="w-[180px]">
+                      <SelectValue>
+                        {ticket.assignee ? (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-[10px]">
+                                {getInitials(ticket.assignee.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm truncate">{ticket.assignee.name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Unassigned</span>
+                        )}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">
+                        <span className="text-muted-foreground">Unassigned</span>
                       </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      {itTeamMembers.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-5 w-5">
+                              <AvatarFallback className="text-[10px]">
+                                {getInitials(member.name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span>{member.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </CardContent>
             </Card>
 

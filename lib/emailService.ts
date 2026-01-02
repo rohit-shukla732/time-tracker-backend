@@ -92,46 +92,68 @@ class EmailService {
       <html>
       <head>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #ffffff; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; border-bottom: 3px solid #e5e7eb; }
-          .logo-text { color: #2563eb; font-size: 28px; font-weight: bold; margin-bottom: 10px; letter-spacing: 1px; }
-          .header h1 { color: #1f2937; margin: 0; font-size: 24px; }
-          .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
-          .ticket-info { background-color: white; padding: 15px; border-radius: 5px; margin: 20px 0; }
-          .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
-          .button { display: inline-block; background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
+          .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
+          .enterprise .header { background: #1f2937; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
+          .enterprise .header-right { text-align: right; }
+          .enterprise .ticket-number { color: #9ca3af; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .enterprise .status-badge { background: #3b82f6; color: #ffffff; padding: 6px 14px; border-radius: 3px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; display: inline-block; }
+          .enterprise .content { padding: 45px 50px; color: #374151; }
+          .enterprise .greeting { font-size: 16px; margin-bottom: 25px; color: #111827; font-weight: 500; }
+          .enterprise .message { margin-bottom: 35px; line-height: 1.8; }
+          .enterprise .ticket-box { background: #f9fafb; border-left: 4px solid #1f2937; padding: 30px; margin: 30px 0; }
+          .enterprise .section-title { font-weight: 700; color: #1f2937; margin-bottom: 20px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+          .enterprise .detail-row { display: flex; padding: 12px 0; }
+          .enterprise .detail-label { font-weight: 600; color: #6b7280; min-width: 130px; font-size: 13px; }
+          .enterprise .detail-value { color: #111827; flex: 1; }
+          .enterprise .footer { padding: 30px 50px; background: #1f2937; color: #9ca3af; font-size: 11px; text-align: center; }
+          .enterprise .footer-divider { width: 50px; height: 2px; background: #374151; margin: 15px auto; }
         </style>
       </head>
       <body>
-        <div class="container">
+        <div class="enterprise">
           <div class="header">
-            <img src="https://acehcs.in/_next/image?url=%2Fassets%2FACE-Logo.png&w=256&q=75" alt="ACE Logo" class="logo" />
-            <h1>IT Support Ticket Created</h1>
+           <div class="img">
+                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+            </div>
+            <div class="logo-text">ACE Healthcare Solutions</div>
+            <div class="header-right">
+              <div class="ticket-number">Support Ticket</div>
+              <div class="status-badge">Created</div>
+            </div>
           </div>
           <div class="content">
-            <p>Hi <strong>${userName}</strong>,</p>
-            <p>Your IT support ticket has been successfully created. Our team has been notified and will respond as soon as possible.</p>
-            
-            <div class="ticket-info">
-              <p><strong>Ticket ID:</strong> #${ticketId}</p>
-              <p><strong>Subject:</strong> ${ticketTitle}</p>
-              <p><strong>Status:</strong> Open</p>
+            <div class="greeting">Dear ${userName},</div>
+            <div class="message">
+              Your IT support request has been successfully received and logged into our system. Our technical support team has been notified and will review your request shortly.
             </div>
-
-            <p>You will receive email updates when:</p>
-            <ul>
-              <li>Your ticket is assigned to an IT team member</li>
-              <li>There are updates or comments on your ticket</li>
-              <li>Your ticket is resolved</li>
-            </ul>
-
-            <p>You can view your ticket details and add comments by logging into the ticketing system.</p>
-            
-            <p>Thank you for contacting IT Support!</p>
+            <div class="ticket-box">
+              <div class="section-title">Ticket Information</div>
+              <div class="detail-row">
+                <div class="detail-label">Ticket ID:</div>
+                <div class="detail-value">#${ticketId}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Subject:</div>
+                <div class="detail-value">${ticketTitle}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Status:</div>
+                <div class="detail-value">Open</div>
+              </div>
+            </div>
+            <div class="message">
+              You will receive email notifications when your ticket is assigned to a team member, when there are updates, and when it is resolved. You can also track your ticket progress by logging into the support portal.
+            </div>
           </div>
           <div class="footer">
-            <p>This is an automated message from IT Support. Please do not reply to this email.</p>
+            <div class="footer-divider"></div>
+            This is an automated message from the IT Support Department.<br>
+            Please do not reply to this email.<br>
+            © 2026 ACE Healthcare Solutions. All rights reserved.
           </div>
         </div>
       </body>
@@ -154,36 +176,68 @@ class EmailService {
       <html>
       <head>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #ffffff; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; border-bottom: 3px solid #e5e7eb; }
-          .logo-text { color: #2563eb; font-size: 28px; font-weight: bold; margin-bottom: 10px; letter-spacing: 1px; }
-          .header h1 { color: #1f2937; margin: 0; font-size: 24px; }
-          .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
-          .ticket-info { background-color: white; padding: 15px; border-radius: 5px; margin: 20px 0; }
-          .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
+          .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
+          .enterprise .header { background: #1f2937; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
+          .enterprise .header-right { text-align: right; }
+          .enterprise .ticket-number { color: #9ca3af; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .enterprise .status-badge { background: #10b981; color: #ffffff; padding: 6px 14px; border-radius: 3px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; display: inline-block; }
+          .enterprise .content { padding: 45px 50px; color: #374151; }
+          .enterprise .greeting { font-size: 16px; margin-bottom: 25px; color: #111827; font-weight: 500; }
+          .enterprise .message { margin-bottom: 35px; line-height: 1.8; }
+          .enterprise .ticket-box { background: #f9fafb; border-left: 4px solid #1f2937; padding: 30px; margin: 30px 0; }
+          .enterprise .section-title { font-weight: 700; color: #1f2937; margin-bottom: 20px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+          .enterprise .detail-row { display: flex; padding: 12px 0; }
+          .enterprise .detail-label { font-weight: 600; color: #6b7280; min-width: 130px; font-size: 13px; }
+          .enterprise .detail-value { color: #111827; flex: 1; }
+          .enterprise .footer { padding: 30px 50px; background: #1f2937; color: #9ca3af; font-size: 11px; text-align: center; }
+          .enterprise .footer-divider { width: 50px; height: 2px; background: #374151; margin: 15px auto; }
         </style>
       </head>
       <body>
-        <div class="container">
+        <div class="enterprise">
           <div class="header">
-             <img src="https://acehcs.in/_next/image?url=%2Fassets%2FACE-Logo.png&w=256&q=75" alt="ACE Logo" class="logo" />
-            <h1>Ticket Assigned</h1>
+          <div class="img">
+                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+            </div>
+            <div class="logo-text">ACE Healthcare Solutions</div>
+            <div class="header-right">
+              <div class="ticket-number">Support Ticket</div>
+              <div class="status-badge">Assigned</div>
+            </div>
           </div>
           <div class="content">
-            <p>Hi <strong>${userName}</strong>,</p>
-            <p>Good news! Your IT support ticket has been assigned to <strong>${assigneeName}</strong> for resolution.</p>
-            
-            <div class="ticket-info">
-              <p><strong>Ticket ID:</strong> #${ticketId}</p>
-              <p><strong>Subject:</strong> ${ticketTitle}</p>
-              <p><strong>Assigned To:</strong> ${assigneeName}</p>
+            <div class="greeting">Dear ${userName},</div>
+            <div class="message">
+              Your IT support request has been successfully assigned to <strong>${assigneeName}</strong>, a member of our technical support team. Your ticket is now being actively reviewed.
             </div>
-
-            <p>${assigneeName} will review your issue and respond shortly.</p>
+            <div class="ticket-box">
+              <div class="section-title">Ticket Information</div>
+              <div class="detail-row">
+                <div class="detail-label">Ticket ID:</div>
+                <div class="detail-value">#${ticketId}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Subject:</div>
+                <div class="detail-value">${ticketTitle}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Assigned To:</div>
+                <div class="detail-value">${assigneeName}</div>
+              </div>
+            </div>
+            <div class="message">
+              ${assigneeName} will review your issue and provide a response shortly. We appreciate your patience.
+            </div>
           </div>
           <div class="footer">
-            <p>This is an automated message from IT Support. Please do not reply to this email.</p>
+            <div class="footer-divider"></div>
+            This is an automated message from the IT Support Department.<br>
+            Please do not reply to this email.<br>
+            © 2026 ACE Healthcare Solutions. All rights reserved.
           </div>
         </div>
       </body>
@@ -206,37 +260,68 @@ class EmailService {
       <html>
       <head>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #ffffff; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; border-bottom: 3px solid #e5e7eb; }
-          .logo-text { color: #2563eb; font-size: 28px; font-weight: bold; margin-bottom: 10px; letter-spacing: 1px; }
-          .header h1 { color: #1f2937; margin: 0; font-size: 24px; }
-          .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
-          .ticket-info { background-color: white; padding: 15px; border-radius: 5px; margin: 20px 0; }
-          .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
-          .status { display: inline-block; padding: 5px 10px; border-radius: 3px; font-weight: bold; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
+          .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
+          .enterprise .header { background: #1f2937; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
+          .enterprise .header-right { text-align: right; }
+          .enterprise .ticket-number { color: #9ca3af; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .enterprise .status-badge { background: #f59e0b; color: #ffffff; padding: 6px 14px; border-radius: 3px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; display: inline-block; }
+          .enterprise .content { padding: 45px 50px; color: #374151; }
+          .enterprise .greeting { font-size: 16px; margin-bottom: 25px; color: #111827; font-weight: 500; }
+          .enterprise .message { margin-bottom: 35px; line-height: 1.8; }
+          .enterprise .ticket-box { background: #f9fafb; border-left: 4px solid #1f2937; padding: 30px; margin: 30px 0; }
+          .enterprise .section-title { font-weight: 700; color: #1f2937; margin-bottom: 20px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+          .enterprise .detail-row { display: flex; padding: 12px 0; }
+          .enterprise .detail-label { font-weight: 600; color: #6b7280; min-width: 130px; font-size: 13px; }
+          .enterprise .detail-value { color: #111827; flex: 1; }
+          .enterprise .footer { padding: 30px 50px; background: #1f2937; color: #9ca3af; font-size: 11px; text-align: center; }
+          .enterprise .footer-divider { width: 50px; height: 2px; background: #374151; margin: 15px auto; }
         </style>
       </head>
       <body>
-        <div class="container">
+        <div class="enterprise">
           <div class="header">
-             <img src="https://acehcs.in/_next/image?url=%2Fassets%2FACE-Logo.png&w=256&q=75" alt="ACE Logo" class="logo" />
-            <h1>Ticket Status Updated</h1>
+          <div class="img">
+                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+            </div>
+            <div class="logo-text">ACE Healthcare Solutions</div>
+            <div class="header-right">
+              <div class="ticket-number">Support Ticket</div>
+              <div class="status-badge">Updated</div>
+            </div>
           </div>
           <div class="content">
-            <p>Hi <strong>${userName}</strong>,</p>
-            <p>Your IT support ticket status has been updated.</p>
-            
-            <div class="ticket-info">
-              <p><strong>Ticket ID:</strong> #${ticketId}</p>
-              <p><strong>Subject:</strong> ${ticketTitle}</p>
-              <p><strong>New Status:</strong> <span class="status">${newStatus}</span></p>
+            <div class="greeting">Dear ${userName},</div>
+            <div class="message">
+              We want to inform you that the status of your IT support ticket has been updated by our team.
             </div>
-
-            <p>You can view the details and any updates in the ticketing system.</p>
+            <div class="ticket-box">
+              <div class="section-title">Ticket Information</div>
+              <div class="detail-row">
+                <div class="detail-label">Ticket ID:</div>
+                <div class="detail-value">#${ticketId}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Subject:</div>
+                <div class="detail-value">${ticketTitle}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">New Status:</div>
+                <div class="detail-value">${newStatus}</div>
+              </div>
+            </div>
+            <div class="message">
+              You can log in to the support portal to view detailed updates and track the progress of your ticket.
+            </div>
           </div>
           <div class="footer">
-            <p>This is an automated message from IT Support. Please do not reply to this email.</p>
+            <div class="footer-divider"></div>
+            This is an automated message from the IT Support Department.<br>
+            Please do not reply to this email.<br>
+            © 2026 ACE Healthcare Solutions. All rights reserved.
           </div>
         </div>
       </body>
@@ -259,40 +344,69 @@ class EmailService {
       <html>
       <head>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #ffffff; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; border-bottom: 3px solid #86efac; }
-          .logo-text { color: #2563eb; font-size: 28px; font-weight: bold; margin-bottom: 10px; letter-spacing: 1px; }
-          .header h1 { color: #1f2937; margin: 0; font-size: 24px; }
-          .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
-          .ticket-info { background-color: white; padding: 15px; border-radius: 5px; margin: 20px 0; }
-          .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
-          .success { color: #10b981; font-weight: bold; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
+          .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
+          .enterprise .header { background: #059669; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
+          .enterprise .header-right { text-align: right; }
+          .enterprise .ticket-number { color: #d1fae5; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .enterprise .status-badge { background: #10b981; color: #ffffff; padding: 6px 14px; border-radius: 3px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; display: inline-block; }
+          .enterprise .content { padding: 45px 50px; color: #374151; }
+          .enterprise .greeting { font-size: 16px; margin-bottom: 25px; color: #111827; font-weight: 500; }
+          .enterprise .message { margin-bottom: 35px; line-height: 1.8; }
+          .enterprise .ticket-box { background: #f0fdf4; border-left: 4px solid #059669; padding: 30px; margin: 30px 0; }
+          .enterprise .section-title { font-weight: 700; color: #059669; margin-bottom: 20px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+          .enterprise .detail-row { display: flex; padding: 12px 0; }
+          .enterprise .detail-label { font-weight: 600; color: #6b7280; min-width: 130px; font-size: 13px; }
+          .enterprise .detail-value { color: #111827; flex: 1; }
+          .enterprise .footer { padding: 30px 50px; background: #059669; color: #d1fae5; font-size: 11px; text-align: center; }
+          .enterprise .footer-divider { width: 50px; height: 2px; background: #10b981; margin: 15px auto; }
         </style>
       </head>
       <body>
-        <div class="container">
+        <div class="enterprise">
           <div class="header">
-            <img src="https://acehcs.in/_next/image?url=%2Fassets%2FACE-Logo.png&w=256&q=75" alt="ACE Logo" class="logo" />
-            <h1>✓ Ticket Resolved</h1>
+          <div class="img">
+                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+            </div>
+            <div class="logo-text">ACE Healthcare Solutions</div>
+            <div class="header-right">
+              <div class="ticket-number">Support Ticket</div>
+              <div class="status-badge">✓ Resolved</div>
+            </div>
           </div>
           <div class="content">
-            <p>Hi <strong>${userName}</strong>,</p>
-            <p class="success">Your IT support ticket has been resolved!</p>
-            
-            <div class="ticket-info">
-              <p><strong>Ticket ID:</strong> #${ticketId}</p>
-              <p><strong>Subject:</strong> ${ticketTitle}</p>
-              <p><strong>Status:</strong> Resolved</p>
-              ${resolutionNotes ? `<p><strong>Resolution Notes:</strong> ${resolutionNotes}</p>` : ''}
+            <div class="greeting">Dear ${userName},</div>
+            <div class="message">
+              Great news! Your IT support ticket has been successfully resolved by our technical support team.
             </div>
-
-            <p>If you're satisfied with the resolution, no further action is needed. If you're still experiencing issues, please reply to your ticket or create a new one.</p>
-            
-            <p>Thank you for using IT Support!</p>
+            <div class="ticket-box">
+              <div class="section-title">Ticket Information</div>
+              <div class="detail-row">
+                <div class="detail-label">Ticket ID:</div>
+                <div class="detail-value">#${ticketId}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Subject:</div>
+                <div class="detail-value">${ticketTitle}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Status:</div>
+                <div class="detail-value">Resolved</div>
+              </div>
+              ${resolutionNotes ? `<div class="detail-row"><div class="detail-label">Resolution Notes:</div><div class="detail-value">${resolutionNotes}</div></div>` : ''}
+            </div>
+            <div class="message">
+              If you are satisfied with the resolution, no further action is required. Should you experience any additional issues, please feel free to create a new support ticket.
+            </div>
           </div>
           <div class="footer">
-            <p>This is an automated message from IT Support. Please do not reply to this email.</p>
+            <div class="footer-divider"></div>
+            This is an automated message from the IT Support Department.<br>
+            Please do not reply to this email.<br>
+            © 2026 ACE Healthcare Solutions. All rights reserved.
           </div>
         </div>
       </body>
@@ -316,41 +430,71 @@ class EmailService {
       <html>
       <head>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #ffffff; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; border-bottom: 3px solid #e5e7eb; }
-          .logo-text { color: #2563eb; font-size: 28px; font-weight: bold; margin-bottom: 10px; letter-spacing: 1px; }
-          .header h1 { color: #1f2937; margin: 0; font-size: 24px; }
-          .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
-          .ticket-info { background-color: white; padding: 15px; border-radius: 5px; margin: 20px 0; }
-          .comment { background-color: #e0e7ff; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #2563eb; }
-          .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
+          .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
+          .enterprise .header { background: #1f2937; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
+          .enterprise .header-right { text-align: right; }
+          .enterprise .ticket-number { color: #9ca3af; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .enterprise .status-badge { background: #6366f1; color: #ffffff; padding: 6px 14px; border-radius: 3px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; display: inline-block; }
+          .enterprise .content { padding: 45px 50px; color: #374151; }
+          .enterprise .greeting { font-size: 16px; margin-bottom: 25px; color: #111827; font-weight: 500; }
+          .enterprise .message { margin-bottom: 35px; line-height: 1.8; }
+          .enterprise .ticket-box { background: #f9fafb; border-left: 4px solid #1f2937; padding: 30px; margin: 30px 0; }
+          .enterprise .comment-box { background: #eef2ff; border-left: 4px solid #6366f1; padding: 25px; margin: 25px 0; }
+          .enterprise .section-title { font-weight: 700; color: #1f2937; margin-bottom: 20px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+          .enterprise .detail-row { display: flex; padding: 12px 0; }
+          .enterprise .detail-label { font-weight: 600; color: #6b7280; min-width: 130px; font-size: 13px; }
+          .enterprise .detail-value { color: #111827; flex: 1; }
+          .enterprise .comment-author { font-weight: 700; color: #4f46e5; margin-bottom: 10px; font-size: 14px; }
+          .enterprise .comment-text { color: #374151; line-height: 1.8; }
+          .enterprise .footer { padding: 30px 50px; background: #1f2937; color: #9ca3af; font-size: 11px; text-align: center; }
+          .enterprise .footer-divider { width: 50px; height: 2px; background: #374151; margin: 15px auto; }
         </style>
       </head>
       <body>
-        <div class="container">
+        <div class="enterprise">
           <div class="header">
-            <img src="https://acehcs.in/_next/image?url=%2Fassets%2FACE-Logo.png&w=256&q=75" alt="ACE Logo" class="logo" />
-            <h1>New Comment</h1>
+          <div class="img">
+                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+            </div>
+            <div class="logo-text">ACE Healthcare Solutions</div>
+            <div class="header-right">
+              <div class="ticket-number">Support Ticket</div>
+              <div class="status-badge">New Comment</div>
+            </div>
           </div>
           <div class="content">
-            <p>Hi <strong>${userName}</strong>,</p>
-            <p><strong>${commenterName}</strong> has added a comment to your ticket:</p>
-            
-            <div class="ticket-info">
-              <p><strong>Ticket ID:</strong> #${ticketId}</p>
-              <p><strong>Subject:</strong> ${ticketTitle}</p>
+            <div class="greeting">Dear ${userName},</div>
+            <div class="message">
+              <strong>${commenterName}</strong> has added a new comment to your IT support ticket.
             </div>
-
-            <div class="comment">
-              <p><strong>${commenterName}:</strong></p>
-              <p>${comment}</p>
+            <div class="ticket-box">
+              <div class="section-title">Ticket Information</div>
+              <div class="detail-row">
+                <div class="detail-label">Ticket ID:</div>
+                <div class="detail-value">#${ticketId}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Subject:</div>
+                <div class="detail-value">${ticketTitle}</div>
+              </div>
             </div>
-
-            <p>Log in to the ticketing system to view the full conversation and respond.</p>
+            <div class="comment-box">
+              <div class="comment-author">${commenterName}</div>
+              <div class="comment-text">${comment}</div>
+            </div>
+            <div class="message">
+              Please log in to the support portal to view the complete conversation and provide your response if needed.
+            </div>
           </div>
           <div class="footer">
-            <p>This is an automated message from IT Support. Please do not reply to this email.</p>
+            <div class="footer-divider"></div>
+            This is an automated message from the IT Support Department.<br>
+            Please do not reply to this email.<br>
+            © 2026 ACE Healthcare Solutions. All rights reserved.
           </div>
         </div>
       </body>
@@ -374,39 +518,81 @@ class EmailService {
       <html>
       <head>
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #ffffff; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; border-bottom: 3px solid #fca5a5; }
-          .logo-text { color: #2563eb; font-size: 28px; font-weight: bold; margin-bottom: 10px; letter-spacing: 1px; }
-          .header h1 { color: #1f2937; margin: 0; font-size: 24px; }
-          .content { background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; }
-          .ticket-info { background-color: white; padding: 15px; border-radius: 5px; margin: 20px 0; }
-          .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }
-          .urgent { color: #dc2626; font-weight: bold; }
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
+          .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
+          .enterprise .header { background: #dc2626; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
+          .enterprise .header-right { text-align: right; }
+          .enterprise .ticket-number { color: #fecaca; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+          .enterprise .status-badge { background: #ef4444; color: #ffffff; padding: 6px 14px; border-radius: 3px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; display: inline-block; }
+          .enterprise .content { padding: 45px 50px; color: #374151; }
+          .enterprise .greeting { font-size: 16px; margin-bottom: 25px; color: #111827; font-weight: 500; }
+          .enterprise .message { margin-bottom: 35px; line-height: 1.8; }
+          .enterprise .ticket-box { background: #fef2f2; border-left: 4px solid #dc2626; padding: 30px; margin: 30px 0; }
+          .enterprise .section-title { font-weight: 700; color: #dc2626; margin-bottom: 20px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+          .enterprise .detail-row { display: flex; padding: 12px 0; }
+          .enterprise .detail-label { font-weight: 600; color: #6b7280; min-width: 130px; font-size: 13px; }
+          .enterprise .detail-value { color: #111827; flex: 1; }
+          .enterprise .priority-high { color: #dc2626; font-weight: 700; }
+          .enterprise .footer { padding: 30px 50px; background: #dc2626; color: #fecaca; font-size: 11px; text-align: center; }
+          .enterprise .footer-divider { width: 50px; height: 2px; background: #ef4444; margin: 15px auto; }
         </style>
       </head>
       <body>
-        <div class="container">
+        <div class="enterprise">
           <div class="header">
-            <img src="https://acehcs.in/_next/image?url=%2Fassets%2FACE-Logo.png&w=256&q=75" alt="ACE Logo" class="logo" />
-            <h1>⚠ New Support Ticket</h1>
+          <div class="img">
+                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+            </div>
+            <div class="logo-text">ACE Healthcare Solutions</div>
+            <div class="header-right">
+              <div class="ticket-number">Admin Alert</div>
+              <div class="status-badge">⚠ New Ticket</div>
+            </div>
           </div>
           <div class="content">
-            <p>A new IT support ticket has been created and requires attention.</p>
-            
-            <div class="ticket-info">
-              <p><strong>Ticket ID:</strong> #${ticketId}</p>
-              <p><strong>Subject:</strong> ${ticketTitle}</p>
-              <p><strong>Priority:</strong> <span class="urgent">${priority}</span></p>
-              <p><strong>Created By:</strong> ${creatorName} (${creatorEmail})</p>
-              <p><strong>Description:</strong></p>
-              <p>${description}</p>
+            <div class="greeting">IT Support Team,</div>
+            <div class="message">
+              A new IT support ticket has been submitted and requires immediate attention from the technical support team.
             </div>
-
-            <p>Please log in to the admin panel to review and assign this ticket.</p>
+            <div class="ticket-box">
+              <div class="section-title">Ticket Information</div>
+              <div class="detail-row">
+                <div class="detail-label">Ticket ID:</div>
+                <div class="detail-value">#${ticketId}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Subject:</div>
+                <div class="detail-value">${ticketTitle}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Priority:</div>
+                <div class="detail-value"><span class="priority-high">${priority}</span></div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Submitted By:</div>
+                <div class="detail-value">${creatorName}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Email:</div>
+                <div class="detail-value">${creatorEmail}</div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-label">Description:</div>
+                <div class="detail-value">${description}</div>
+              </div>
+            </div>
+            <div class="message">
+              Please log in to the admin panel to review, assign, and respond to this ticket promptly.
+            </div>
           </div>
           <div class="footer">
-            <p>This is an automated message from IT Support System.</p>
+            <div class="footer-divider"></div>
+            This is an automated message from the IT Support System.<br>
+            Immediate attention required.<br>
+            © 2026 ACE Healthcare Solutions. All rights reserved.
           </div>
         </div>
       </body>

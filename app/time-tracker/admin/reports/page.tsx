@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -122,11 +123,7 @@ function ReportsContent() {
       if (dateTo) params.set('dateTo', dateTo);
       if (userId) params.set('userId', userId);
 
-      const response = await fetch(`/api/admin/reports?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await makeAuthenticatedRequest(`/api/admin/reports?${params}`);
 
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('accessToken');
@@ -158,6 +155,11 @@ function ReportsContent() {
 
   useEffect(() => {
     fetchReport();
+
+    // Setup automatic token refresh for admin
+    const cleanupTokenRefresh = setupAutoRefresh();
+
+    return () => cleanupTokenRefresh();
   }, [fetchReport]);
 
   const handleGenerateReport = (e: React.FormEvent) => {

@@ -45,7 +45,7 @@ export default function TicketingPage() {
             </div>
           </Button>
           
-          <Button 
+          {/* <Button 
             className="w-full h-auto py-8" 
             onClick={() => router.push('/ticketing/admin/login')}
             variant="outline"
@@ -55,7 +55,7 @@ export default function TicketingPage() {
               <span className="text-2xl font-semibold">IT Admin Portal</span>
               <span className="text-sm">Manage and resolve support tickets</span>
             </div>
-          </Button>
+          </Button> */}
         </div>
       </div>
     </div>

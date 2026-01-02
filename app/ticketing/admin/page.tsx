@@ -5,23 +5,19 @@ import { AdminTicketLayout } from '@/components/tickets/AdminTicketLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { 
   Ticket, 
   AlertCircle, 
   Clock, 
   CheckCircle2,
-  Users,
   TrendingUp,
-  ArrowRight,
   UserPlus,
   BarChart3,
-  Filter,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { formatDistanceToNow } from '@/lib/utils';
 import { toast } from 'sonner';
+import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -37,33 +33,48 @@ export default function AdminDashboard() {
     high: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [previousTotal, setPreviousTotal] = useState(0);
 
   useEffect(() => {
     fetchStats();
+
+    // Setup automatic token refresh for admin (every 10 minutes)
+    const cleanupTokenRefresh = setupAutoRefresh();
+
+    // Auto-refresh dashboard stats every 30 seconds
+    const statsInterval = setInterval(() => {
+      fetchStats(true); // Pass true to indicate it's a background refresh
+    }, 30000);
+
+    return () => {
+      cleanupTokenRefresh();
+      clearInterval(statsInterval);
+    };
   }, []);
 
-  const fetchStats = async () => {
+  const fetchStats = async (isBackgroundRefresh = false) => {
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) {
-        toast.error('Please log in to continue');
-        router.push('/ticketing/admin/login');
+        if (!isBackgroundRefresh) {
+          toast.error('Please log in to continue');
+          router.push('/ticketing/admin/login');
+        }
         return;
       }
 
-      const response = await fetch('/api/tickets/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        credentials: 'include',
-      });
+      // Use makeAuthenticatedRequest which automatically handles token refresh
+      const response = await makeAuthenticatedRequest('/api/tickets/stats');
 
+      // If still 401 after refresh attempt, session is truly expired
       if (response.status === 401) {
-        toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        router.push('/ticketing/admin/login');
+        if (!isBackgroundRefresh) {
+          toast.error('Session expired. Please log in again.');
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          router.push('/ticketing/admin/login');
+        }
         return;
       }
 
@@ -72,7 +83,7 @@ export default function AdminDashboard() {
       }
 
       const data = await response.json();
-      setStats({
+      const newStats = {
         total: data.total || 0,
         open: data.open || 0,
         inProgress: data.inProgress || 0,
@@ -82,10 +93,27 @@ export default function AdminDashboard() {
         unassigned: 0, // TODO: Add unassigned count to API
         urgent: data.byPriority?.urgent || 0,
         high: data.byPriority?.high || 0,
-      });
+      };
+
+      // Check if new tickets were created (only during background refresh)
+      if (isBackgroundRefresh && previousTotal > 0 && newStats.total > previousTotal) {
+        const newTicketCount = newStats.total - previousTotal;
+        toast.success(
+          `${newTicketCount} new ticket${newTicketCount > 1 ? 's' : ''} created!`,
+          {
+            description: 'Dashboard has been refreshed',
+            duration: 5000,
+          }
+        );
+      }
+
+      setStats(newStats);
+      setPreviousTotal(newStats.total);
     } catch (error) {
       console.error('Error fetching stats:', error);
-      toast.error('Failed to load statistics');
+      if (!isBackgroundRefresh) {
+        toast.error('Failed to load statistics');
+      }
     } finally {
       setLoading(false);
     }
@@ -142,21 +170,6 @@ export default function AdminDashboard() {
       </AdminTicketLayout>
     );
   }
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'URGENT':
-        return 'bg-red-500/10 text-red-600 border-red-200 dark:text-red-400';
-      case 'HIGH':
-        return 'bg-orange-500/10 text-orange-600 border-orange-200 dark:text-orange-400';
-      case 'MEDIUM':
-        return 'bg-yellow-500/10 text-yellow-600 border-yellow-200 dark:text-yellow-400';
-      case 'LOW':
-        return 'bg-green-500/10 text-green-600 border-green-200 dark:text-green-400';
-      default:
-        return 'bg-gray-500/10 text-gray-600 border-gray-200';
-    }
-  };
 
   const getActionIcon = (type: string) => {
     switch (type) {
@@ -374,57 +387,6 @@ export default function AdminDashboard() {
             </Card>
           </div>
         </div>
-
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common administrative tasks</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 md:grid-cols-3">
-              <Button 
-                variant="outline" 
-                className="justify-start h-auto py-4"
-                onClick={() => router.push('/ticketing/admin/tickets')}
-              >
-                <div className="flex flex-col items-start gap-1">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    <span className="font-semibold">Open Tickets</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">{stats.open} need attention</span>
-                </div>
-              </Button>
-              <Button 
-                variant="outline" 
-                className="justify-start h-auto py-4"
-                onClick={() => router.push('/ticketing/admin/tickets')}
-              >
-                <div className="flex flex-col items-start gap-1">
-                  <div className="flex items-center gap-2">
-                    <Ticket className="h-4 w-4" />
-                    <span className="font-semibold">All Tickets</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">View & manage all</span>
-                </div>
-              </Button>
-              <Button 
-                variant="outline" 
-                className="justify-start h-auto py-4"
-                onClick={() => router.push('/ticketing/admin/reports')}
-              >
-                <div className="flex flex-col items-start gap-1">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4" />
-                    <span className="font-semibold">Reports</span>
-                  </div>
-                  <span className="text-xs text-muted-foreground">Analytics & insights</span>
-                </div>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </AdminTicketLayout>
   );

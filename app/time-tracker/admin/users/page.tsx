@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -105,11 +106,7 @@ export default function AdminUsers() {
       if (search) params.set('search', search);
       if (roleFilter && roleFilter !== 'all') params.set('role', roleFilter);
 
-      const response = await fetch(`/api/admin/users?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await makeAuthenticatedRequest(`/api/admin/users?${params}`);
 
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('accessToken');
@@ -136,11 +133,7 @@ export default function AdminUsers() {
     if (!token) return;
 
     try {
-      const response = await fetch('/api/teams', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await makeAuthenticatedRequest('/api/teams');
 
       const data = await response.json();
       if (data.success) {
@@ -154,6 +147,11 @@ export default function AdminUsers() {
   useEffect(() => {
     fetchUsers();
     fetchTeams();
+
+    // Setup automatic token refresh for admin
+    const cleanupTokenRefresh = setupAutoRefresh();
+
+    return () => cleanupTokenRefresh();
   }, [fetchUsers, fetchTeams]);
 
   const handleSearch = (e: React.FormEvent) => {

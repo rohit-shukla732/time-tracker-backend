@@ -126,12 +126,12 @@ export function AdminTicketLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen">
       {/* Top Navigation Bar */}
-      <nav className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+      <nav className="sticky top-0 z-50 border-b bg-background/50 backdrop-blur-md supports-backdrop-filter:bg-background/30">
         <div className="flex h-16 items-center gap-4 px-6">
           {/* Logo/Title */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 hover:cursor-pointer" onClick={() => router.push('/ticketing/admin')}>
             <Shield className="h-6 w-6 text-primary" />
             <div>
               <span className="text-xl font-bold">Ticket Admin</span>

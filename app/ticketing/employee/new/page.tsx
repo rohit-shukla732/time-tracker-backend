@@ -31,6 +31,7 @@ export default function NewTicketPage() {
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
@@ -101,10 +102,16 @@ export default function NewTicketPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (isSubmitting) {
+      return;
+    }
+
     if (!formData.title.trim() || !formData.description.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       // Get user info from localStorage
@@ -151,6 +158,7 @@ export default function NewTicketPage() {
 
       if (!response.ok) {
         const error = await response.json();
+        setIsSubmitting(false);
         throw new Error(error.error || 'Failed to create ticket');
       }
 
@@ -208,11 +216,8 @@ export default function NewTicketPage() {
       router.push('/ticketing/employee/my-tickets');
     } catch (error) {
       console.error('Error creating ticket:', error);
-      toast.error('Ticket created but failed to send email notifications');
-      
-      // Still redirect even if email fails
-      previewUrls.forEach(url => URL.revokeObjectURL(url));
-      router.push('/ticketing/employee/my-tickets');
+      setIsSubmitting(false);
+      toast.error('Failed to create ticket. Please try again.');
     }
   };
 
@@ -424,8 +429,8 @@ export default function NewTicketPage() {
                   </div>
 
                   <div className="flex gap-3 pt-4">
-                    <Button type="submit" className="flex-1">
-                      Submit Ticket
+                    <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                      {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
                     </Button>
                     <Button
                       type="button"

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -122,15 +123,9 @@ export default function AdminDeviceControl() {
     try {
       // Fetch users, device controls, and heartbeat data in parallel
       const [usersRes, controlsRes, heartbeatRes] = await Promise.all([
-        fetch('/api/admin/users?limit=100', {
-          headers: { 'Authorization': `Bearer ${token}` },
-        }),
-        fetch('/api/admin/device-control', {
-          headers: { 'Authorization': `Bearer ${token}` },
-        }),
-        fetch('/api/heartbeat', {
-          headers: { 'Authorization': `Bearer ${token}` },
-        }),
+        makeAuthenticatedRequest('/api/admin/users?limit=100'),
+        makeAuthenticatedRequest('/api/admin/device-control'),
+        makeAuthenticatedRequest('/api/heartbeat'),
       ]);
 
       if (usersRes.status === 401 || controlsRes.status === 401) {
@@ -161,6 +156,11 @@ export default function AdminDeviceControl() {
 
   useEffect(() => {
     fetchData();
+
+    // Setup automatic token refresh for admin
+    const cleanupTokenRefresh = setupAutoRefresh();
+
+    return () => cleanupTokenRefresh();
   }, [fetchData]);
 
   const getDeviceStatus = (userId: string): DeviceControl | undefined => {

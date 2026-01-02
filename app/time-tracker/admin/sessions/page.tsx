@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -195,11 +196,7 @@ export default function AdminSessions() {
       if (dateFrom) params.set('dateFrom', dateFrom);
       if (dateTo) params.set('dateTo', dateTo);
 
-      const response = await fetch(`/api/admin/sessions?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await makeAuthenticatedRequest(`/api/admin/sessions?${params}`);
 
       if (response.status === 401 || response.status === 403) {
         localStorage.removeItem('accessToken');
@@ -223,6 +220,11 @@ export default function AdminSessions() {
 
   useEffect(() => {
     fetchSessions();
+
+    // Setup automatic token refresh for admin
+    const cleanupTokenRefresh = setupAutoRefresh();
+
+    return () => cleanupTokenRefresh();
   }, [fetchSessions]);
 
   const fetchSessionDetail = async (sessionId: string) => {
@@ -233,10 +235,7 @@ export default function AdminSessions() {
     setSheetOpen(true);
 
     try {
-      const response = await fetch(`/api/admin/sessions/${sessionId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const response = await makeAuthenticatedRequest(`/api/admin/sessions/${sessionId}`);
       });
 
       const data = await response.json();

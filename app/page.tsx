@@ -6,7 +6,7 @@ export default function Home() {
           ACE HCS - Management System
         </h1>
         
-        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 max-w-2xl">
+        {/* <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 max-w-2xl">
           <h2 className="text-2xl font-semibold mb-4">Main Applications</h2>
           <div className="grid gap-4">
             <a 
@@ -107,7 +107,7 @@ export default function Home() {
             <p>✅ Complete authentication system with JWT tokens</p>
             <p>✅ Session tracking and event logging</p>
           </div>
-        </div>
+        </div> */}
       </main>
     </div>
   );

@@ -36,6 +36,7 @@ import { Search, Filter, UserPlus, Eye, Edit, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from '@/lib/utils';
 import { toast } from 'sonner';
+import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 
 export default function AdminTicketsPage() {
   const router = useRouter();
@@ -52,6 +53,11 @@ export default function AdminTicketsPage() {
   useEffect(() => {
     fetchTickets();
     fetchItTeam();
+
+    // Setup automatic token refresh for admin
+    const cleanupTokenRefresh = setupAutoRefresh();
+
+    return () => cleanupTokenRefresh();
   }, []);
 
   const fetchItTeam = async () => {
@@ -59,12 +65,7 @@ export default function AdminTicketsPage() {
       const token = localStorage.getItem('accessToken');
       if (!token) return;
 
-      const response = await fetch('/api/users/it-team', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        credentials: 'include',
-      });
+      const response = await makeAuthenticatedRequest('/api/users/it-team');
 
       if (response.ok) {
         const data = await response.json();
@@ -84,12 +85,7 @@ export default function AdminTicketsPage() {
         return;
       }
 
-      const response = await fetch('/api/tickets', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        credentials: 'include',
-      });
+      const response = await makeAuthenticatedRequest('/api/tickets');
 
       if (response.status === 401) {
         toast.error('Session expired. Please log in again.');
@@ -461,9 +457,8 @@ export default function AdminTicketsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[50px]">ID</TableHead>
+                    <TableHead>User</TableHead>
                     <TableHead>Title</TableHead>
-                    <TableHead>Creator</TableHead>
                     <TableHead>Issue Type</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
@@ -481,16 +476,10 @@ export default function AdminTicketsPage() {
                     </TableRow>
                   ) : (
                     filteredTickets.map((ticket) => (
-                      <TableRow key={ticket.id} className="cursor-pointer hover:bg-muted/50">
-                        <TableCell className="font-medium">#{ticket.id}</TableCell>
-                        <TableCell>
-                          <div className="max-w-md">
-                            <p className="font-medium truncate">{ticket.title}</p>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {ticket.description}
-                            </p>
-                          </div>
-                        </TableCell>
+                      <TableRow 
+                      key={ticket.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => router.push(`/ticketing/admin/tickets/${ticket.id}`)}>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <Avatar className="h-6 w-6">
@@ -499,6 +488,11 @@ export default function AdminTicketsPage() {
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-sm">{ticket.creator?.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-md">
+                            <p className="font-medium truncate">{ticket.title}</p>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -602,13 +596,6 @@ export default function AdminTicketsPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => router.push(`/ticketing/admin/tickets/${ticket.id}`)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
