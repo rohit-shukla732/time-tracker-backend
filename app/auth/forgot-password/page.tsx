@@ -234,12 +234,6 @@ export default function ForgotPassword() {
                   'Send OTP'
                 )}
               </Button>
-              <Link href="/ticketing/admin/login" className="w-full">
-                <Button variant="ghost" className="w-full" disabled={loading}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Login
-                </Button>
-              </Link>
             </CardFooter>
           </form>
         )}
@@ -278,7 +272,7 @@ export default function ForgotPassword() {
                 </p>
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col space-y-2">
+            <CardFooter className="flex flex-col gap-4 mt-10">
               <Button type="submit" className="w-full" disabled={loading || otp.length !== 6}>
                 {loading ? (
                   <>
@@ -360,7 +354,7 @@ export default function ForgotPassword() {
                 Password must be at least 8 characters long
               </p>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="mt-10">
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? (
                   <>
@@ -388,13 +382,6 @@ export default function ForgotPassword() {
                 Your password has been reset successfully. You can now log in with your new password.
               </p>
             </CardContent>
-            <CardFooter>
-              <Link href="/ticketing/admin/login" className="w-full">
-                <Button className="w-full">
-                  Go to Login
-                </Button>
-              </Link>
-            </CardFooter>
           </>
         )}
       </Card>
