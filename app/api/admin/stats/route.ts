@@ -63,6 +63,7 @@ export async function GET(req: NextRequest) {
       usersByRole,
       recentSessions,
       topApps,
+      topWebsites,
       dailySessions,
       teams,
       dailyWorkSummaries,
@@ -122,6 +123,17 @@ export async function GET(req: NextRequest) {
       // Top apps by usage time (this month)
       prisma.sessionAppUsage.groupBy({
         by: ['appName'],
+        where: {
+          createdAt: { gte: thisMonthStart },
+        },
+        _sum: { timeMs: true },
+        orderBy: { _sum: { timeMs: 'desc' } },
+        take: 10,
+      }),
+
+      // Top websites by usage time (this month)
+      prisma.sessionWebsiteUsage.groupBy({
+        by: ['website', 'browser'],
         where: {
           createdAt: { gte: thisMonthStart },
         },
@@ -208,6 +220,14 @@ export async function GET(req: NextRequest) {
       timeMs: Number(app._sum.timeMs || 0),
       hours: Number((Number(app._sum.timeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
     }));
+
+    // Format top websites
+    const topWebsitesFormatted = topWebsites.map((site: any) => ({
+      name: site.website,
+      browser: site.browser,
+      timeMs: Number(site._sum.timeMs || 0),
+      hours: Number((Number(site._sum.timeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+    }));
     
     // Format team composition
     const chartColors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
@@ -249,6 +269,7 @@ export async function GET(req: NextRequest) {
         charts: {
           dailySessions,
           topApps: topAppsFormatted,
+          topWebsites: topWebsitesFormatted,
           roleDistribution: Object.entries(roleDistribution).map(([role, count]) => ({
             name: role,
             value: count,

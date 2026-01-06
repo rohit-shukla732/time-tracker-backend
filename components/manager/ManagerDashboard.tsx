@@ -30,7 +30,8 @@ interface StatsData {
   charts?: {
     dailyWorkData?: DailyWorkData[];
     dailySessions?: DailySession[];
-    topApps?: unknown[];
+    topApps?: TopApp[];
+    topWebsites?: TopWebsite[];
   };
   workTime?: {
     avgWorkTimeMs?: number;
@@ -60,6 +61,19 @@ interface DailyWorkData {
 interface DailySession {
   day: string;
   sessions?: number;
+}
+
+interface TopApp {
+  name: string;
+  timeMs?: number;
+  hours?: number;
+}
+
+interface TopWebsite {
+  name: string;
+  browser?: string;
+  timeMs?: number;
+  hours?: number;
 }
 
 interface TopUser {
@@ -681,6 +695,94 @@ export default function ManagerDashboard() {
         </Card>
 
         
+      </div>
+
+      {/* Top Apps and Websites Section */}
+      <div className="grid gap-4 md:grid-cols-2 mt-4">
+        {/* Top Applications */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Applications</CardTitle>
+            <CardDescription>Most used applications this month</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stats?.charts?.topApps && stats.charts.topApps.length > 0 ? (
+              <div className="space-y-2">
+                {stats.charts.topApps.slice(0, 8).map((app: TopApp, index: number) => {
+                  const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316'];
+                  return (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div
+                          className="w-2 h-8 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: colors[index % colors.length] }}
+                        />
+                        <span className="text-sm font-medium truncate">
+                          {app.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-sm text-muted-foreground">
+                          {formatTime(app.timeMs || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
+                No application data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top Websites */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Websites</CardTitle>
+            <CardDescription>Most visited websites this month</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stats?.charts?.topWebsites && stats.charts.topWebsites.length > 0 ? (
+              <div className="space-y-2">
+                {stats.charts.topWebsites.slice(0, 8).map((site: TopWebsite, index: number) => {
+                  const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316'];
+                  return (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div
+                          className="w-2 h-8 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: colors[index % colors.length] }}
+                        />
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <span className="text-sm font-medium truncate">
+                            {site.name}
+                          </span>
+                          {site.browser && (
+                            <span className="text-xs text-muted-foreground">
+                              {site.browser}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-sm text-muted-foreground">
+                          {formatTime(site.timeMs || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
+                No website data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

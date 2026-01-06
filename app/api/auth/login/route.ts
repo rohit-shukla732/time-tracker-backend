@@ -22,8 +22,7 @@ export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
     logger.info("POST /api/auth/login - Login attempt", { email });
-
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (!user) {
       return NextResponse.json(
         { error: "Invalid email or password" },

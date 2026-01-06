@@ -46,6 +46,12 @@ interface AppUsageItem {
   timeMs: number;
 }
 
+interface WebsiteUsageItem {
+  website: string;
+  timeMs: number;
+  browser?: string;
+}
+
 interface CurrentState {
   clockedIn: boolean;
   onBreak: boolean;
@@ -66,6 +72,12 @@ interface SummaryPayload {
     totalApps: number;
     totalTrackedTimeMs: number;
     topApps: AppUsageItem[];
+  };
+  websiteUsage?: {
+    totalWebsites: number;
+    topWebsites: WebsiteUsageItem[];
+    totalBrowsingTime: number;
+    browserBreakdown?: Array<{ browser: string; timeMs: number }>;
   };
 }
 
@@ -91,6 +103,7 @@ export async function POST(request: NextRequest) {
       idleTimeMs,
       currentState,
       appUsage,
+      websiteUsage,
     } = body;
 
     // Validate required fields
@@ -103,7 +116,8 @@ export async function POST(request: NextRequest) {
       sessionId, 
       userId,
       workTimeMs,
-      currentState 
+      currentState,
+      hasWebsiteData: !!websiteUsage,
     });
 
     // Store current state in memory for real-time access (floor map, dashboard)
@@ -117,6 +131,7 @@ export async function POST(request: NextRequest) {
       idleTimeMs,
       currentState,
       appUsage,
+      websiteUsage,
       lastUpdated: Date.now(),
     });
 
@@ -132,6 +147,7 @@ export async function POST(request: NextRequest) {
         idleTimeMs,
         currentState,
         appUsage,
+        websiteUsage,
         lastUpdated: Date.now(),
       });
     }
@@ -181,6 +197,36 @@ export async function POST(request: NextRequest) {
           timeMs: BigInt(app.timeMs),
         })),
       });
+    }
+
+    // Update website usage if provided
+    if (websiteUsage?.topWebsites && websiteUsage.topWebsites.length > 0) {
+      try {
+        logger.info("POST /api/session/summary - Storing website usage", {
+          sessionId,
+          websiteCount: websiteUsage.topWebsites.length,
+        });
+
+        // Delete existing website usage for this session and re-insert
+        await prisma.sessionWebsiteUsage.deleteMany({
+          where: { sessionId },
+        });
+
+        // Insert new website usage data
+        await prisma.sessionWebsiteUsage.createMany({
+          data: websiteUsage.topWebsites.map((site: WebsiteUsageItem) => ({
+            sessionId,
+            userId: userId || session.userId,
+            website: site.website,
+            browser: site.browser || null,
+            timeMs: BigInt(site.timeMs),
+          })),
+        });
+
+        logger.info("POST /api/session/summary - Website usage stored successfully");
+      } catch (error) {
+        logger.error("POST /api/session/summary - Failed to store website usage", error as Error);
+      }
     }
 
     const durationMs = Date.now() - startTime;

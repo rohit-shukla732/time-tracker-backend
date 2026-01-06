@@ -95,6 +95,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const topApps = topAppsGroup.map((a: any) => ({ name: a.appName, timeMs: Number(a._sum.timeMs || 0), hours: Number((Number(a._sum.timeMs || 0) / (1000*60*60)).toFixed(1)) }));
 
+    // top websites last 7 days
+    const topWebsitesGroup = await prisma.sessionWebsiteUsage.groupBy({
+      by: ['website', 'browser'],
+      where: { userId, createdAt: { gte: last7DaysStart } },
+      _sum: { timeMs: true },
+      orderBy: { _sum: { timeMs: 'desc' } },
+      take: 8,
+    });
+
+    const topWebsites = topWebsitesGroup.map((w: any) => ({ 
+      name: w.website, 
+      browser: w.browser,
+      timeMs: Number(w._sum.timeMs || 0), 
+      hours: Number((Number(w._sum.timeMs || 0) / (1000*60*60)).toFixed(1)) 
+    }));
+
     const recentSessions = await prisma.session.findMany({ 
       where: { userId }, 
       orderBy: { startedAt: 'desc' }, 
@@ -102,6 +118,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       include: {
         summary: true,
         appUsage: {
+          orderBy: { timeMs: 'desc' },
+          take: 10,
+        },
+        websiteUsage: {
           orderBy: { timeMs: 'desc' },
           take: 10,
         },
@@ -141,9 +161,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             timeMs: Number(app.timeMs || 0),
             hours: Number((Number(app.timeMs || 0) / (1000 * 60 * 60)).toFixed(2)),
           })),
+          websiteUsage: s.websiteUsage.map((site: any) => ({
+            website: site.website,
+            browser: site.browser,
+            timeMs: Number(site.timeMs || 0),
+            hours: Number((Number(site.timeMs || 0) / (1000 * 60 * 60)).toFixed(2)),
+          })),
         })),
         charts: { dailyWorkData, dailySessions },
         topApps,
+        topWebsites,
         aggregates: {
           totalWorkMs: Number(summaryAgg._sum.workTimeMs || 0),
           totalBreakMs: Number(summaryAgg._sum.totalBreakMs || 0),

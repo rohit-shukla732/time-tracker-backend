@@ -35,6 +35,12 @@ interface AppUsage {
   timeMs?: number;
 }
 
+interface WebsiteUsage {
+  website: string;
+  timeMs?: number;
+  browser?: string;
+}
+
 interface Session {
   id: string;
   startedAt: string;
@@ -42,6 +48,7 @@ interface Session {
   isActive: boolean;
   summary?: SessionSummary;
   appUsage?: AppUsage[];
+  websiteUsage?: WebsiteUsage[];
 }
 
 interface DailyWorkData {
@@ -54,6 +61,12 @@ interface DailyWorkData {
 interface TopApp {
   name: string;
   timeMs?: number;
+}
+
+interface TopWebsite {
+  name: string;
+  timeMs?: number;
+  browser?: string;
 }
 
 interface StatsData {
@@ -69,6 +82,7 @@ interface StatsData {
     dailyWorkData?: DailyWorkData[];
   };
   topApps?: TopApp[];
+  topWebsites?: TopWebsite[];
   recentSessions?: Session[];
 }
 
@@ -161,6 +175,25 @@ export default function EmployeeDashboard() {
         name: app.name,
         timeMs: app.timeMs || 0,
         time: formatTime(app.timeMs || 0),
+        fill: `var(--chart-${(index % 5) + 1})`,
+      })) || [];
+
+  const sessionWebsites = selectedSession?.websiteUsage || [];
+  const topWebsitesData = selectedSession 
+    ? sessionWebsites.slice(0, 5).map((site: WebsiteUsage, index: number) => ({
+        name: site.website.length > 30 ? site.website.substring(0, 30) + '...' : site.website,
+        fullName: site.website,
+        timeMs: site.timeMs || 0,
+        time: formatTime(site.timeMs || 0),
+        browser: site.browser,
+        fill: `var(--chart-${(index % 5) + 1})`,
+      }))
+    : stats?.topWebsites?.slice(0, 5).map((site: TopWebsite, index: number) => ({
+        name: site.name.length > 30 ? site.name.substring(0, 30) + '...' : site.name,
+        fullName: site.name,
+        timeMs: site.timeMs || 0,
+        time: formatTime(site.timeMs || 0),
+        browser: site.browser,
         fill: `var(--chart-${(index % 5) + 1})`,
       })) || [];
 
@@ -502,6 +535,117 @@ export default function EmployeeDashboard() {
                   />
                   <Bar dataKey="timeMs" radius={[4, 4, 0, 0]}>
                     {topAppsData.map((entry: { fill: string }, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Top Websites */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {selectedSession ? 'Session Websites' : 'Top Websites'}
+            </CardTitle>
+            <CardDescription>
+              {selectedSession ? 'Websites visited in this session' : 'Most visited websites (Last 7 days)'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={{
+                time: { label: 'Time', color: 'hsl(var(--chart-2))' },
+              }}
+              className="h-full"
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topWebsitesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="name" 
+                    textAnchor="end" 
+                    height={100}
+                    interval={0}
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(value) => {
+                      return value.length > 15 ? value.substring(0, 15) + '...' : value;
+                    }}
+                  />
+                  <YAxis hide />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent 
+                      formatter={(value, name, item) => {
+                        const browser = item.payload.browser;
+                        return (
+                          <div>
+                            <div>{item.payload.time}</div>
+                            {browser && <div className="text-xs text-muted-foreground">{browser}</div>}
+                          </div>
+                        );
+                      }}
+                    />} 
+                  />
+                  <Bar dataKey="timeMs" radius={[4, 4, 0, 0]}>
+                    {topWebsitesData.map((entry: { fill: string }, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Top Websites */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              {selectedSession ? 'Session Websites' : 'Top Websites'}
+            </CardTitle>
+            <CardDescription>
+              {selectedSession ? 'Websites visited in this session' : 'Most visited websites (Last 7 days)'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={{
+                time: { label: 'Time', color: 'hsl(var(--chart-2))' },
+              }}
+              className="h-full"
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topWebsitesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="name" 
+                    textAnchor="end" 
+                    height={100}
+                    interval={0}
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(value) => {
+                      return value.length > 15 ? value.substring(0, 15) + '...' : value;
+                    }}
+                  />
+                  <YAxis hide />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent 
+                      formatter={(value, name, item) => {
+                        const browser = item.payload.browser;
+                        return (
+                          <div>
+                            <div className="font-medium">{item.payload.fullName || item.payload.name}</div>
+                            <div>{item.payload.time}</div>
+                            {browser && <div className="text-xs text-muted-foreground mt-1">{browser}</div>}
+                          </div>
+                        );
+                      }}
+                    />} 
+                  />
+                  <Bar dataKey="timeMs" radius={[4, 4, 0, 0]}>
+                    {topWebsitesData.map((entry: { fill: string }, index: number) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Bar>

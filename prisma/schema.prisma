@@ -78,6 +78,8 @@ model User {
   sessions          Session[]
   sessionSummaries  SessionSummary[]
   appUsage          SessionAppUsage[]
+  websiteUsage      SessionWebsiteUsage[]
+  websiteVisits     WebsiteVisit[]
   events            Event[]
   appSwitchEvents   AppSwitchEvent[]
   deviceControl     DeviceControl?
@@ -125,10 +127,12 @@ model Session {
 
   createdAt DateTime @default(now())
 
-  summary   SessionSummary?
-  appUsage  SessionAppUsage[]
-  events    Event[]
-  appSwitch AppSwitchEvent[]
+  summary          SessionSummary?
+  appUsage         SessionAppUsage[]
+  websiteUsage     SessionWebsiteUsage[]
+  websiteVisits    WebsiteVisit[]
+  events           Event[]
+  appSwitch        AppSwitchEvent[]
 }
 
 model SessionSummary {
@@ -197,6 +201,49 @@ model AppSwitchEvent {
 
   payload    Json
   createdAt  DateTime @default(now())
+}
+
+model WebsiteVisit {
+  id           String   @id @default(uuid())
+  sessionId    String
+  session      Session  @relation(fields: [sessionId], references: [sessionId])
+
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id])
+
+  fromWebsite  String?
+  toWebsite    String?
+  durationMs   BigInt?
+  browser      String?
+
+  timestamp    DateTime
+  epochMs      BigInt?
+
+  payload      Json?
+  createdAt    DateTime @default(now())
+  
+  @@index([sessionId])
+  @@index([userId])
+  @@index([toWebsite])
+  @@index([browser])
+}
+
+model SessionWebsiteUsage {
+  id         String   @id @default(uuid())
+  sessionId  String
+  session    Session  @relation(fields: [sessionId], references: [sessionId])
+
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+
+  website    String
+  browser    String?
+  timeMs     BigInt
+
+  createdAt  DateTime @default(now())
+  
+  @@index([sessionId])
+  @@index([userId])
 }
 
 // Device control for remote force-stop/resume

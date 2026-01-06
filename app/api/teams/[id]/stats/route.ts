@@ -80,6 +80,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       totalSessionsThisMonth,
       recentSessions,
       topApps,
+      topWebsites,
       dailySessions,
     ] = await Promise.all([
       prisma.user.count({ where: { teamId } }),
@@ -131,6 +132,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         take: 10,
       }),
 
+      prisma.sessionWebsiteUsage.groupBy({
+        by: ['website', 'browser'],
+        where: {
+          createdAt: { gte: thisMonthStart },
+          user: { teamId },
+        },
+        _sum: { timeMs: true },
+        orderBy: { _sum: { timeMs: 'desc' } },
+        take: 10,
+      }),
+
       Promise.all(last7Days.map(async (day) => {
         const nextDay = new Date(day);
         nextDay.setDate(nextDay.getDate() + 1);
@@ -167,6 +179,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       name: app.appName,
       timeMs: Number(app._sum.timeMs || 0),
       hours: Number((Number(app._sum.timeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
+    }));
+
+    const topWebsitesFormatted = topWebsites.map((site: any) => ({
+      name: site.website,
+      browser: site.browser,
+      timeMs: Number(site._sum.timeMs || 0),
+      hours: Number((Number(site._sum.timeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
     }));
 
     // Daily work/break/idle totals for last 7 days (team scoped)
@@ -248,6 +267,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           dailySessions,
           dailyWorkData,
           topApps: topAppsFormatted,
+          topWebsites: topWebsitesFormatted,
         },
         topUsers,
         recentSessions: recentSessions.map((s: any) => ({

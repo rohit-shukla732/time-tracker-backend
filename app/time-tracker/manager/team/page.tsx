@@ -46,6 +46,13 @@ interface AppUsage {
   timeMs?: number;
 }
 
+interface WebsiteUsage {
+  website?: string;
+  name?: string;
+  browser?: string;
+  timeMs?: number;
+}
+
 interface Session {
   id: string;
   startedAt: string;
@@ -56,6 +63,7 @@ interface Session {
   breakTimeMs?: number;
   idleTimeMs?: number;
   appUsage?: AppUsage[];
+  websiteUsage?: WebsiteUsage[];
 }
 
 interface DailyWorkData {
@@ -73,6 +81,7 @@ interface MemberDetails {
     lastActive?: string;
   };
   topApps?: AppUsage[];
+  topWebsites?: WebsiteUsage[];
   charts?: {
     dailyWorkData?: DailyWorkData[];
   };
@@ -404,6 +413,7 @@ function MemberDetailsDialog({
   };
 
   const topApps = details?.topApps || [];
+  const topWebsites = details?.topWebsites || [];
   const dailyWork = details?.charts?.dailyWorkData || [];
   const recentSessions = details?.recentSessions || [];
 
@@ -432,6 +442,7 @@ function MemberDetailsDialog({
   }, [sessionData]);
 
   const sessionApps = selectedSession?.appUsage || [];
+  const sessionWebsites = selectedSession?.websiteUsage || [];
 
   if (!member) return null;
 
@@ -717,6 +728,91 @@ function MemberDetailsDialog({
                   ) : (
                     <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
                       No app usage data available
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Top Websites Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    {selectedSession ? 'Session Websites' : 'Top Websites (Last 7 Days)'}
+                  </CardTitle>
+                  <CardDescription>
+                    {selectedSession ? 'Websites visited in this session' : 'Most visited websites by time'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {(selectedSession ? sessionWebsites : (topWebsites || [])).length ? (
+                    <ChartContainer
+                      config={(selectedSession ? sessionWebsites : (topWebsites || [])).slice(0, 5).reduce((acc: Record<string, { label: string; color: string }>, site: WebsiteUsage, idx: number) => {
+                        const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
+                        const name = site.name || site.website || 'Unknown';
+                        acc[name] = { label: name, color: colors[idx % 5] };
+                        return acc;
+                      }, { time: { label: 'Time', color: '' } })}
+                      className="h-[300px] w-full px-6"
+                    >
+                      <BarChart accessibilityLayer data={(selectedSession ? sessionWebsites : (topWebsites || [])).slice(0, 5).map((site: WebsiteUsage, idx: number) => {
+                        const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
+                        const timeMs = site.timeMs || 0;
+                        const websiteName = site.name || site.website || 'Unknown';
+                        return { 
+                          name: websiteName.length > 30 ? websiteName.slice(0, 30) + '...' : websiteName,
+                          fullName: websiteName,
+                          browser: site.browser,
+                          time: Math.round(timeMs / (1000 * 60)), // Store in minutes
+                          timeMs: timeMs,
+                          fill: colors[idx % 5] 
+                        };
+                      })}>
+                        <CartesianGrid vertical={false} />
+                        <XAxis
+                          dataKey="name"
+                          tickLine={false}
+                          tickMargin={10}
+                          axisLine={false}
+                          tickFormatter={(value) => value.length > 15 ? value.slice(0, 15) + '...' : value}
+                        />
+                        <ChartTooltip
+                          cursor={false}
+                          content={<ChartTooltipContent  
+                            formatter={(_value, _name, item: any) => {
+                              const timeMs = item?.payload?.timeMs ?? 0;
+                              const browser = item?.payload?.browser;
+                              return (
+                                <div>
+                                  <div className="font-medium">{item?.payload?.fullName || item?.payload?.name}</div>
+                                  <div>{formatTime(timeMs)}</div>
+                                  {browser && <div className="text-xs text-muted-foreground mt-1">{browser}</div>}
+                                </div>
+                              );
+                            }}
+                          />}
+                        />
+                        <Bar
+                          dataKey="time"
+                          strokeWidth={2}
+                          radius={8}
+                          activeIndex={0}
+                          activeBar={({ ...props }) => {
+                            return (
+                              <Rectangle
+                                {...props}
+                                fillOpacity={0.8}
+                                stroke={props.payload.fill}
+                                strokeDasharray={4}
+                                strokeDashoffset={4}
+                              />
+                            );
+                          }}
+                        />
+                      </BarChart>
+                    </ChartContainer>
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
+                      No website usage data available
                     </div>
                   )}
                 </CardContent>
