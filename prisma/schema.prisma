@@ -43,6 +43,21 @@ enum ITSupportSubcategory {
   OTHER
 }
 
+enum TaskStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 model Team {
   id          String   @id @default(uuid())
   name        String
@@ -56,6 +71,10 @@ model Team {
 
   // Team members
   members     User[]   @relation("TeamMember")
+  
+  // Task management
+  projects    Project[]
+  tasks       Task[]
 
   @@unique([name])
 }
@@ -88,6 +107,13 @@ model User {
   createdTickets    Ticket[]         @relation("TicketCreator")
   assignedTickets   Ticket[]         @relation("TicketAssignee")
   ticketComments    TicketComment[]
+  
+  // Task management
+  createdProjects   Project[]        @relation("ProjectCreator")
+  createdTasks      Task[]           @relation("TaskCreator")
+  assignedTasks     Task[]           @relation("TaskAssignee")
+  approvedTasks     Task[]           @relation("TaskApprover")
+  taskSessions      TaskSession[]
 }
 
 model RefreshToken {
@@ -133,6 +159,7 @@ model Session {
   websiteVisits    WebsiteVisit[]
   events           Event[]
   appSwitch        AppSwitchEvent[]
+  taskSessions     TaskSession[]
 }
 
 model SessionSummary {
@@ -321,4 +348,92 @@ model TicketScreenshot {
   createdAt DateTime @default(now())
   
   @@index([ticketId])
+}
+
+// Task Management Models
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id])
+  
+  createdById String
+  createdBy   User     @relation("ProjectCreator", fields: [createdById], references: [id])
+  
+  startDate   DateTime?
+  endDate     DateTime?
+  
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  tasks       Task[]
+  
+  @@index([teamId])
+  @@index([createdById])
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  
+  projectId   String?
+  project     Project?     @relation(fields: [projectId], references: [id])
+  
+  teamId      String
+  team        Team         @relation(fields: [teamId], references: [id])
+  
+  assignedTo  String?
+  assignee    User?        @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  
+  createdById String
+  createdBy   User         @relation("TaskCreator", fields: [createdById], references: [id])
+  
+  approvedById String?
+  approvedBy   User?       @relation("TaskApprover", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+  
+  status      TaskStatus   @default(PENDING_APPROVAL)
+  priority    TaskPriority @default(MEDIUM)
+  
+  estimatedHours Float?
+  
+  dueDate     DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  taskSessions TaskSession[]
+  
+  @@index([projectId])
+  @@index([teamId])
+  @@index([assignedTo])
+  @@index([createdById])
+  @@index([status])
+}
+
+model TaskSession {
+  id          String   @id @default(uuid())
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id])
+  
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [sessionId])
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  startedAt   DateTime
+  endedAt     DateTime?
+  durationMs  BigInt?
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([taskId])
+  @@index([sessionId])
+  @@index([userId])
 }

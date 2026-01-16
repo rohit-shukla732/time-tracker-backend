@@ -38,6 +38,7 @@ import {
   Settings,
   ChevronDown,
   Clock,
+  CheckSquare,
 } from 'lucide-react';
 
 interface User {
@@ -66,6 +67,7 @@ export default function ManagerLayout({ children }: ManagerLayoutProps) {
   const navItems = [
     { href: '/time-tracker/manager', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/time-tracker/manager/team', label: 'Team', icon: Users },
+    { href: '/time-tracker/manager/tasks', label: 'Tasks', icon: CheckSquare },
     { href: '/time-tracker/manager/reports', label: 'Reports', icon: FileText },
     { href: '/time-tracker/manager/sessions', label: 'Sessions', icon: Clock },
   ];

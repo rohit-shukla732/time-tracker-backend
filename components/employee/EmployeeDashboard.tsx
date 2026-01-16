@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Clock, Coffee, Activity, Moon, TrendingUp } from 'lucide-react';
+import TaskSelector from '@/components/employee/TaskSelector';
 import {
   BarChart,
   Bar,
@@ -92,6 +93,7 @@ export default function EmployeeDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [activeChart, setActiveChart] = useState<'week' | 'month'>('week');
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   // Helper function to format time (hours or minutes)
   const formatTime = (ms: number): string => {
@@ -123,6 +125,10 @@ export default function EmployeeDashboard() {
       const data = await authFetch(`/api/users/${user.id}/stats`, {}, '/employee/login') as { stats?: StatsData } & StatsData;
       
       setStats(data.stats || data);
+      
+      // Get current session ID if active
+      const activeSession = (data.stats?.recentSessions || data.recentSessions)?.find(s => s.isActive);
+      setCurrentSessionId(activeSession?.id || null);
     } catch (err) {
       if (err instanceof Error && err.name !== 'AuthError') {
         setError(err.message);
@@ -249,7 +255,8 @@ export default function EmployeeDashboard() {
         <p className="text-muted-foreground mt-1">Track your work activity and productivity</p>
       </div>
 
-      
+      {/* Task Selector */}
+      <TaskSelector sessionId={currentSessionId} />
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
