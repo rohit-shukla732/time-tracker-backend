@@ -7,6 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { 
+  toLocaleDateStringTz,
+  toLocaleTimeStringTz 
+} from '@/lib/timezoneUtils';
 import {
   Select,
   SelectContent,
@@ -122,7 +126,7 @@ function formatTimeAgo(dateString: string | null): string {
   if (diffMins < 60) return `${diffMins}m ago`;
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24) return `${diffHours}h ago`;
-  return date.toLocaleDateString();
+  return toLocaleDateStringTz(date);
 }
 
 // Workstation component (single seat)
@@ -305,6 +309,8 @@ export default function FloorMapPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<FloorEmployee | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [teamId, setTeamId] = useState<string | null>(null);
+  const [timezone, setTimezone] = useState<string>('IST');
+  const [, forceUpdate] = useState({});
 
   const fetchData = useCallback(async () => {
     // Get team ID from stored user
@@ -348,9 +354,23 @@ export default function FloorMapPage() {
 
   // Auto-refresh every 30 seconds
   useEffect(() => {
+    // Load timezone
+    setTimezone(localStorage.getItem('timezone') || 'IST');
+    
     if (!autoRefresh) return;
     const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    
+    // Listen for timezone changes
+    const handleTimezoneChange = (e: CustomEvent) => {
+      setTimezone(e.detail);
+      forceUpdate({});
+    };
+    window.addEventListener('timezoneChanged' as any, handleTimezoneChange);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('timezoneChanged' as any, handleTimezoneChange);
+    };
   }, [autoRefresh, fetchData]);
 
   // Filter employees
@@ -382,13 +402,21 @@ export default function FloorMapPage() {
     <div className="space-y-6 p-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <LayoutGrid className="w-8 h-8 text-blue-600" />
-              Team Floor Map
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Real-time team member status • Last updated: {lastUpdated?.toLocaleTimeString() || 'N/A'}
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-3xl font-bold flex items-center gap-3">
+                <LayoutGrid className="w-8 h-8 text-blue-600" />
+                Team Floor Map
+              </h1>
+              <Badge variant="outline" className="text-xs">
+                {(() => {
+                  const tz = typeof window !== 'undefined' ? (localStorage.getItem('timezone') || 'IST') : 'IST';
+                  return tz === 'IST' ? 'IST' : 'EST';
+                })()}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground">
+              Real-time team member status • Last updated: {lastUpdated ? toLocaleTimeStringTz(lastUpdated, timezone as 'IST' | 'EST') : 'N/A'}
             </p>
           </div>
           <div className="flex items-center gap-3">

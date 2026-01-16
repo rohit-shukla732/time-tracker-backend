@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { authFetch } from '@/lib/authFetch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Users, Clock, Coffee, Zap, Moon } from 'lucide-react';
 import {
   XAxis,
@@ -91,6 +92,8 @@ export default function ManagerDashboard() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [activeChart, setActiveChart] = useState<'week' | 'month'>('week');
   const [chartType, setChartType] = useState<'sessions' | 'time'>('sessions');
+  const [timezone, setTimezone] = useState<string>('IST');
+  const [, forceUpdate] = useState({});
 
   // Helper function to format time (hours or minutes)
   const formatTime = (ms: number): string => {
@@ -103,9 +106,23 @@ export default function ManagerDashboard() {
   };
 
   useEffect(() => {
+    // Load timezone
+    setTimezone(localStorage.getItem('timezone') || 'IST');
+    
     fetchStats();
     const interval = setInterval(fetchStats, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
+    
+    // Listen for timezone changes
+    const handleTimezoneChange = (e: CustomEvent) => {
+      setTimezone(e.detail);
+      forceUpdate({});
+    };
+    window.addEventListener('timezoneChanged' as any, handleTimezoneChange);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('timezoneChanged' as any, handleTimezoneChange);
+    };
   }, []);
 
   // Auto-rotate carousel
@@ -293,6 +310,15 @@ export default function ManagerDashboard() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Manager Dashboard</h1>
+        <Badge variant="outline" className="text-xs">
+          {(() => {
+            const tz = typeof window !== 'undefined' ? (localStorage.getItem('timezone') || 'IST') : 'IST';
+            return tz === 'IST' ? 'Indian Standard Time (IST)' : 'Eastern Standard Time (EST)';
+          })()}
+        </Badge>
+      </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Stats Carousel */}
       <Card className="relative overflow-hidden border-2">
@@ -714,14 +740,14 @@ export default function ManagerDashboard() {
                     <div key={index} className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div
-                          className="w-2 h-8 rounded-full flex-shrink-0"
+                          className="w-2 h-8 rounded-full shrink-0"
                           style={{ backgroundColor: colors[index % colors.length] }}
                         />
                         <span className="text-sm font-medium truncate">
                           {app.name}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <span className="text-sm text-muted-foreground">
                           {formatTime(app.timeMs || 0)}
                         </span>
@@ -753,7 +779,7 @@ export default function ManagerDashboard() {
                     <div key={index} className="flex items-center justify-between">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div
-                          className="w-2 h-8 rounded-full flex-shrink-0"
+                          className="w-2 h-8 rounded-full shrink-0"
                           style={{ backgroundColor: colors[index % colors.length] }}
                         />
                         <div className="flex flex-col flex-1 min-w-0">
@@ -767,7 +793,7 @@ export default function ManagerDashboard() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <span className="text-sm text-muted-foreground">
                           {formatTime(site.timeMs || 0)}
                         </span>

@@ -15,6 +15,23 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+import {
   LayoutDashboard,
   Users,
   Clock,
@@ -44,6 +61,12 @@ export function AdminLayout({ children, loginPath = '/time-tracker/admin/login',
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [timezone, setTimezone] = useState<string>('IST');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const navItems = [
     { href: `${basePath}`, label: 'Overview', icon: LayoutDashboard },
@@ -66,6 +89,12 @@ export function AdminLayout({ children, loginPath = '/time-tracker/admin/login',
         }
       }
     };
+    
+    // Load timezone preference
+    const storedTimezone = localStorage.getItem('timezone');
+    if (storedTimezone) {
+      setTimezone(storedTimezone);
+    }
     
     // Load user immediately
     loadUser();
@@ -90,6 +119,60 @@ export function AdminLayout({ children, loginPath = '/time-tracker/admin/login',
       window.removeEventListener('userUpdated', handleUserUpdate);
     };
   }, []);
+
+  const handleTimezoneChange = (newTimezone: string) => {
+    setTimezone(newTimezone);
+    localStorage.setItem('timezone', newTimezone);
+    window.dispatchEvent(new CustomEvent('timezoneChanged', { detail: newTimezone }));
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('Please fill in all password fields');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters long');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Password changed successfully');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        toast.error(data.error || 'Failed to change password');
+      }
+    } catch (error) {
+      console.error('Change password error:', error);
+      toast.error('Failed to change password');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
@@ -160,7 +243,7 @@ export function AdminLayout({ children, loginPath = '/time-tracker/admin/login',
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
                 </DropdownMenuItem>
@@ -174,6 +257,94 @@ export function AdminLayout({ children, loginPath = '/time-tracker/admin/login',
           </div>
         </div>
       </header>
+
+      {/* Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Settings</DialogTitle>
+            <DialogDescription>
+              Configure your preferences and security settings
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            {/* Timezone Settings */}
+            <div className="space-y-2">
+              <Label htmlFor="timezone">Timezone</Label>
+              <p className="text-sm text-muted-foreground mb-2">
+                All times and reports will be displayed in the selected timezone
+              </p>
+              <Select value={timezone} onValueChange={handleTimezoneChange}>
+                <SelectTrigger id="timezone">
+                  <SelectValue placeholder="Select timezone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="IST">
+                    IST (Indian Standard Time - UTC+5:30)
+                  </SelectItem>
+                  <SelectItem value="EST">
+                    EST (Eastern Standard Time - UTC-5:00)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-2">
+                Current: {timezone === 'IST' ? 'Indian Standard Time (UTC+5:30)' : 'Eastern Standard Time (UTC-5:00)'}
+              </p>
+            </div>
+
+            {/* Change Password */}
+            <div className="space-y-4 border-t pt-4">
+              <div>
+                <h3 className="text-sm font-medium">Change Password</h3>
+                <p className="text-sm text-muted-foreground">
+                  Update your account password
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="current-password">Current Password</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter current password"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password (min. 6 characters)"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm New Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                />
+              </div>
+
+              <Button 
+                onClick={handleChangePassword} 
+                disabled={changingPassword}
+                className="w-full"
+              >
+                {changingPassword ? 'Changing Password...' : 'Change Password'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Main Content */}
       <main className="container py-6">

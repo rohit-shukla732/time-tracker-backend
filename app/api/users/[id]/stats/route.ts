@@ -125,6 +125,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           orderBy: { timeMs: 'desc' },
           take: 10,
         },
+        appSwitch: {
+          orderBy: { timestamp: 'asc' },
+        },
+        events: {
+          orderBy: { timestamp: 'asc' },
+        },
       },
     });
 
@@ -166,6 +172,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             browser: site.browser,
             timeMs: Number(site.timeMs || 0),
             hours: Number((Number(site.timeMs || 0) / (1000 * 60 * 60)).toFixed(2)),
+          })),
+          appSwitchEvents: s.appSwitch.map((e: any) => ({
+            id: e.id,
+            fromApp: e.fromApp,
+            toApp: e.toApp,
+            timestamp: e.timestamp,
+            durationMs: Number(e.durationMs || 0),
+          })),
+          events: s.events.map((e: any) => ({
+            id: e.id,
+            type: e.type,
+            reason: e.reason,
+            timestamp: e.timestamp,
+            durationMs: Number(e.durationMs || 0),
           })),
         })),
         charts: { dailyWorkData, dailySessions },

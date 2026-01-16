@@ -22,6 +22,11 @@ import {
   Label,
 } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
+import { ActivityTimeline } from '@/components/ui/activity-timeline';
+import { 
+  toLocaleStringTz, 
+  toLocaleDateStringTz 
+} from '@/lib/timezoneUtils';
 
 interface TeamMember {
   id: string;
@@ -64,6 +69,18 @@ interface Session {
   idleTimeMs?: number;
   appUsage?: AppUsage[];
   websiteUsage?: WebsiteUsage[];
+  appSwitchEvents?: Array<{
+    fromApp: string;
+    toApp: string;
+    timestamp: string;
+    durationMs: number;
+  }>;
+  events?: Array<{
+    type: string;
+    reason: string | null;
+    timestamp: string;
+    durationMs: number;
+  }>;
 }
 
 interface DailyWorkData {
@@ -110,6 +127,8 @@ export default function TeamPage() {
   const [loadingMember, setLoadingMember] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [timezone, setTimezone] = useState<string>('IST');
+  const [, forceUpdate] = useState({});
 
   // Helper function to format time (hours or minutes)
   const formatTime = (ms: number): string => {
@@ -161,8 +180,23 @@ export default function TeamPage() {
 
   useEffect(() => {
     if (!teamId) return;
+    
+    // Load timezone
+    setTimezone(localStorage.getItem('timezone') || 'IST');
+    
     fetchTeamStats();
     fetchTeamMembers();
+
+    // Listen for timezone changes and force re-render
+    const handleTimezoneChange = (e: CustomEvent) => {
+      setTimezone(e.detail);
+      forceUpdate({});
+    };
+
+    window.addEventListener('timezoneChanged' as any, handleTimezoneChange);
+    return () => {
+      window.removeEventListener('timezoneChanged' as any, handleTimezoneChange);
+    };
   }, [teamId, fetchTeamStats, fetchTeamMembers]);
 
   async function fetchMemberDetails(userId: string) {
@@ -229,8 +263,14 @@ export default function TeamPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">My Team</h1>
+        <Badge variant="outline" className="text-xs">
+          {(() => {
+            const tz = typeof window !== 'undefined' ? (localStorage.getItem('timezone') || 'IST') : 'IST';
+            return tz === 'IST' ? 'Indian Standard Time (IST)' : 'Eastern Standard Time (EST)';
+          })()}
+        </Badge>
       </div>
 
       {/* Team Stats Cards */}
@@ -384,6 +424,7 @@ export default function TeamPage() {
         details={memberDetails}
         loading={loadingMember}
         onClose={closeDialog}
+        timezone={timezone}
       />
     </div>
   );
@@ -393,12 +434,14 @@ function MemberDetailsDialog({
   member,
   details,
   loading,
-  onClose
+  onClose,
+  timezone
 }: {
   member: TeamMember | null;
   details: MemberDetails | null;
   loading: boolean;
   onClose: () => void;
+  timezone: string;
 }) {
   const [selectedSession, setSelectedSession] = React.useState<Session | null>(null);
 
@@ -516,308 +559,29 @@ function MemberDetailsDialog({
                   <div className="text-xs text-muted-foreground mb-1">Last Active</div>
                   <div className="text-sm font-medium">
                     {details?.aggregates?.lastActive 
-                      ? new Date(details.aggregates.lastActive).toLocaleDateString()
-                      : (member.lastActive ? new Date(member.lastActive).toLocaleDateString() : '-')}
+                      ? toLocaleDateStringTz(details.aggregates.lastActive, timezone as 'IST' | 'EST')
+                      : (member.lastActive ? toLocaleDateStringTz(member.lastActive, timezone as 'IST' | 'EST') : '-')}
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Daily Activity Chart / Session Donut */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {selectedSession ? 'Session Time Distribution' : 'Daily Activity (Last 7 Days)'}
-                  </CardTitle>
-                  <CardDescription>
-                    {selectedSession 
-                      ? `Session started: ${new Date(selectedSession.startedAt).toLocaleString()}`
-                      : 'Work, break, and idle time distribution (in hours)'
-                    }
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {selectedSession ? (
-                    sessionData.some(d => d.value > 0) ? (
-                      <ChartContainer
-                        config={{
-                          value: { label: "Time" },
-                          Work: { label: "Work", color: "#10b981" },
-                          Break: { label: "Break", color: "#3b82f6" },
-                          Idle: { label: "Idle", color: "#f59e0b" },
-                        }}
-                        className="mx-auto aspect-square max-h-[300px]"
-                      >
-                        <PieChart>
-                          <ChartTooltip
-                            cursor={false}
-                            content={<ChartTooltipContent 
-                              hideLabel 
-                              formatter={(value, name, item) => {
-                                return formatTime(item.payload.valueMs);
-                              }}
-                            />}
-                          />
-                          <Pie
-                            data={sessionData}
-                            dataKey="value"
-                            nameKey="name"
-                            innerRadius={60}
-                            strokeWidth={5}
-                          >
-                            {sessionData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} />
-                            ))}
-                            <Label
-                              content={({ viewBox }) => {
-                                if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                                  return (
-                                    <text
-                                      x={viewBox.cx}
-                                      y={viewBox.cy}
-                                      textAnchor="middle"
-                                      dominantBaseline="middle"
-                                    >
-                                      <tspan
-                                        x={viewBox.cx}
-                                        y={viewBox.cy}
-                                        className="fill-foreground text-2xl font-bold"
-                                      >
-                                        {formatTime(totalSessionTime)}
-                                      </tspan>
-                                      <tspan
-                                        x={viewBox.cx}
-                                        y={(viewBox.cy || 0) + 24}
-                                        className="fill-muted-foreground"
-                                      >
-                                        Total
-                                      </tspan>
-                                    </text>
-                                  )
-                                }
-                              }}
-                            />
-                          </Pie>
-                        </PieChart>
-                      </ChartContainer>
-                    ) : (
-                      <div className="mx-auto aspect-square max-h-[300px] flex items-center justify-center text-sm text-muted-foreground">
-                        No session data available
-                      </div>
-                    )
-                  ) : dailyWork.length ? (
-                    <ChartContainer 
-                      config={{
-                        workTime: { label: 'Work', color: '#10b981' },
-                        breakTime: { label: 'Break', color: '#3b82f6' },
-                        idleTime: { label: 'Idle', color: '#f59e0b' },
-                      }}
-                      className="h-[300px] w-full px-6"
-                    >
-                      <BarChart accessibilityLayer data={dailyWork.map((d: DailyWorkData) => ({
-                        day: d.day,
-                        workTime: parseFloat(((d.workTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
-                        breakTime: parseFloat(((d.breakTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
-                        idleTime: parseFloat(((d.idleTimeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
-                      }))}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis 
-                          dataKey="day" 
-                          tickLine={false}
-                          tickMargin={10}
-                          axisLine={false}
-                        />
-                        <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                        <ChartLegend content={<ChartLegendContent />} />
-                        <Bar
-                          dataKey="workTime"
-                          stackId="a"
-                          fill="#10b981"
-                          radius={[0, 0, 4, 4]}
-                        />
-                        <Bar
-                          dataKey="breakTime"
-                          stackId="a"
-                          fill="#3b82f6"
-                          radius={[0, 0, 0, 0]}
-                        />
-                        <Bar
-                          dataKey="idleTime"
-                          stackId="a"
-                          fill="#f59e0b"
-                          radius={[4, 4, 0, 0]}
-                        />
-                      </BarChart>
-                    </ChartContainer>
-                  ) : (
-                    <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
-                      No activity data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Top Apps Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {selectedSession ? 'Session Applications' : 'Top Applications (Last 7 Days)'}
-                  </CardTitle>
-                  <CardDescription>
-                    {selectedSession ? 'Applications used in this session' : 'Most used applications by time'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {(selectedSession ? sessionApps : topApps).length ? (
-                    <ChartContainer
-                      config={(selectedSession ? sessionApps : topApps).slice(0, 5).reduce((acc: Record<string, { label: string; color: string }>, app: AppUsage, idx: number) => {
-                        const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
-                        acc[app.name || app.appName || 'Unknown'] = { label: app.name || app.appName || 'Unknown', color: colors[idx % 5] };
-                        return acc;
-                      }, { time: { label: 'Time', color: '' } })}
-                      className="h-[300px] w-full px-6"
-                    >
-                      <BarChart accessibilityLayer data={(selectedSession ? sessionApps : topApps).slice(0, 5).map((app: AppUsage, idx: number) => {
-                        const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
-                        const timeMs = app.timeMs || 0;
-                        return { 
-                          name: app.name || app.appName,
-                          time: Math.round(timeMs / (1000 * 60)), // Store in minutes
-                          timeMs: timeMs,
-                          fill: colors[idx % 5] 
-                        };
-                      })}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                          dataKey="name"
-                          tickLine={false}
-                          tickMargin={10}
-                          axisLine={false}
-                          tickFormatter={(value) => value.length > 10 ? value.slice(0, 10) + '...' : value}
-                        />
-                        <ChartTooltip
-                          cursor={false}
-                          content={<ChartTooltipContent  
-                            formatter={(_value, _name, item: any) => {
-                              const timeMs = item?.payload?.timeMs ?? 0;
-                              return formatTime(timeMs);
-                            }}
-                          />}
-                        />
-                        <Bar
-                          dataKey="time"
-                          strokeWidth={2}
-                          radius={8}
-                          activeIndex={0}
-                          activeBar={({ ...props }) => {
-                            return (
-                              <Rectangle
-                                {...props}
-                                fillOpacity={0.8}
-                                stroke={props.payload.fill}
-                                strokeDasharray={4}
-                                strokeDashoffset={4}
-                              />
-                            );
-                          }}
-                        />
-                      </BarChart>
-                    </ChartContainer>
-                  ) : (
-                    <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
-                      No app usage data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Top Websites Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {selectedSession ? 'Session Websites' : 'Top Websites (Last 7 Days)'}
-                  </CardTitle>
-                  <CardDescription>
-                    {selectedSession ? 'Websites visited in this session' : 'Most visited websites by time'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {(selectedSession ? sessionWebsites : (topWebsites || [])).length ? (
-                    <ChartContainer
-                      config={(selectedSession ? sessionWebsites : (topWebsites || [])).slice(0, 5).reduce((acc: Record<string, { label: string; color: string }>, site: WebsiteUsage, idx: number) => {
-                        const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
-                        const name = site.name || site.website || 'Unknown';
-                        acc[name] = { label: name, color: colors[idx % 5] };
-                        return acc;
-                      }, { time: { label: 'Time', color: '' } })}
-                      className="h-[300px] w-full px-6"
-                    >
-                      <BarChart accessibilityLayer data={(selectedSession ? sessionWebsites : (topWebsites || [])).slice(0, 5).map((site: WebsiteUsage, idx: number) => {
-                        const colors = ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899'];
-                        const timeMs = site.timeMs || 0;
-                        const websiteName = site.name || site.website || 'Unknown';
-                        return { 
-                          name: websiteName.length > 30 ? websiteName.slice(0, 30) + '...' : websiteName,
-                          fullName: websiteName,
-                          browser: site.browser,
-                          time: Math.round(timeMs / (1000 * 60)), // Store in minutes
-                          timeMs: timeMs,
-                          fill: colors[idx % 5] 
-                        };
-                      })}>
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                          dataKey="name"
-                          tickLine={false}
-                          tickMargin={10}
-                          axisLine={false}
-                          tickFormatter={(value) => value.length > 15 ? value.slice(0, 15) + '...' : value}
-                        />
-                        <ChartTooltip
-                          cursor={false}
-                          content={<ChartTooltipContent  
-                            formatter={(_value, _name, item: any) => {
-                              const timeMs = item?.payload?.timeMs ?? 0;
-                              const browser = item?.payload?.browser;
-                              return (
-                                <div>
-                                  <div className="font-medium">{item?.payload?.fullName || item?.payload?.name}</div>
-                                  <div>{formatTime(timeMs)}</div>
-                                  {browser && <div className="text-xs text-muted-foreground mt-1">{browser}</div>}
-                                </div>
-                              );
-                            }}
-                          />}
-                        />
-                        <Bar
-                          dataKey="time"
-                          strokeWidth={2}
-                          radius={8}
-                          activeIndex={0}
-                          activeBar={({ ...props }) => {
-                            return (
-                              <Rectangle
-                                {...props}
-                                fillOpacity={0.8}
-                                stroke={props.payload.fill}
-                                strokeDasharray={4}
-                                strokeDashoffset={4}
-                              />
-                            );
-                          }}
-                        />
-                      </BarChart>
-                    </ChartContainer>
-                  ) : (
-                    <div className="h-[300px] flex items-center justify-center text-sm text-muted-foreground">
-                      No website usage data available
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+            {/* Activity Timeline - shown when session is selected */}
+            {selectedSession && selectedSession.appSwitchEvents && selectedSession.events && (
+              <ActivityTimeline
+                sessionStart={selectedSession.startedAt}
+                sessionEnd={selectedSession.endedAt || null}
+                summary={selectedSession.summary ? {
+                  workTimeMs: selectedSession.summary.workTimeMs ?? 0,
+                  totalBreakMs: selectedSession.summary.totalBreakMs ?? 0,
+                  totalIdleMs: selectedSession.summary.totalIdleMs ?? 0
+                } : undefined}
+                appUsage={selectedSession.appUsage}
+                websiteUsage={selectedSession.websiteUsage}
+                appSwitchEvents={selectedSession.appSwitchEvents}
+                events={selectedSession.events}
+              />
+            )}
 
             {/* Recent Sessions Table */}
             {recentSessions.length > 0 && (
@@ -863,10 +627,10 @@ function MemberDetailsDialog({
                             onClick={() => setSelectedSession(session)}
                           >
                             <TableCell className="text-sm">
-                              {new Date(session.startedAt).toLocaleString()}
+                              {toLocaleStringTz(session.startedAt, timezone as 'IST' | 'EST')}
                             </TableCell>
                             <TableCell className="text-sm">
-                              {session.endedAt ? new Date(session.endedAt).toLocaleString() : '-'}
+                              {session.endedAt ? toLocaleStringTz(session.endedAt, timezone as 'IST' | 'EST') : '-'}
                             </TableCell>
                             <TableCell className="text-sm font-medium">
                               {formatTime(duration)}

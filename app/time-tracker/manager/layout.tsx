@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { ManagerLayout } from '@/components/manager/ManagerLayout';
+import ManagerLayout from '@/components/manager/ManagerLayout';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
