@@ -24,6 +24,20 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Plus,
@@ -35,6 +49,9 @@ import {
   Pencil,
   Trash2,
   FolderOpen,
+  ChevronsUpDown,
+  Check,
+  Search,
 } from "lucide-react";
 
 interface Task {
@@ -76,6 +93,10 @@ interface TeamMember {
   id: string;
   name: string;
   email: string;
+  team?: {
+    id: string;
+    name: string;
+  };
 }
 
 interface Project {
@@ -93,13 +114,31 @@ export default function TasksPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+  const [assigneePopoverOpen, setAssigneePopoverOpen] = useState(false);
+  const [createTaskAssigneePopoverOpen, setCreateTaskAssigneePopoverOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editTaskAssigneePopoverOpen, setEditTaskAssigneePopoverOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
     projectId: "__none__",
-    assignedTo: "__none__",
+    assignedTo: [] as string[],
     priority: "MEDIUM",
+    estimatedHours: "",
+    dueDate: "",
+  });
+
+  const [editTask, setEditTask] = useState({
+    title: "",
+    description: "",
+    projectId: "__none__",
+    assignedTo: [] as string[],
+    priority: "MEDIUM",
+    status: "ACTIVE",
     estimatedHours: "",
     dueDate: "",
   });
@@ -142,7 +181,7 @@ export default function TasksPage() {
   const fetchTeamMembers = async () => {
     try {
       const accessToken = localStorage.getItem("accessToken");
-      const response = await fetch("/api/users", {
+      const response = await fetch("/api/users?includeTeam=true", {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -150,7 +189,7 @@ export default function TasksPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setTeamMembers(Array.isArray(data) ? data : []);
+        setTeamMembers(Array.isArray(data.users) ? data.users : Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error("Error fetching team members:", error);
@@ -194,7 +233,7 @@ export default function TasksPage() {
         body: JSON.stringify({
           ...newTask,
           projectId: newTask.projectId === "__none__" ? undefined : newTask.projectId,
-          assignedTo: newTask.assignedTo === "__none__" ? undefined : newTask.assignedTo,
+          assignedTo: newTask.assignedTo.length === 0 ? undefined : newTask.assignedTo[0],
           estimatedHours: newTask.estimatedHours
             ? parseFloat(newTask.estimatedHours)
             : undefined,
@@ -211,7 +250,7 @@ export default function TasksPage() {
         title: "",
         description: "",
         projectId: "__none__",
-        assignedTo: "__none__",
+        assignedTo: [],
         priority: "MEDIUM",
         estimatedHours: "",
         dueDate: "",
@@ -276,6 +315,66 @@ export default function TasksPage() {
     } catch (error) {
       console.error("Error approving task:", error);
       toast.error("Failed to approve task");
+    }
+  };
+
+  const openEditDialog = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditTask({
+      title: task.title,
+      description: task.description || "",
+      projectId: task.project?.id || "__none__",
+      assignedTo: task.assignee ? [task.assignee.id] : [],
+      priority: task.priority,
+      status: task.status,
+      estimatedHours: task.estimatedHours?.toString() || "",
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateTask = async () => {
+    if (!editingTaskId) return;
+
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      const response = await fetch(`/api/tasks/${editingTaskId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          ...editTask,
+          projectId: editTask.projectId === "__none__" ? undefined : editTask.projectId,
+          assignedTo: editTask.assignedTo.length === 0 ? undefined : editTask.assignedTo[0],
+          estimatedHours: editTask.estimatedHours
+            ? parseFloat(editTask.estimatedHours)
+            : undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update task");
+      }
+
+      toast.success("Task updated successfully");
+      setIsEditDialogOpen(false);
+      setEditingTaskId(null);
+      setEditTask({
+        title: "",
+        description: "",
+        projectId: "__none__",
+        assignedTo: [],
+        priority: "MEDIUM",
+        status: "ACTIVE",
+        estimatedHours: "",
+        dueDate: "",
+      });
+      fetchTasks();
+    } catch (error) {
+      console.error("Error updating task:", error);
+      toast.error("Failed to update task");
     }
   };
 
@@ -349,9 +448,46 @@ export default function TasksPage() {
       ? tasks
       : tasks.filter((task) => task.status === filterStatus);
 
+  // Apply search filter
+  const searchFilteredTasks = filteredTasks.filter((task) => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      task.title.toLowerCase().includes(searchLower) ||
+      task.description?.toLowerCase().includes(searchLower) ||
+      task.assignee?.name?.toLowerCase().includes(searchLower) ||
+      task.project?.name?.toLowerCase().includes(searchLower) ||
+      task.team?.name?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  // Apply assignee filter
+  const finalFilteredTasks = selectedAssignees.length > 0
+    ? searchFilteredTasks.filter((task) => 
+        task.assignee ? selectedAssignees.includes(task.assignee.id) : selectedAssignees.includes("unassigned")
+      )
+    : searchFilteredTasks;
+
   const pendingApprovalCount = tasks.filter(
     (t) => t.status === "PENDING_APPROVAL"
   ).length;
+
+  const toggleAssignee = (assigneeId: string) => {
+    setSelectedAssignees((prev) =>
+      prev.includes(assigneeId)
+        ? prev.filter((id) => id !== assigneeId)
+        : [...prev, assigneeId]
+    );
+  };
+
+  const selectAllAssignees = () => {
+    const allIds = teamMembers.map((m) => m.id);
+    allIds.push("unassigned");
+    setSelectedAssignees(allIds);
+  };
+
+  const clearAssignees = () => {
+    setSelectedAssignees([]);
+  };
 
   if (loading) {
     return (
@@ -446,7 +582,7 @@ export default function TasksPage() {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="title">Task Title</Label>
+                  <Label htmlFor="title" className="mb-1">Task Title</Label>
                   <Input
                     id="title"
                     value={newTask.title}
@@ -457,7 +593,7 @@ export default function TasksPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description" className="mb-1">Description</Label>
                   <Textarea
                     id="description"
                     value={newTask.description}
@@ -469,7 +605,7 @@ export default function TasksPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="project">Project (Optional)</Label>
+                    <Label htmlFor="project" className="mb-1">Project (Optional)</Label>
                     <Select
                       value={newTask.projectId}
                       onValueChange={(value) =>
@@ -490,30 +626,79 @@ export default function TasksPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="assignee">Assign To</Label>
-                    <Select
-                      value={newTask.assignedTo}
-                      onValueChange={(value) =>
-                        setNewTask({ ...newTask, assignedTo: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select team member" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Unassigned</SelectItem>
-                        {teamMembers.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.name || member.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="assignee" className="mb-1">Assign To</Label>
+                    <Popover open={createTaskAssigneePopoverOpen} onOpenChange={setCreateTaskAssigneePopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between">
+                          {newTask.assignedTo.length === 0
+                            ? "Select team members"
+                            : `${newTask.assignedTo.length} member(s) selected`}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search team members..." />
+                          <CommandEmpty>No team member found.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem 
+                              onSelect={() => {
+                                if (newTask.assignedTo.length === teamMembers.length) {
+                                  setNewTask({ ...newTask, assignedTo: [] });
+                                } else {
+                                  setNewTask({ ...newTask, assignedTo: teamMembers.map(m => m.id) });
+                                }
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${
+                                  newTask.assignedTo.length === teamMembers.length
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                }`}
+                              />
+                              Select All
+                            </CommandItem>
+                            <CommandItem 
+                              onSelect={() => setNewTask({ ...newTask, assignedTo: [] })}
+                              className="cursor-pointer"
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Clear All
+                            </CommandItem>
+                            {teamMembers.map((member) => (
+                              <CommandItem
+                                key={member.id}
+                                onSelect={() => {
+                                  const isSelected = newTask.assignedTo.includes(member.id);
+                                  setNewTask({
+                                    ...newTask,
+                                    assignedTo: isSelected
+                                      ? newTask.assignedTo.filter(id => id !== member.id)
+                                      : [...newTask.assignedTo, member.id]
+                                  });
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Checkbox
+                                  checked={newTask.assignedTo.includes(member.id)}
+                                  className="mr-2"
+                                />
+                                <div className="flex flex-col">
+                                  <span>{member.name || member.email}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="priority">Priority</Label>
+                    <Label htmlFor="priority" className="mb-1">Priority</Label>
                     <Select
                       value={newTask.priority}
                       onValueChange={(value) =>
@@ -532,7 +717,7 @@ export default function TasksPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="estimated">Estimated Hours</Label>
+                    <Label htmlFor="estimated" className="mb-1">Estimated Hours</Label>
                     <Input
                       id="estimated"
                       type="number"
@@ -548,7 +733,7 @@ export default function TasksPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="dueDate">Due Date</Label>
+                    <Label htmlFor="dueDate" className="mb-1">Due Date</Label>
                     <Input
                       id="dueDate"
                       type="date"
@@ -571,148 +756,467 @@ export default function TasksPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* Edit Task Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Edit Task</DialogTitle>
+                <DialogDescription>
+                  Update task details and status
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-title">Title</Label>
+                  <Input
+                    id="edit-title"
+                    value={editTask.title}
+                    onChange={(e) =>
+                      setEditTask({ ...editTask, title: e.target.value })
+                    }
+                    placeholder="Task title"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-description">Description</Label>
+                  <Textarea
+                    id="edit-description"
+                    value={editTask.description}
+                    onChange={(e) =>
+                      setEditTask({ ...editTask, description: e.target.value })
+                    }
+                    placeholder="Task description"
+                    rows={3}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-status">Status</Label>
+                    <Select
+                      value={editTask.status}
+                      onValueChange={(value) =>
+                        setEditTask({ ...editTask, status: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PENDING_APPROVAL">Pending Approval</SelectItem>
+                        <SelectItem value="ACTIVE">Active</SelectItem>
+                        <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                        <SelectItem value="COMPLETED">Completed</SelectItem>
+                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-priority">Priority</Label>
+                    <Select
+                      value={editTask.priority}
+                      onValueChange={(value) =>
+                        setEditTask({ ...editTask, priority: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="LOW">Low</SelectItem>
+                        <SelectItem value="MEDIUM">Medium</SelectItem>
+                        <SelectItem value="HIGH">High</SelectItem>
+                        <SelectItem value="URGENT">Urgent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-project">Project</Label>
+                    <Select
+                      value={editTask.projectId}
+                      onValueChange={(value) =>
+                        setEditTask({ ...editTask, projectId: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">No Project</SelectItem>
+                        {projects.map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-assignee">Assign To</Label>
+                    <Popover open={editTaskAssigneePopoverOpen} onOpenChange={setEditTaskAssigneePopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between">
+                          {editTask.assignedTo.length === 0
+                            ? "Select team members"
+                            : `${editTask.assignedTo.length} member(s) selected`}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search team members..." />
+                          <CommandEmpty>No team member found.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem 
+                              onSelect={() => {
+                                if (editTask.assignedTo.length === teamMembers.length) {
+                                  setEditTask({ ...editTask, assignedTo: [] });
+                                } else {
+                                  setEditTask({ ...editTask, assignedTo: teamMembers.map(m => m.id) });
+                                }
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${
+                                  editTask.assignedTo.length === teamMembers.length
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                }`}
+                              />
+                              Select All
+                            </CommandItem>
+                            <CommandItem 
+                              onSelect={() => setEditTask({ ...editTask, assignedTo: [] })}
+                              className="cursor-pointer"
+                            >
+                              <XCircle className="mr-2 h-4 w-4" />
+                              Clear All
+                            </CommandItem>
+                            {teamMembers.map((member) => (
+                              <CommandItem
+                                key={member.id}
+                                onSelect={() => {
+                                  const isSelected = editTask.assignedTo.includes(member.id);
+                                  setEditTask({
+                                    ...editTask,
+                                    assignedTo: isSelected
+                                      ? editTask.assignedTo.filter(id => id !== member.id)
+                                      : [...editTask.assignedTo, member.id]
+                                  });
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Checkbox
+                                  checked={editTask.assignedTo.includes(member.id)}
+                                  className="mr-2"
+                                />
+                                <div className="flex flex-col">
+                                  <span>{member.name || member.email}</span>
+                                  {member.team && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {member.team.name}
+                                    </span>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-estimated">Estimated Hours</Label>
+                    <Input
+                      id="edit-estimated"
+                      type="number"
+                      step="0.5"
+                      value={editTask.estimatedHours}
+                      onChange={(e) =>
+                        setEditTask({
+                          ...editTask,
+                          estimatedHours: e.target.value,
+                        })
+                      }
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-dueDate">Due Date</Label>
+                    <Input
+                      id="edit-dueDate"
+                      type="date"
+                      value={editTask.dueDate}
+                      onChange={(e) =>
+                        setEditTask({ ...editTask, dueDate: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditDialogOpen(false);
+                    setEditingTaskId(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleUpdateTask}>Update Task</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
-        <Button
-          variant={filterStatus === "all" ? "default" : "outline"}
-          onClick={() => setFilterStatus("all")}
-          size="sm"
-        >
-          All ({tasks.length})
-        </Button>
-        <Button
-          variant={filterStatus === "PENDING_APPROVAL" ? "default" : "outline"}
-          onClick={() => setFilterStatus("PENDING_APPROVAL")}
-          size="sm"
-        >
-          Pending Approval ({pendingApprovalCount})
-        </Button>
-        <Button
-          variant={filterStatus === "ACTIVE" ? "default" : "outline"}
-          onClick={() => setFilterStatus("ACTIVE")}
-          size="sm"
-        >
-          Active
-        </Button>
-        <Button
-          variant={filterStatus === "IN_PROGRESS" ? "default" : "outline"}
-          onClick={() => setFilterStatus("IN_PROGRESS")}
-          size="sm"
-        >
-          In Progress
-        </Button>
-        <Button
-          variant={filterStatus === "COMPLETED" ? "default" : "outline"}
-          onClick={() => setFilterStatus("COMPLETED")}
-          size="sm"
-        >
-          Completed
-        </Button>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant={filterStatus === "all" ? "default" : "outline"}
+            onClick={() => setFilterStatus("all")}
+            size="sm"
+          >
+            All ({tasks.length})
+          </Button>
+          <Button
+            variant={filterStatus === "PENDING_APPROVAL" ? "default" : "outline"}
+            onClick={() => setFilterStatus("PENDING_APPROVAL")}
+            size="sm"
+          >
+            Pending Approval ({pendingApprovalCount})
+          </Button>
+          <Button
+            variant={filterStatus === "ACTIVE" ? "default" : "outline"}
+            onClick={() => setFilterStatus("ACTIVE")}
+            size="sm"
+          >
+            Active
+          </Button>
+          <Button
+            variant={filterStatus === "IN_PROGRESS" ? "default" : "outline"}
+            onClick={() => setFilterStatus("IN_PROGRESS")}
+            size="sm"
+          >
+            In Progress
+          </Button>
+          <Button
+            variant={filterStatus === "COMPLETED" ? "default" : "outline"}
+            onClick={() => setFilterStatus("COMPLETED")}
+            size="sm"
+          >
+            Completed
+          </Button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Assignee Filter */}
+          <Popover open={assigneePopoverOpen} onOpenChange={setAssigneePopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="min-w-[150px] justify-between">
+                {selectedAssignees.length === 0
+                  ? "All Assignees"
+                  : `${selectedAssignees.length} selected`}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[250px] p-0" align="end">
+              <Command>
+                <CommandInput placeholder="Search assignees..." />
+                <CommandEmpty>No assignee found.</CommandEmpty>
+                <CommandGroup>
+                  <CommandItem onSelect={selectAllAssignees} className="cursor-pointer">
+                    <Check
+                      className={`mr-2 h-4 w-4 ${
+                        selectedAssignees.length === teamMembers.length + 1
+                          ? "opacity-100"
+                          : "opacity-0"
+                      }`}
+                    />
+                    Select All
+                  </CommandItem>
+                  <CommandItem onSelect={clearAssignees} className="cursor-pointer">
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Clear All
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => toggleAssignee("unassigned")}
+                    className="cursor-pointer"
+                  >
+                    <Checkbox
+                      checked={selectedAssignees.includes("unassigned")}
+                      className="mr-2"
+                    />
+                    Unassigned
+                  </CommandItem>
+                  {teamMembers.map((member) => (
+                    <CommandItem
+                      key={member.id}
+                      onSelect={() => toggleAssignee(member.id)}
+                      className="cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={selectedAssignees.includes(member.id)}
+                        className="mr-2"
+                      />
+                      <div className="flex flex-col">
+                        <span>{member.name || member.email}</span>
+                        {member.team && (
+                          <span className="text-xs text-muted-foreground">
+                            {member.team.name}
+                          </span>
+                        )}
+                      </div>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          {/* Search */}
+          <div className="relative w-64">
+            <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Tasks Grid */}
-      <div className="grid gap-4">
-        {filteredTasks.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              No tasks found
-            </CardContent>
-          </Card>
-        ) : (
-          filteredTasks.map((task) => (
-            <Card key={task.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      {getStatusIcon(task.status)}
-                      <CardTitle className="text-lg">{task.title}</CardTitle>
-                      <Badge variant={getPriorityColor(task.priority)}>
+      {/* Tasks Table */}
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Status</TableHead>
+                <TableHead>Task</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>Assigned To</TableHead>
+                <TableHead>Project</TableHead>
+                <TableHead>Time Spent</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {finalFilteredTasks.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    No tasks found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                finalFilteredTasks.map((task) => (
+                  <TableRow key={task.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getStatusIcon(task.status)}
+                        <span className="text-xs capitalize">
+                          {task.status.replace("_", " ").toLowerCase()}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{task.title}</div>
+                        {task.description && (
+                          <div className="text-xs text-muted-foreground line-clamp-1">
+                            {task.description}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getPriorityColor(task.priority)} className="text-xs">
                         {task.priority}
                       </Badge>
-                      {task.status === "PENDING_APPROVAL" && (
-                        <Badge variant="outline" className="text-yellow-600">
-                          Needs Approval
-                        </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {task.assignee ? (
+                        <div>
+                          <div className="text-sm">{task.assignee.name}</div>
+                          {task.team && (
+                            <div className="text-xs text-muted-foreground">
+                              {task.team.name}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Unassigned</span>
                       )}
-                    </div>
-                    {task.description && (
-                      <p className="text-sm text-muted-foreground">
-                        {task.description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    {task.status === "PENDING_APPROVAL" && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleApproveTask(task.id)}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteTask(task.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  {task.project && (
-                    <div>
-                      <span className="text-muted-foreground">Project:</span>
-                      <div className="font-medium">{task.project.name}</div>
-                    </div>
-                  )}
-                  <div>
-                    <span className="text-muted-foreground">Assigned to:</span>
-                    <div className="font-medium">
-                      {task.assignee?.name || "Unassigned"}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Created by:</span>
-                    <div className="font-medium">{task.createdBy.name}</div>
-                  </div>
-                  {task.totalTimeMs && task.totalTimeMs > 0 && (
-                    <div>
-                      <span className="text-muted-foreground">Time spent:</span>
-                      <div className="font-medium">
-                        {formatDuration(task.totalTimeMs)}
+                    </TableCell>
+                    <TableCell>
+                      {task.project ? (
+                        <span className="text-sm">{task.project.name}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {task.totalTimeMs && task.totalTimeMs > 0 ? (
+                        <span className="text-sm">{formatDuration(task.totalTimeMs)}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {task.dueDate ? (
+                        <span className="text-sm">
+                          {new Date(task.dueDate).toLocaleDateString()}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-1 justify-end">
+                        {task.status === "PENDING_APPROVAL" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleApproveTask(task.id)}
+                            title="Approve"
+                          >
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditDialog(task)}
+                          title="Edit"
+                        >
+                          <Pencil className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteTask(task.id)}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
                       </div>
-                    </div>
-                  )}
-                  {task.estimatedHours && (
-                    <div>
-                      <span className="text-muted-foreground">Estimated:</span>
-                      <div className="font-medium">
-                        {task.estimatedHours}h
-                      </div>
-                    </div>
-                  )}
-                  {task.dueDate && (
-                    <div>
-                      <span className="text-muted-foreground">Due date:</span>
-                      <div className="font-medium">
-                        {new Date(task.dueDate).toLocaleDateString()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

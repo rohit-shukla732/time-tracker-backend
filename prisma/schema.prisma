@@ -58,6 +58,23 @@ enum TaskPriority {
   URGENT
 }
 
+enum LeaveType {
+  SICK
+  CASUAL
+  ANNUAL
+  MATERNITY
+  PATERNITY
+  UNPAID
+  COMPENSATORY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 model Team {
   id          String   @id @default(uuid())
   name        String
@@ -114,6 +131,12 @@ model User {
   assignedTasks     Task[]           @relation("TaskAssignee")
   approvedTasks     Task[]           @relation("TaskApprover")
   taskSessions      TaskSession[]
+  
+  // Leave management
+  leaveRequests     LeaveRequest[]   @relation("LeaveRequestor")
+  approvedLeaves    LeaveRequest[]   @relation("LeaveApprover")
+  leaveBalance      LeaveBalance?
+  lateComingRecords LateComingRecord[]
 }
 
 model RefreshToken {
@@ -436,4 +459,117 @@ model TaskSession {
   @@index([taskId])
   @@index([sessionId])
   @@index([userId])
+}
+
+model LeaveRequest {
+  id          String      @id @default(uuid())
+  userId      String
+  user        User        @relation("LeaveRequestor", fields: [userId], references: [id])
+  
+  type        LeaveType
+  status      LeaveStatus @default(PENDING)
+  
+  startDate   DateTime
+  endDate     DateTime
+  days        Float       // Support half days (0.5, 1, 1.5, etc.)
+  
+  reason      String
+  attachment  String?     // File path for medical certificates, etc.
+  
+  approvedById String?
+  approvedBy   User?      @relation("LeaveApprover", fields: [approvedById], references: [id])
+  
+  approvedAt   DateTime?
+  rejectedAt   DateTime?
+  rejectionReason String?
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  @@index([userId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model LeaveBalance {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id])
+  
+  sickLeave       Float @default(0)      // Annual sick leave quota
+  casualLeave     Float @default(0)      // Annual casual leave quota
+  annualLeave     Float @default(0)      // Annual/vacation leave quota
+  maternityLeave  Float @default(0)     // Maternity leave quota (in days)
+  paternityLeave  Float @default(0)       // Paternity leave quota
+  compensatoryOff Float @default(0)       // Earned comp-offs
+  
+  sickUsed        Float @default(0)
+  casualUsed      Float @default(0)
+  annualUsed      Float @default(0)
+  maternityUsed   Float @default(0)
+  paternityUsed   Float @default(0)
+  compensatoryUsed Float @default(0)
+  
+  year        Int      // Leave balance year
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([userId, year])
+  @@index([userId])
+  @@index([year])
+}
+
+model LeaveSettings {
+  id                    String   @id @default(uuid())
+  
+  // Monthly leave allocation
+  monthlySickLeave      Float    @default(0)  // Sick leave allocated per month
+  monthlyCasualLeave    Float    @default(0)  // Casual leave allocated per month
+  monthlyAnnualLeave    Float    @default(0)  // Annual leave allocated per month
+  
+  // Rollover settings
+  allowMonthlyRollover  Boolean  @default(false)  // Allow unused monthly leaves to rollover to next month
+  allowYearlyRollover   Boolean  @default(false)  // Allow unused yearly leaves to rollover to next year
+  
+  // Maximum rollover limits
+  maxMonthlyRollover    Float?   // Max leaves that can be rolled over monthly
+  maxYearlyRollover     Float?   // Max leaves that can be rolled over yearly
+  
+  // Annual defaults (for reference/initial setup)
+  annualSickLeave       Float    @default(0)
+  annualCasualLeave     Float    @default(0)
+  annualAnnualLeave     Float    @default(0)
+  annualMaternityLeave  Float    @default(0)
+  annualPaternityLeave  Float    @default(0)
+  
+  // Late coming settings
+  lateComingCredits     Int      @default(0)     // Total late coming credits in minutes per month
+  lateThresholdMinutes  Int      @default(15)    // Minutes late before counting as late (e.g., 15 mins grace period)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@map("leave_settings")
+}
+
+model LateComingRecord {
+  id                  String   @id @default(uuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id])
+  
+  year                Int      // Year of the record
+  month               Int      // Month (1-12)
+  
+  creditsUsed         Int      @default(0)  // Total minutes of late coming used this month
+  lateCount           Int      @default(0)  // Number of times late this month
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  @@unique([userId, year, month])
+  @@index([userId])
+  @@index([year, month])
+  @@map("late_coming_records")
 }
