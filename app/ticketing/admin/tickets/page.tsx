@@ -49,6 +49,7 @@ export default function AdminTicketsPage() {
   const [itTeamMembers, setItTeamMembers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [ticketToDelete, setTicketToDelete] = useState<string | null>(null);
+  const [assigningNumbers, setAssigningNumbers] = useState(false);
 
   useEffect(() => {
     fetchTickets();
@@ -296,6 +297,51 @@ export default function AdminTicketsPage() {
     }
   };
 
+  const handleAssignTicketNumbers = async () => {
+    try {
+      setAssigningNumbers(true);
+      const token = localStorage.getItem('accessToken');
+      
+      const response = await fetch('/api/tickets/assign-numbers', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+        router.push('/ticketing/admin/login');
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to assign ticket numbers');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(
+          `Successfully reassigned ticket numbers to ${result.ticketsUpdated} ticket(s)!`
+        );
+        // Refresh tickets to show new numbers
+        await fetchTickets();
+      } else {
+        toast.info(result.message || 'No tickets found to assign numbers');
+      }
+    } catch (error) {
+      console.error('Error assigning ticket numbers:', error);
+      toast.error('Failed to assign ticket numbers');
+    } finally {
+      setAssigningNumbers(false);
+    }
+  };
+
   const handleDeleteTicket = (ticketId: string) => {
     setTicketToDelete(ticketId);
     setDeleteDialogOpen(true);
@@ -399,7 +445,17 @@ export default function AdminTicketsPage() {
                 </CardTitle>
                 <CardDescription>Search and filter tickets</CardDescription>
               </div>
-              <Badge variant="secondary">{filteredTickets.length} tickets</Badge>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleAssignTicketNumbers}
+                  disabled={assigningNumbers}
+                >
+                  {assigningNumbers ? 'Assigning...' : 'Assign Ticket Numbers'}
+                </Button>
+                <Badge variant="secondary">{filteredTickets.length} tickets</Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

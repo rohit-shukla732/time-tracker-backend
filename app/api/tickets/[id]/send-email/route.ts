@@ -39,14 +39,14 @@ export async function POST(
             await emailService.sendTicketResolvedEmail(
               ticket.creator.email,
               ticket.creator.name || 'User',
-              ticket.id,
+              ticket.ticketNumber,
               ticket.title
             );
           } else {
             await emailService.sendTicketStatusUpdateEmail(
               ticket.creator.email,
               ticket.creator.name || 'User',
-              ticket.id,
+              ticket.ticketNumber,
               ticket.title,
               newStatus.replace(/_/g, ' ')
             );
@@ -60,13 +60,26 @@ export async function POST(
               where: { id: assignedToId },
             });
             if (assignedUser && assignedUser.name) {
-              await emailService.sendTicketAssignedEmail(
+              // Send email to the IT member who was assigned the ticket
+              await emailService.sendTicketAssignedNotificationToIT(
                 assignedUser.email,
                 assignedUser.name,
-                ticket.id,
+                ticket.ticketNumber,
                 ticket.title,
-                ticket.creator.name || 'User'
+                ticket.creator.name || 'User',
+                ticket.description,
+                ticket.priority
               );
+              
+              // Send email to the ticket creator notifying them of assignment
+              await emailService.sendTicketAssignedNotificationToCreator(
+                ticket.creator.email,
+                ticket.creator.name || 'User',
+                ticket.ticketNumber,
+                ticket.title,
+                assignedUser.name
+              );
+              
               emailSent = true;
             }
           }
@@ -78,7 +91,7 @@ export async function POST(
             await emailService.sendTicketCommentEmail(
               ticket.creator.email,
               ticket.creator.name || 'User',
-              ticket.id,
+              ticket.ticketNumber,
               ticket.title,
               user.name,
               comment

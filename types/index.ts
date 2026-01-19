@@ -67,6 +67,7 @@ export enum ITSupportSubcategory {
 
 export interface Ticket {
   id: string;
+  ticketNumber: number;
   title: string;
   description: string;
   priority: TicketPriority;

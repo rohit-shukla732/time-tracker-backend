@@ -106,6 +106,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Get the next ticket number
+    const lastTicket = await prisma.ticket.findFirst({
+      orderBy: {
+        ticketNumber: 'desc',
+      },
+      select: {
+        ticketNumber: true,
+      },
+    });
+
+    const nextTicketNumber = lastTicket ? lastTicket.ticketNumber + 1 : 1;
+
     const ticket = await prisma.ticket.create({
       data: {
         title,
@@ -114,6 +126,7 @@ export async function POST(req: NextRequest) {
         category: category || TicketCategory.IT_SUPPORT,
         subcategory: subcategory || null,
         createdBy: user.id,
+        ticketNumber: nextTicketNumber,
       },
       include: {
         creator: {

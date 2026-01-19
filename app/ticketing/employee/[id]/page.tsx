@@ -234,7 +234,7 @@ export default function TicketDetailsPage() {
                 <div className="space-y-2">
                   <div className="flex items-start justify-between">
                     <CardTitle className="text-2xl">{ticket.title}</CardTitle>
-                    <Badge variant="outline">#{ticket.id}</Badge>
+                    <Badge variant="outline">T-{String(ticket.ticketNumber).padStart(2, '0')}</Badge>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant={getPriorityColor(ticket.priority)}>

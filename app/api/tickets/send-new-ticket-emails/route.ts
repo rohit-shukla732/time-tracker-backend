@@ -32,14 +32,14 @@ export async function POST(request: NextRequest) {
       await emailService.sendTicketCreatedEmail(
         ticket.creator.email,
         ticket.creator.name || 'User',
-        ticket.id,
+        ticket.ticketNumber,
         ticket.title
       );
       emailsSent.confirmationToCreator = true;
 
       // Send notification to admins
       await emailService.sendNewTicketNotificationToAdmin(
-        ticket.id,
+        ticket.ticketNumber,
         ticket.title,
         ticket.priority,
         ticket.creator.name || 'User',

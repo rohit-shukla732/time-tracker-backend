@@ -80,9 +80,12 @@ export function TicketCard({ ticket }: TicketCardProps) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="space-y-1 flex-1">
-            <CardTitle className="text-lg line-clamp-1">
-              {ticket.title}
-            </CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg line-clamp-1">
+                {ticket.title}
+              </CardTitle>
+              <Badge variant="outline" className="text-xs">T-{String(ticket.ticketNumber).padStart(2, '0')}</Badge>
+            </div>
             <CardDescription className="line-clamp-2">
               {ticket.description}
             </CardDescription>

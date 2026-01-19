@@ -312,32 +312,34 @@ model DeviceControl {
 }
 // Ticketing System Models
 model Ticket {
-  id          String                 @id @default(uuid())
-  title       String
-  description String
-  priority    TicketPriority         @default(MEDIUM)
-  status      TicketStatus           @default(OPEN)
-  category    TicketCategory         @default(IT_SUPPORT)
-  subcategory ITSupportSubcategory?
+  id           String                 @id @default(uuid())
+  ticketNumber Int                    @unique @default(autoincrement())
+  title        String
+  description  String
+  priority     TicketPriority         @default(MEDIUM)
+  status       TicketStatus           @default(OPEN)
+  category     TicketCategory         @default(IT_SUPPORT)
+  subcategory  ITSupportSubcategory?
   
-  createdBy   String
-  creator     User                   @relation("TicketCreator", fields: [createdBy], references: [id])
+  createdBy    String
+  creator      User                   @relation("TicketCreator", fields: [createdBy], references: [id])
   
-  assignedTo  String?
-  assignee    User?                  @relation("TicketAssignee", fields: [assignedTo], references: [id])
+  assignedTo   String?
+  assignee     User?                  @relation("TicketAssignee", fields: [assignedTo], references: [id])
   
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
-  resolvedAt  DateTime?
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  resolvedAt   DateTime?
   
-  comments    TicketComment[]
-  screenshots TicketScreenshot[]
+  comments     TicketComment[]
+  screenshots  TicketScreenshot[]
   
   @@index([createdBy])
   @@index([assignedTo])
   @@index([status])
   @@index([priority])
   @@index([category])
+  @@index([ticketNumber])
 }
 
 model TicketComment {
