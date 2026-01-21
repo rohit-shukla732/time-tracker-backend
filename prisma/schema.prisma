@@ -13,6 +13,67 @@ enum Role {
   EMPLOYEE
 }
 
+enum Pronoun {
+  MR
+  MS
+  MRS
+  MISS
+  DR
+  PROF
+  MX
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  SEPARATED
+}
+
+enum JobType {
+  FULL_TIME
+  CONTRACTUAL
+  PART_TIME
+  INTERN
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  PROBATION
+  NOTICE_PERIOD
+  RESIGNED
+  TERMINATED
+  RETIRED
+  ABSCONDED
+}
+
+enum AccountType {
+  SAVINGS
+  CURRENT
+  SALARY
+  NRE
+  NRO
+}
+
+enum TransferType {
+  NEFT
+  RTGS
+  IMPS
+  UPI
+}
+
+enum AccountBase {
+  Primary
+  Secondary
+}
 enum TicketPriority {
   LOW
   MEDIUM
@@ -75,40 +136,210 @@ enum LeaveStatus {
   CANCELLED
 }
 
-model Team {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// HR Management Models
+model Company {
+  id             String           @id @default(uuid())
+  name           String
+  code           String?          @unique
+  branches       Branch[]
+  employmentInfo EmploymentInfo[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
 
-  // Team manager
-  managerId   String?
-  manager     User?    @relation("TeamManager", fields: [managerId], references: [id])
+// Personal Information Table
+model PersonalInfo {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  firstName   String
+  middleName  String?
+  lastName    String
+  pronoun     Pronoun?
+  gender      Gender?
+  dateOfBirth DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
 
-  // Team members
-  members     User[]   @relation("TeamMember")
+// Contact Information Table
+model ContactInfo {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email                String   @unique
+  alternateEmail       String?
+  phoneNumber          String?
+  alternatePhoneNumber String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
   
-  // Task management
-  projects    Project[]
-  tasks       Task[]
+  @@index([email])
+}
 
-  @@unique([name])
+// Address Information Table
+model AddressInfo {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  residentialAddress String?
+  permanentAddress   String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+// Family Information Table
+model FamilyInfo {
+  id            String         @id @default(uuid())
+  userId        String         @unique
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  maritalStatus MaritalStatus?
+  fatherName    String?
+  spouseName    String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+// Government ID Information Table
+model GovernmentID {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  panCardNumber    String?  @unique
+  aadharCardNumber String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([panCardNumber])
+  @@index([aadharCardNumber])
+}
+
+// Employment Information Table
+model EmploymentInfo {
+  id                  String          @id @default(uuid())
+  userId              String          @unique
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyId           String?
+  company             Company?        @relation(fields: [companyId], references: [id])
+  branchId            String?
+  branch              Branch?         @relation(fields: [branchId], references: [id])
+  departmentId        String?
+  department          Department?     @relation(fields: [departmentId], references: [id])
+  designationId       String?
+  designation         Designation?    @relation(fields: [designationId], references: [id])
+  jobType             JobType?
+  status              EmployeeStatus  @default(ACTIVE)
+  joiningDate         DateTime?
+  confirmationDate    DateTime?       // Same as joining or after probation
+  probationEndDate    DateTime?
+  lastIncrementDate   DateTime?
+  resignationDate     DateTime?
+  lastWorkingDate     DateTime?
+  retiringDate        DateTime?       // Derived based on service months
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  
+  @@index([companyId])
+  @@index([branchId])
+  @@index([departmentId])
+  @@index([designationId])
+  @@index([status])
+}
+
+// Bank Details Table
+model BankDetails {
+  id              String        @id @default(uuid())
+  userId          String        @unique
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankName        String
+  accountNumber   String        @unique
+  accountType     AccountType?
+  accountBase     AccountBase?       // Primary or Secondary
+  transferType    TransferType?
+  beneficiaryName String        // Name as per bank account
+  ifscCode        String
+  branchName      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([accountNumber])
+  @@index([ifscCode])
+}
+
+model Branch {
+  id             String           @id @default(uuid())
+  name           String
+  code           String?          @unique
+  address        String?
+  city           String?
+  state          String?
+  country        String?
+  pincode        String?
+  companyId      String
+  company        Company          @relation(fields: [companyId], references: [id])
+  employmentInfo EmploymentInfo[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  
+  @@unique([companyId, name])
+}
+
+model Department {
+  id             String           @id @default(uuid())
+  name           String           @unique
+  code           String?          @unique
+  description    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  
+  // Department manager
+  managerId      String?          @unique
+  manager        User?            @relation("DepartmentManager", fields: [managerId], references: [id])
+  
+  // Department members (via EmploymentInfo)
+  employmentInfo EmploymentInfo[]
+  
+  // Task management (previously team-based)
+  projects       Project[]
+  tasks          Task[]
+}
+
+model Designation {
+  id             String           @id @default(uuid())
+  title          String           @unique
+  code           String?          @unique
+  level          Int?             // Hierarchy level
+  employmentInfo EmploymentInfo[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }
 
 model User {
   id           String          @id
-  name         String?
-  email        String          @unique
+  
+  // Core Identity (for display only - detailed info in PersonalInfo)
+  name         String          // Full name for quick display
+  email        String          @unique  // For authentication
+  
+  // Authentication
   passwordHash String
   role         Role            @default(EMPLOYEE)
+  
+  // System fields
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
-
-  // Team relationships
-  teamId       String?
-  team         Team?           @relation("TeamMember", fields: [teamId], references: [id])
-  managedTeams Team[]          @relation("TeamManager")
+  
+  // Normalized Relations (One-to-One)
+  personalInfo     PersonalInfo?
+  contactInfo      ContactInfo?
+  addressInfo      AddressInfo?
+  familyInfo       FamilyInfo?
+  governmentID     GovernmentID?
+  employmentInfo   EmploymentInfo?
+  bankDetails      BankDetails?
+  
+  // Department management (if user is a manager)
+  managedDepartment Department?  @relation("DepartmentManager")
 
   refreshTokens     RefreshToken[]
   sessions          Session[]
@@ -137,6 +368,9 @@ model User {
   approvedLeaves    LeaveRequest[]   @relation("LeaveApprover")
   leaveBalance      LeaveBalance?
   lateComingRecords LateComingRecord[]
+  
+  @@index([email])
+  @@index([role])
 }
 
 model RefreshToken {
@@ -380,8 +614,8 @@ model Project {
   id          String   @id @default(uuid())
   name        String
   description String?
-  teamId      String
-  team        Team     @relation(fields: [teamId], references: [id])
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
   
   createdById String
   createdBy   User     @relation("ProjectCreator", fields: [createdById], references: [id])
@@ -395,7 +629,7 @@ model Project {
   
   tasks       Task[]
   
-  @@index([teamId])
+  @@index([departmentId])
   @@index([createdById])
 }
 
@@ -407,8 +641,8 @@ model Task {
   projectId   String?
   project     Project?     @relation(fields: [projectId], references: [id])
   
-  teamId      String
-  team        Team         @relation(fields: [teamId], references: [id])
+  departmentId String?
+  department   Department?  @relation(fields: [departmentId], references: [id])
   
   assignedTo  String?
   assignee    User?        @relation("TaskAssignee", fields: [assignedTo], references: [id])
@@ -435,7 +669,7 @@ model Task {
   taskSessions TaskSession[]
   
   @@index([projectId])
-  @@index([teamId])
+  @@index([departmentId])
   @@index([assignedTo])
   @@index([createdById])
   @@index([status])
@@ -574,4 +808,22 @@ model LateComingRecord {
   @@index([userId])
   @@index([year, month])
   @@map("late_coming_records")
+}
+
+// HR Configuration
+model HRSettings {
+  id                    String   @id @default(uuid())
+  
+  // Service configuration
+  maxServiceMonths      Int      @default(720)  // Default 60 years (720 months)
+  retirementAge         Int?     // Optional retirement age
+  probationMonths       Int      @default(6)    // Default 6 months probation
+  
+  // Notice period configuration
+  noticePeriodDays      Int      @default(30)   // Default 30 days
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@map("hr_settings")
 }

@@ -15,14 +15,18 @@ export async function GET(req: NextRequest) {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // Get all teams with their members
-    const teams = await prisma.team.findMany({
+    // Get all departments with their members via employmentInfo
+    const departments = await prisma.department.findMany({
       include: {
-        members: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        employmentInfo: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
           },
         },
       },
@@ -41,7 +45,11 @@ export async function GET(req: NextRequest) {
         user: {
           select: {
             id: true,
-            teamId: true,
+            employmentInfo: {
+              select: {
+                departmentId: true
+              }
+            },
           },
         },
       },
@@ -66,11 +74,11 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Build team data
-    const teamData = teams.map((team: any) => {
-      const teamMembers = team.members;
+    // Build department data
+    const departmentData = departments.map((dept: any) => {
+      const deptMembers = dept.employmentInfo.map((e: any) => e.user);
       
-      const membersWithStatus = teamMembers.map((member: any) => {
+      const membersWithStatus = deptMembers.map((member: any) => {
         // Check real-time status from session state store
         const stateKey = `user:${member.id}`;
         const userState = sessionStateStore.get(stateKey);
@@ -115,7 +123,7 @@ export async function GET(req: NextRequest) {
         };
       });
 
-      // Calculate team stats
+      // Calculate department stats
       const stats = {
         working: membersWithStatus.filter((m: any) => m.status === 'working').length,
         idle: membersWithStatus.filter((m: any) => m.status === 'idle').length,
@@ -133,8 +141,8 @@ export async function GET(req: NextRequest) {
         : 0;
 
       return {
-        id: team.id,
-        name: team.name,
+        id: dept.id,
+        name: dept.name,
         members: membersWithStatus,
         stats,
       };
@@ -142,7 +150,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      teams: teamData,
+      teams: departmentData,
       lastUpdated: new Date().toISOString(),
     });
   } catch (error) {

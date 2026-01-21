@@ -22,56 +22,56 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   try {
-    const teamId = resolvedParams.id;
+    const departmentId = resolvedParams.id;
     const { userId } = await req.json();
-    logger.info("POST /api/teams/[id]/members - Adding member", { teamId, userId, by: authResult.user.id });
+    logger.info("POST /api/teams/[id]/members - Adding member", { departmentId, userId, by: authResult.user.id });
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    // Verify team exists
-    const team = await prisma.team.findUnique({
-      where: { id: teamId }
+    // Verify department exists
+    const department = await prisma.department.findUnique({
+      where: { id: departmentId }
     });
 
-    if (!team) {
-      return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+    if (!department) {
+      return NextResponse.json({ error: 'Department not found' }, { status: 404 });
     }
 
     // Verify user exists
     const user = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
+      include: { employmentInfo: true }
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Check if user is already in a team
-    if (user.teamId) {
-      return NextResponse.json({ error: 'User is already in a team' }, { status: 400 });
+    // Check if user already has a department
+    if (user.employmentInfo?.departmentId) {
+      return NextResponse.json({ error: 'User is already in a department' }, { status: 400 });
     }
 
-    // Add user to team
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: { teamId },
-      include: {
-        team: true
-      }
+    // Add user to department via employmentInfo
+    const employmentInfo = await prisma.employmentInfo.upsert({
+      where: { userId },
+      create: { userId, departmentId },
+      update: { departmentId },
+      include: { department: true }
     });
 
-    logger.info("POST /api/teams/[id]/members - Member added", { teamId, userId });
-    logger.response("POST", `/api/teams/${teamId}/members`, 200, Date.now() - startTime);
+    logger.info("POST /api/teams/[id]/members - Member added", { departmentId, userId });
+    logger.response("POST", `/api/teams/${departmentId}/members`, 200, Date.now() - startTime);
     return NextResponse.json({
       success: true,
       user: {
-        id: updatedUser.id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        team: updatedUser.team
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        department: employmentInfo.department
       }
     });
   } catch (error) {
@@ -93,53 +93,54 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
 
   try {
-    const teamId = resolvedParams.id;
+    const departmentId = resolvedParams.id;
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
-    logger.info("DELETE /api/teams/[id]/members - Removing member", { teamId, userId, by: authResult.user.id });
+    logger.info("DELETE /api/teams/[id]/members - Removing member", { departmentId, userId, by: authResult.user.id });
 
     if (!userId) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    // Verify team exists
-    const team = await prisma.team.findUnique({
-      where: { id: teamId }
+    // Verify department exists
+    const department = await prisma.department.findUnique({
+      where: { id: departmentId }
     });
 
-    if (!team) {
-      return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+    if (!department) {
+      return NextResponse.json({ error: 'Department not found' }, { status: 404 });
     }
 
-    // Verify user exists and is in this team
+    // Verify user exists and is in this department
     const user = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
+      include: { employmentInfo: true }
     });
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    if (user.teamId !== teamId) {
-      return NextResponse.json({ error: 'User is not in this team' }, { status: 400 });
+    if (user.employmentInfo?.departmentId !== departmentId) {
+      return NextResponse.json({ error: 'User is not in this department' }, { status: 400 });
     }
 
-    // Remove user from team
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: { teamId: null }
+    // Remove user from department
+    await prisma.employmentInfo.update({
+      where: { userId },
+      data: { departmentId: null }
     });
 
-    logger.info("DELETE /api/teams/[id]/members - Member removed", { teamId, userId });
-    logger.response("DELETE", `/api/teams/${teamId}/members`, 200, Date.now() - startTime);
+    logger.info("DELETE /api/teams/[id]/members - Member removed", { departmentId, userId });
+    logger.response("DELETE", `/api/teams/${departmentId}/members`, 200, Date.now() - startTime);
     return NextResponse.json({
       success: true,
       user: {
-        id: updatedUser.id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        teamId: null
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        departmentId: null
       }
     });
   } catch (error) {
@@ -161,28 +162,41 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return unauthorizedResponse(authResult.error);
     }
 
-    const teamId = resolvedParams.id;
+    const departmentId = resolvedParams.id;
 
-    // Verify team exists
-    const team = await prisma.team.findUnique({ where: { id: teamId } });
-    if (!team) return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+    // Verify department exists
+    const department = await prisma.department.findUnique({ where: { id: departmentId } });
+    if (!department) return NextResponse.json({ error: 'Department not found' }, { status: 404 });
 
-    // Authorization: Admin and HR can view any team; managers can view their team
+    // Authorization: Admin and HR can view any department; managers can view their department
     if (authResult.user.role === 'MANAGER') {
-      if (team.managerId !== authResult.user.id && authResult.user.teamId !== teamId) {
-        logger.warn("GET /api/teams/[id]/members - Access denied for manager", { teamId, by: authResult.user.id });
-        return unauthorizedResponse('Access denied. Not manager of this team');
+      if (department.managerId !== authResult.user.id && authResult.user.departmentId !== departmentId) {
+        logger.warn("GET /api/teams/[id]/members - Access denied for manager", { departmentId, by: authResult.user.id });
+        return unauthorizedResponse('Access denied. Not manager of this department');
       }
     } else if (authResult.user.role !== 'ADMIN' && authResult.user.role !== 'HR') {
-      // Employees cannot list team members
-      logger.warn("GET /api/teams/[id]/members - Access denied for non-privileged user", { teamId, by: authResult.user.id });
+      // Employees cannot list department members
+      logger.warn("GET /api/teams/[id]/members - Access denied for non-privileged user", { departmentId, by: authResult.user.id });
       return unauthorizedResponse('Access denied');
     }
 
-    const members = await prisma.user.findMany({
-      where: { teamId },
-      select: { id: true, name: true, email: true, role: true, teamId: true, createdAt: true, updatedAt: true }
+    const employmentInfos = await prisma.employmentInfo.findMany({
+      where: { departmentId },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, role: true, createdAt: true, updatedAt: true }
+        },
+        department: {
+          select: { id: true, name: true }
+        }
+      }
     });
+
+    const members = employmentInfos.map(ei => ({
+      ...ei.user,
+      departmentId: ei.departmentId,
+      department: ei.department
+    }));
 
     // Build per-user aggregates for the last 30 days
     const memberIds = members.map((m) => m.id);
@@ -233,7 +247,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       };
     });
 
-    logger.response("GET", `/api/teams/${teamId}/members`, 200, Date.now() - startTime);
+    logger.response("GET", `/api/teams/${departmentId}/members`, 200, Date.now() - startTime);
     return NextResponse.json({ success: true, members: membersWithStats });
   } catch (err) {
     const error = err as Error;

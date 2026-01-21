@@ -3,12 +3,13 @@ import { requireAuth } from "@/lib/roleAuth";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 
-// POST /api/tasks/[id]/approve - Approve a task (managers/admins only)
+// POST /api/tasks/[id]/approve - Approve a task
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(request);
     if (!authResult.user) {
       return NextResponse.json(
@@ -27,7 +28,7 @@ export async function POST(
     }
 
     const task = await prisma.task.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!task) {
@@ -37,9 +38,9 @@ export async function POST(
       );
     }
 
-    if (user.role === "MANAGER" && task.teamId !== user.teamId) {
+    if (user.role === "MANAGER" && task.departmentId && user.departmentId && task.departmentId !== user.departmentId) {
       return NextResponse.json(
-        { error: "You can only approve tasks in your team" },
+        { error: "You can only approve tasks in your department" },
         { status: 403 }
       );
     }
@@ -52,7 +53,7 @@ export async function POST(
     }
 
     const updatedTask = await prisma.task.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: "ACTIVE",
         approvedById: user.id,
@@ -69,13 +70,13 @@ export async function POST(
         approvedBy: {
           select: { id: true, name: true, email: true }
         },
-        team: {
+        department: {
           select: { id: true, name: true }
         }
       }
     });
 
-    logger.info(`Task approved: ${params.id} by user ${user.id}`);
+    logger.info(`Task approved: ${id} by user ${user.id}`);
 
     return NextResponse.json(updatedTask);
   } catch (error) {

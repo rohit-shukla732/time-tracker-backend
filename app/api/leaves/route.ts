@@ -14,25 +14,25 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
     const type = searchParams.get("type");
 
-    let whereClause: any = {};
+    const whereClause: any = {};
 
     // Role-based filtering
     if (authResult.user.role === "EMPLOYEE") {
       whereClause.userId = authResult.user.id;
     } else if (authResult.user.role === "MANAGER") {
-      // Managers see their team's leave requests
-      const team = await prisma.team.findFirst({
+      // Managers see their department's leave requests
+      const managerDept = await prisma.department.findFirst({
         where: { managerId: authResult.user.id },
       });
 
-      if (team) {
-        const teamMembers = await prisma.user.findMany({
-          where: { teamId: team.id },
-          select: { id: true },
+      if (managerDept) {
+        const deptMembers = await prisma.employmentInfo.findMany({
+          where: { departmentId: managerDept.id },
+          select: { userId: true },
         });
 
         whereClause.userId = {
-          in: teamMembers.map((m: { id: string }) => m.id),
+          in: deptMembers.map((m: { userId: string }) => m.userId),
         };
       }
     }
@@ -55,10 +55,15 @@ export async function GET(req: NextRequest) {
             id: true,
             name: true,
             email: true,
-            team: {
+            employmentInfo: {
               select: {
-                id: true,
-                name: true,
+                departmentId: true,
+                department: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },

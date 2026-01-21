@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import {
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Settings, Users, CheckCircle, AlertCircle } from "lucide-react";
+import { Settings, Users, CheckCircle, AlertCircle, UserPlus } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -56,7 +57,8 @@ interface LateComingRecord {
   lateCount: number;
 }
 
-export default function EmployeesManagement() {
+export default function EmployeesPage() {
+  const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [isBalanceDialogOpen, setIsBalanceDialogOpen] = useState(false);
@@ -232,16 +234,25 @@ export default function EmployeesManagement() {
               <Users className="h-5 w-5" />
               Employee Leave Management
             </CardTitle>
-            <Button onClick={() => setIsBulkDialogOpen(true)}>
-              Bulk Initialize Balances
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => router.push("/hr/employees/new")}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add Employee
+              </Button>
+              <Button onClick={() => setIsBulkDialogOpen(true)} variant="outline">
+                Bulk Initialize Balances
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           {/* Search */}
           <div className="mb-6">
             <Input
-              placeholder="Search employees by name, email, or team..."
+              placeholder="Search employees by name, email, or department..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -485,7 +496,7 @@ export default function EmployeesManagement() {
           </DialogHeader>
           <div className="py-4 space-y-4">
             <p className="text-sm text-muted-foreground">
-              This will create default leave balances for all employees who don't
+              This will create default leave balances for all employees who don&apos;t
               have one configured for this year.
             </p>
             <div className="bg-muted p-4 rounded-lg space-y-2">

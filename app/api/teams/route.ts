@@ -3,7 +3,7 @@ import { requireRoles, requireAdmin, unauthorizedResponse } from "../../../lib/r
 import { prisma } from "../../../lib/prisma";
 import { logger } from "../../../lib/logger";
 
-// GET /api/teams - List all teams (Admin/HR only)
+// GET /api/teams - List all departments (Admin/HR only)
 export async function GET(req: NextRequest) {
   const authResult = await requireRoles(req, ['ADMIN', 'HR']);
   
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const teams = await prisma.team.findMany({
+    const departments = await prisma.department.findMany({
       include: {
         manager: {
           select: {
@@ -21,17 +21,21 @@ export async function GET(req: NextRequest) {
             email: true
           }
         },
-        members: {
+        employmentInfo: {
           select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true
+              }
+            }
           }
         },
         _count: {
           select: {
-            members: true
+            employmentInfo: true
           }
         }
       },
@@ -42,15 +46,15 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      teams: teams.map((team: any) => ({
-        id: team.id,
-        name: team.name,
-        description: team.description,
-        manager: team.manager,
-        members: team.members,
-        memberCount: team._count.members,
-        createdAt: team.createdAt,
-        updatedAt: team.updatedAt
+      teams: departments.map((dept: any) => ({
+        id: dept.id,
+        name: dept.name,
+        description: dept.description,
+        manager: dept.manager,
+        members: dept.employmentInfo.map((e: any) => e.user),
+        memberCount: dept._count.employmentInfo,
+        createdAt: dept.createdAt,
+        updatedAt: dept.updatedAt
       }))
     });
   } catch (error) {
@@ -59,7 +63,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/teams - Create a new team (Admin only)
+// POST /api/teams - Create a new department (Admin only)
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
   const authResult = await requireAdmin(req);
@@ -71,19 +75,19 @@ export async function POST(req: NextRequest) {
 
   try {
     const { name, description, managerId } = await req.json();
-    logger.info("POST /api/teams - Creating team", { name, managerId, by: authResult.user.id });
+    logger.info("POST /api/teams - Creating department", { name, managerId, by: authResult.user.id });
 
     if (!name) {
-      return NextResponse.json({ error: 'Team name is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Department name is required' }, { status: 400 });
     }
 
-    // Check if team name already exists
-    const existingTeam = await prisma.team.findFirst({
+    // Check if department name already exists
+    const existingDept = await prisma.department.findFirst({
       where: { name }
     });
 
-    if (existingTeam) {
-      return NextResponse.json({ error: 'Team name already exists' }, { status: 400 });
+    if (existingDept) {
+      return NextResponse.json({ error: 'Department name already exists' }, { status: 400 });
     }
 
     // If managerId provided, verify the user exists and can be a manager
@@ -101,7 +105,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const team = await prisma.team.create({
+    const department = await prisma.department.create({
       data: {
         name,
         description,
@@ -118,17 +122,17 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    logger.info("POST /api/teams - Team created", { teamId: team.id, name: team.name });
+    logger.info("POST /api/teams - Department created", { departmentId: department.id, name: department.name });
     logger.response("POST", "/api/teams", 200, Date.now() - startTime);
     return NextResponse.json({
       success: true,
       team: {
-        id: team.id,
-        name: team.name,
-        description: team.description,
-        manager: team.manager,
-        createdAt: team.createdAt,
-        updatedAt: team.updatedAt
+        id: department.id,
+        name: department.name,
+        description: department.description,
+        manager: department.manager,
+        createdAt: department.createdAt,
+        updatedAt: department.updatedAt
       }
     });
   } catch (error) {

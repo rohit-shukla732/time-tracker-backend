@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
         { createdById: user.id }
       ];
     } else if (user.role === "MANAGER") {
-      // Managers see all tasks in their team
-      if (user.teamId) {
-        where.teamId = user.teamId;
+      // Managers see all tasks in their department
+      if (user.departmentId) {
+        where.departmentId = user.departmentId;
       }
     }
     // Admin sees all tasks
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         approvedBy: {
           select: { id: true, name: true, email: true }
         },
-        team: {
+        department: {
           select: { id: true, name: true }
         },
         taskSessions: {
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       priority,
       estimatedHours,
       dueDate,
-      teamId
+      departmentId
     } = body;
 
     if (!title) {
@@ -122,19 +122,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine team ID
-    let taskTeamId = teamId;
-    if (!taskTeamId) {
-      if (user.role === "MANAGER" && user.teamId) {
-        taskTeamId = user.teamId;
-      } else if (user.role === "EMPLOYEE" && user.teamId) {
-        taskTeamId = user.teamId;
-      } else {
-        return NextResponse.json(
-          { error: "Team ID is required" },
-          { status: 400 }
-        );
+    // Determine department ID
+    let taskDepartmentId = departmentId;
+    if (!taskDepartmentId) {
+      if (user.role === "MANAGER" && user.departmentId) {
+        taskDepartmentId = user.departmentId;
+      } else if (user.role === "EMPLOYEE" && user.departmentId) {
+        taskDepartmentId = user.departmentId;
       }
+      // If still no department, it's optional now
     }
 
     // Determine status based on who creates it
@@ -154,7 +150,7 @@ export async function POST(request: NextRequest) {
         title,
         description,
         projectId,
-        teamId: taskTeamId,
+        departmentId: taskDepartmentId,
         assignedTo,
         createdById: user.id,
         approvedById,
@@ -172,7 +168,7 @@ export async function POST(request: NextRequest) {
         createdBy: {
           select: { id: true, name: true, email: true }
         },
-        team: {
+        department: {
           select: { id: true, name: true }
         }
       }

@@ -5,16 +5,17 @@ import { requireAuth } from "@/lib/roleAuth";
 // POST /api/leaves/[id]/approve - Approve leave request
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(req);
     if (!authResult.user || (authResult.user.role !== "MANAGER" && authResult.user.role !== "HR" && authResult.user.role !== "ADMIN")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const leave = await prisma.leaveRequest.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         user: true,
       },
@@ -83,7 +84,7 @@ export async function POST(
 
     // Approve leave
     const updatedLeave = await prisma.leaveRequest.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: "APPROVED",
         approvedById: authResult.user.id,

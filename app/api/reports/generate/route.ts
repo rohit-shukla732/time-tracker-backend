@@ -42,50 +42,55 @@ export async function POST(request: NextRequest) {
     const user = authResult.user;
     
     const body = await request.json();
-    const { filters, teamId } = body as { filters: ReportFilters; teamId: string };
+    const { filters, departmentId } = body as { filters: ReportFilters; departmentId: string };
 
-    if (!filters || !teamId) {
+    if (!filters || !departmentId) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Verify manager has access to this team
+    // Verify manager has access to this department
     if (user.role === 'MANAGER') {
-      const team = await prisma.team.findUnique({
-        where: { id: teamId },
+      const department = await prisma.department.findUnique({
+        where: { id: departmentId },
       });
 
-      if (!team) {
+      if (!department) {
         return NextResponse.json(
-          { error: 'Team not found' },
+          { error: 'Department not found' },
           { status: 404 }
         );
       }
 
-      // Allow if user is the team's assigned manager, or the manager's user.teamId matches the team
-      if (team.managerId !== user.id && user.teamId !== teamId) {
+      // Allow if user is the department's manager
+      if (department.managerId !== user.id) {
         return NextResponse.json(
-          { error: 'Access denied to this team' },
+          { error: 'Access denied to this department' },
           { status: 403 }
         );
       }
     }
 
-    // Get team members
-    const teamMembers = await prisma.user.findMany({
-      where: { teamId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
+    // Get department members
+    const deptEmployments = await prisma.employmentInfo.findMany({
+      where: { departmentId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        }
       },
     });
 
     // Filter members if specific ones are selected
+    const departmentMembers = deptEmployments.map(emp => emp.user);
     const memberIds = filters.members[0] === 'all'
-      ? teamMembers.map(m => m.id)
+      ? departmentMembers.map(m => m.id)
       : filters.members;
 
     const dateFrom = new Date(filters.dateFrom);

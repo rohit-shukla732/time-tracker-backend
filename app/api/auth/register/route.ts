@@ -62,7 +62,6 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
-        teamId: user.teamId,
       },
       accessToken,
       refreshToken

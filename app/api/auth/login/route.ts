@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
         accessToken,
         token: accessToken, // Keep for backward compatibility
         refreshToken,
-        user: { id: user.id, email: user.email, name: user.name, role: user.role, teamId: user.teamId },
+        user: { id: user.id, email: user.email, name: user.name, role: user.role },
       },
       {
         headers: {

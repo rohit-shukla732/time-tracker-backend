@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || '';
-    const teamId = searchParams.get('teamId') || '';
+    const departmentId = searchParams.get('departmentId') || '';
 
     const skip = (page - 1) * limit;
 
@@ -35,8 +35,10 @@ export async function GET(req: NextRequest) {
       where.role = role;
     }
     
-    if (teamId) {
-      where.teamId = teamId;
+    if (departmentId) {
+      where.employmentInfo = {
+        departmentId: departmentId
+      };
     }
 
     const [users, totalCount] = await Promise.all([
@@ -46,8 +48,13 @@ export async function GET(req: NextRequest) {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          team: {
-            select: { id: true, name: true },
+          employmentInfo: {
+            select: { 
+              departmentId: true,
+              department: {
+                select: { id: true, name: true }
+              }
+            },
           },
           _count: {
             select: {
@@ -97,8 +104,8 @@ export async function GET(req: NextRequest) {
         name: u.name,
         email: u.email,
         role: u.role,
-        teamId: u.teamId,
-        teamName: u.team?.name,
+        departmentId: u.employmentInfo?.departmentId || null,
+        departmentName: u.employmentInfo?.department?.name || null,
         createdAt: u.createdAt,
         updatedAt: u.updatedAt,
         totalSessions: u._count.sessions,

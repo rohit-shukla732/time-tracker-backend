@@ -24,8 +24,8 @@ interface FloorEmployee {
   name: string | null;
   email: string;
   role: string;
-  teamId: string | null;
-  teamName: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
   seatNumber: number | null;
   status: EmployeeStatus;
   lastActivity: string | null;
@@ -64,10 +64,14 @@ export async function GET(request: NextRequest) {
         name: true,
         email: true,
         role: true,
-        teamId: true,
-        team: {
+        employmentInfo: {
           select: {
-            name: true,
+            departmentId: true,
+            department: {
+              select: {
+                name: true,
+              }
+            }
           }
         }
       },
@@ -238,8 +242,8 @@ export async function GET(request: NextRequest) {
         name: user.name,
         email: user.email,
         role: user.role,
-        teamId: user.teamId,
-        teamName: user.team?.name || null,
+        departmentId: user.employmentInfo?.departmentId || null,
+        departmentName: user.employmentInfo?.department?.name || null,
         seatNumber: index + 1, // Assign seat based on index (can be customized)
         status,
         lastActivity: realtimeState?.timestamp 

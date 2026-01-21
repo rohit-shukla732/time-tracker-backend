@@ -5,9 +5,10 @@ import { requireAuth } from "@/lib/roleAuth";
 // POST /api/leaves/[id]/reject - Reject leave request
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(req);
     if (!authResult.user || (authResult.user.role !== "MANAGER" && authResult.user.role !== "HR" && authResult.user.role !== "ADMIN")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -17,7 +18,7 @@ export async function POST(
     const { reason } = body;
 
     const leave = await prisma.leaveRequest.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!leave) {
@@ -32,7 +33,7 @@ export async function POST(
     }
 
     const updatedLeave = await prisma.leaveRequest.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         status: "REJECTED",
         rejectedAt: new Date(),

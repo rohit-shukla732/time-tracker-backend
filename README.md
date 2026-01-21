@@ -89,6 +89,7 @@ A Next.js-based backend API for time tracking functionality. Designed to work wi
 - ✅ Time entry management (start/stop/pause)
 - ✅ Project management
 - ✅ RESTful API endpoints
+- ✅ Biometric attendance integration (Microsoft SQL Server)
 - 🔄 Client management (coming soon)
 - 🔄 User authentication (coming soon)
 - 🔄 Reporting and analytics (coming soon)
@@ -99,6 +100,12 @@ A Next.js-based backend API for time tracking functionality. Designed to work wi
 - `PATCH /api/time-entries/[id]/stop` - Stop a running time entry
 - `GET /api/projects` - List active projects
 - `POST /api/projects` - Create new project
+
+**Biometric Attendance Integration:**
+- `GET /api/hr/biometric/test-connection` - Test connection to biometric database
+- `GET /api/hr/biometric/attendance` - Fetch attendance records from biometric system
+
+See [Biometric Integration Guide](docs/BIOMETRIC_INTEGRATION.md) for setup instructions.
 
 ### Shared Package (`packages/shared`)
 Common types, utilities, and business logic shared across all applications.

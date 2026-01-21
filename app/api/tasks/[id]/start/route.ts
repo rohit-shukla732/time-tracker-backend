@@ -3,12 +3,13 @@ import { requireAuth } from "@/lib/roleAuth";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 
-// POST /api/tasks/[id]/start - Start working on a task
+// POST /api/tasks/[id]/start - Start a task session
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(request);
     if (!authResult.user) {
       return NextResponse.json(
@@ -29,7 +30,7 @@ export async function POST(
     }
 
     const task = await prisma.task.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!task) {
@@ -88,7 +89,7 @@ export async function POST(
     // Create new task session
     const taskSession = await prisma.taskSession.create({
       data: {
-        taskId: params.id,
+        taskId: id,
         sessionId,
         userId: user.id,
         startedAt: new Date()
@@ -107,7 +108,7 @@ export async function POST(
     // Update task status to IN_PROGRESS if not already
     if (task.status !== "IN_PROGRESS") {
       await prisma.task.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           status: "IN_PROGRESS",
           startedAt: task.startedAt || new Date()
@@ -115,7 +116,7 @@ export async function POST(
       });
     }
 
-    logger.info(`Task session started: ${taskSession.id} for task ${params.id} by user ${user.id}`);
+    logger.info(`Task session started: ${taskSession.id} for task ${id} by user ${user.id}`);
 
     return NextResponse.json(taskSession);
   } catch (error) {

@@ -8,17 +8,17 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-const teams = [
+const departments = [
   { name: 'IT', description: 'Information Technology Team' },
   { name: 'Payment Posting', description: 'Payment Posting Team' },
   { name: 'HR', description: 'Human Resources Team' },
 ];
 
 const users = [
-  { id: 'ACE012', name: 'Mantu Madhheshiya', email: 'mmaddheshiya@acehcs.com', Role: Role.ADMIN, teams: ['IT'] },
+  { id: 'ACE012', name: 'Mantu Madhheshiya', email: 'mmaddheshiya@acehcs.com', Role: Role.ADMIN, departments: ['IT'] },
   { id: 'ACE004', name: 'Gautam Chakravarty', email: 'gchakravarty@acehcs.com' },
   { id: 'ACE008', name: 'Jinendra Shah', email: 'jshah@acehcs.com' },
-  { id: 'ACE009', name: 'Jitender Sharma', email: 'jsharma@acehcs.com', Role: Role.MANAGER, teams: ['Payment Posting'] },
+  { id: 'ACE009', name: 'Jitender Sharma', email: 'jsharma@acehcs.com', Role: Role.MANAGER, departments: ['Payment Posting'] },
   { id: 'ACE011', name: 'Manojkumar Patel', email: 'mpatel@acehcs.com' },
   { id: 'ACE013', name: 'Urvi Kadia', email: 'ukadia@acehcs.com' },
   { id: 'ACE014', name: 'Urja Shah', email: 'ushah@acehcs.com' },
@@ -30,9 +30,9 @@ const users = [
   { id: 'ACE033', name: 'Jyotika Shyamdasani', email: 'jshyamdasani@acehcs.com' },
   { id: 'ACE042', name: 'Bhakti Mehta', email: 'bmehta@acehcs.com' },
   { id: 'ACE045', name: 'Kapil Sharma', email: 'ksharma@acehcs.com' },
-  { id: 'ACE048', name: 'Aman H Kumar', email: 'ahkumar@acehcs.com', teams: ['Payment Posting'] },
-  { id: 'ACE052', name: 'Aarif Shaikh', email: 'ashaikh@acehcs.com', teams: ['Payment Posting'] },
-  { id: 'ACE055', name: 'Uday Amin', email: 'uamin@acehcs.com', teams: ['Payment Posting'] },
+  { id: 'ACE048', name: 'Aman H Kumar', email: 'ahkumar@acehcs.com', departments: ['Payment Posting'] },
+  { id: 'ACE052', name: 'Aarif Shaikh', email: 'ashaikh@acehcs.com', departments: ['Payment Posting'] },
+  { id: 'ACE055', name: 'Uday Amin', email: 'uamin@acehcs.com', departments: ['Payment Posting'] },
   { id: 'ACE062', name: 'Rizwan Shaikh', email: 'rshaikh@acehcs.com' },
   { id: 'ACE071', name: 'Drishti Ghosh', email: 'dghosh@acehcs.com' },
   { id: 'ACE074', name: 'Aayush Rajput', email: 'arajput@acehcs.com' },
@@ -42,7 +42,7 @@ const users = [
   { id: 'ACE094', name: 'Arjun Singh', email: 'arjunsingh@acehcs.com' },
   { id: 'ACE098', name: 'Rahul Shetty', email: 'rshetty@acehcs.com' },
   { id: 'ACE099', name: 'Mohammadujef Shaikh', email: 'mshaikh@acehcs.com' },
-  { id: 'ACE101', name: 'Ami Suthar', email: 'asuthar@acehcs.com', teams: ['Payment Posting'] },
+  { id: 'ACE101', name: 'Ami Suthar', email: 'asuthar@acehcs.com', departments: ['Payment Posting'] },
   { id: 'ACE110', name: 'Nihal Mansuri', email: 'nmansuri@acehcs.com' },
   { id: 'ACE111', name: 'Chhamavi Jain', email: 'cjain@acehcs.com' },
   { id: 'ACE117', name: 'Karan Shukla', email: 'kshukla@acehcs.com' },
@@ -76,12 +76,12 @@ const users = [
   { id: 'ACE223', name: 'Kismat Solanki', email: 'KSolanki@acehcs.com' },
   { id: 'ACE224', name: 'Bhavesh Firke', email: 'BFirke@acehcs.com' },
   { id: 'ACE229', name: 'Obaid Koreishi', email: 'OKoreishi@acehcs.com' },
-  { id: 'ACE233', name: 'Mahesh Chauhan', email: 'MChauhan@acehcs.com', teams: ['Payment Posting'] },
-  { id: 'ACE235', name: 'Payal Parmar', email: 'PParmar@acehcs.com', teams: ['Payment Posting'] },
+  { id: 'ACE233', name: 'Mahesh Chauhan', email: 'MChauhan@acehcs.com', departments: ['Payment Posting'] },
+  { id: 'ACE235', name: 'Payal Parmar', email: 'PParmar@acehcs.com', departments: ['Payment Posting'] },
   { id: 'ACE236', name: 'Sufel Shaikh', email: 'SShaikh@acehcs.com' },
   { id: 'ACE237', name: 'Priyanka Ganeshan', email: 'PGaneshan@acehcs.com' },
   { id: 'ACE239', name: 'Yug Gor', email: 'ygor@acehcs.com' },
-  { id: 'ACE240', name: 'Anurag Rathor', email: 'arathor@acehcs.com', Role: Role.ADMIN, teams: ['IT'] },
+  { id: 'ACE240', name: 'Anurag Rathor', email: 'arathor@acehcs.com', Role: Role.ADMIN, departments: ['IT'] },
   { id: 'ACE241', name: 'Shish Chauhan', email: 'SChauhan@acehcs.com' },
   { id: 'ACE242', name: 'Nikshay Agrawal', email: 'NAgrawal@acehcs.com' },
   { id: 'ACE243', name: 'Saumil Patel', email: 'SPatel@acehcs.com' },
@@ -105,20 +105,20 @@ const users = [
   { id: 'ACE283', name: 'Sudeep Mehra', email: 'SMehra@acehcs.com' },
   { id: 'ACE285', name: 'Abdoul Karim Kiple', email: 'AKiple@acehcs.com' },
   { id: 'ACE291', name: 'Raliz Hamid', email: 'RHamid@acehcs.com' },
-  { id: 'ACE292', name: 'Bajrang Kumar', email: 'BKumar@acehcs.com', teams: ['Payment Posting'] },
+  { id: 'ACE292', name: 'Bajrang Kumar', email: 'BKumar@acehcs.com', departments: ['Payment Posting'] },
   { id: 'ACE294', name: 'Nishit Pasiya', email: 'NPasiya@acehcs.com' },
   { id: 'ACE296', name: 'Prakashbhai Ladumor', email: 'pladumor@acehcs.com' },
   { id: 'ACE297', name: 'Tanaji More', email: 'TMore@acehcs.com' },
   { id: 'ACE298', name: 'Saifuddin Shaikh', email: 'SaShaikh@acehcs.com' },
   { id: 'ACE300', name: 'Kuir John Mayen', email: 'KMayen@acehcs.com' },
-  { id: 'ACE303', name: 'Akshit Jain', email: 'AJain@acehcs.com', teams: ['Payment Posting'] },
+  { id: 'ACE303', name: 'Akshit Jain', email: 'AJain@acehcs.com', departments: ['Payment Posting'] },
   { id: 'ACE305', name: 'Rohit Mistari', email: 'RMistari@acehcs.com' },
   { id: 'ACE306', name: 'Prerana Jain', email: 'PJain@acehcs.com' },
   { id: 'ACE307', name: 'Malou Garang', email: 'MGarang@acehcs.com' },
   { id: 'ACE308', name: 'Adilson Gafur', email: 'AGafur@acehcs.com' },
   { id: 'ACE309', name: 'Rohan Macwan', email: 'RMacwan@acehcs.com' },
   { id: 'ACE310', name: 'Pranav Kalbhut', email: 'PKalbhut@acehcs.com' },
-  { id: 'ACE311', name: 'Het Prajapati', email: 'HPrajapati@acehcs.com', teams: ['Payment Posting'] },
+  { id: 'ACE311', name: 'Het Prajapati', email: 'HPrajapati@acehcs.com', departments: ['Payment Posting'] },
   { id: 'ACE312', name: 'Anshul Mandloi', email: 'AMandloi@acehcs.com' },
   { id: 'ACE313', name: 'Shweta Ghadage', email: 'SGhadage@acehcs.com' },
   { id: 'ACE314', name: 'Priya Gaikwad', email: 'PGaikwad@acehcs.com' },
@@ -127,7 +127,7 @@ const users = [
   { id: 'ACE317', name: 'Ketan Ghorpade', email: 'KGhorpade@acehcs.com' },
   { id: 'ACE318', name: 'Anthony Mwangi', email: 'AMwangi@acehcs.com' },
   { id: 'ACE320', name: 'Devesh Punjabi', email: 'DPunjabi@acehcs.com' },
-  { id: 'ACE321', name: 'Rohit Shukla', email: 'RShukla@acehcs.com', Role: Role.ADMIN, teams: ['IT'] },
+  { id: 'ACE321', name: 'Rohit Shukla', email: 'RShukla@acehcs.com', Role: Role.ADMIN, departments: ['IT'] },
   { id: 'ACE322', name: 'Mading Daniel', email: 'MDaniel@acehcs.com' },
   { id: 'ACE323', name: 'Harnish Patel', email: 'HarPatel@acehcs.com' },
   { id: 'ACE324', name: 'Atem Mabior', email: 'amabior@acehcs.com' },
@@ -146,22 +146,23 @@ async function main() {
   await prisma.sessionSummary.deleteMany({});
   await prisma.session.deleteMany({});
   await prisma.refreshToken.deleteMany({});
+  await prisma.employmentInfo.deleteMany({});
   await prisma.user.deleteMany({});
-  await prisma.team.deleteMany({});
+  await prisma.department.deleteMany({});
   console.log('Cleared existing data');
 
-  // Create teams
-  console.log('\nCreating teams...');
-  const createdTeams: Record<string, any> = {};
-  for (const teamData of teams) {
-    const team = await prisma.team.create({
+  // Create departments
+  console.log('\nCreating departments...');
+  const createdDepartments: Record<string, any> = {};
+  for (const deptData of departments) {
+    const department = await prisma.department.create({
       data: {
-        name: teamData.name,
-        description: teamData.description,
+        name: deptData.name,
+        description: deptData.description,
       },
     });
-    createdTeams[team.name] = team;
-    console.log(`Created team: ${team.name}`);
+    createdDepartments[department.name] = department;
+    console.log(`Created department: ${department.name}`);
   }
 
   // Seed all users
@@ -170,14 +171,14 @@ async function main() {
     // Hash the user ID as password
     const passwordHash = await bcrypt.hash(userData.id, 10);
 
-    // Find team ID if user belongs to a team
-    let teamId = null;
-    if (userData.teams && userData.teams.length > 0) {
-      const teamName = userData.teams[0];
-      teamId = createdTeams[teamName]?.id || null;
+    // Find department ID if user belongs to a department
+    let departmentId = null;
+    if (userData.departments && userData.departments.length > 0) {
+      const deptName = userData.departments[0];
+      departmentId = createdDepartments[deptName]?.id || null;
     }
 
-    await prisma.user.upsert({
+    const user = await prisma.user.upsert({
       where: { email: userData.email },
       update: {},
       create: {
@@ -186,32 +187,43 @@ async function main() {
         email: userData.email.toLowerCase(),
         passwordHash,
         role: userData.Role || Role.EMPLOYEE,
-        teamId,
       },
     });
 
-    console.log(`Created user: ${userData.id} - ${userData.name} ${teamId ? `(Team: ${userData.teams?.[0]})` : ''}`);
+    // Create employmentInfo if user has a department
+    if (departmentId) {
+      await prisma.employmentInfo.upsert({
+        where: { userId: user.id },
+        update: { departmentId },
+        create: {
+          userId: user.id,
+          departmentId,
+        },
+      });
+    }
+
+    console.log(`Created user: ${userData.id} - ${userData.name} ${departmentId ? `(Department: ${userData.departments?.[0]})` : ''}`);
   }
 
-  // Set manager for Payment Posting team
-  const paymentPostingTeam = createdTeams['Payment Posting'];
-  if (paymentPostingTeam) {
+  // Set manager for Payment Posting department
+  const paymentPostingDept = createdDepartments['Payment Posting'];
+  if (paymentPostingDept) {
     const manager = await prisma.user.findFirst({
       where: { id: 'ACE009' } // Jitender Sharma
     });
     
     if (manager) {
-      await prisma.team.update({
-        where: { id: paymentPostingTeam.id },
+      await prisma.department.update({
+        where: { id: paymentPostingDept.id },
         data: { managerId: manager.id }
       });
-      console.log('\nSet Jitender Sharma as Payment Posting team manager');
+      console.log('\nSet Jitender Sharma as Payment Posting department manager');
     }
   }
 
-  // Create realistic session data for Payment Posting team members
-  console.log('\nCreating session data for Payment Posting team...');
-  const paymentPostingMembers = users.filter(u => u.teams?.includes('Payment Posting'));
+  // Create realistic session data for Payment Posting department members
+  console.log('\nCreating session data for Payment Posting department...');
+  const paymentPostingMembers = users.filter(u => u.departments?.includes('Payment Posting'));
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
@@ -293,10 +305,10 @@ async function main() {
 
   console.log(`\n✅ Seeding completed!`);
   console.log(`Created ${users.length} users`);
-  console.log(`Created ${teams.length} teams`);
-  console.log(`Created ${paymentPostingMembers.length * 5} sessions for Payment Posting team`);
+  console.log(`Created ${departments.length} departments`);
+  console.log(`Created ${paymentPostingMembers.length * 5} sessions for Payment Posting department`);
   console.log('\nDefault password for each user is their User ID (e.g., ACE012)');
-  console.log('\nPayment Posting Team Members:');
+  console.log('\nPayment Posting Department Members:');
   paymentPostingMembers.forEach(m => console.log(`  - ${m.name} (${m.id})`));
 }
 

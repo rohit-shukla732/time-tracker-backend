@@ -9,7 +9,8 @@ import {
   Users, 
   Calendar, 
   Settings, 
-  LogOut 
+  LogOut,
+  Fingerprint
 } from "lucide-react";
 
 export default function HRLayout({ children }: { children: React.ReactNode }) {
@@ -69,6 +70,11 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
       href: "/hr/leaves",
       label: "Leave Requests",
       icon: Calendar,
+    },
+    {
+      href: "/hr/biometric",
+      label: "Biometric Test",
+      icon: Fingerprint,
     },
     {
       href: "/hr/settings",

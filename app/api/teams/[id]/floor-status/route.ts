@@ -23,8 +23,8 @@ interface FloorEmployee {
   name: string | null;
   email: string;
   role: string;
-  teamId: string | null;
-  teamName: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
   seatNumber: number | null;
   status: EmployeeStatus;
   lastActivity: string | null;
@@ -45,12 +45,12 @@ interface StatusStats {
 
 /**
  * GET /api/teams/[id]/floor-status
- * Returns real-time floor status for team members
- * Manager only - filtered to their team
+ * Returns real-time floor status for department members
+ * Manager only - filtered to their department
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const resolved = await params;
-  const teamId = resolved.id;
+  const departmentId = resolved.id;
 
   const authResult = await requireManager(req);
   if (authResult.error || !authResult.user) {
@@ -58,20 +58,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   try {
-    // Verify team exists
-    const team = await prisma.team.findUnique({ 
-      where: { id: teamId },
+    // Verify department exists
+    const department = await prisma.department.findUnique({ 
+      where: { id: departmentId },
       select: { id: true, name: true, managerId: true }
     });
     
-    if (!team) {
-      return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+    if (!department) {
+      return NextResponse.json({ error: 'Department not found' }, { status: 404 });
     }
 
-    // Verify manager has access to this team
+    // Verify manager has access to this department
     if (authResult.user.role === 'MANAGER') {
-      if (team.managerId !== authResult.user.id && authResult.user.teamId !== teamId) {
-        return unauthorizedResponse('Access denied. Not manager of this team');
+      if (department.managerId !== authResult.user.id && authResult.user.departmentId !== departmentId) {
+        return unauthorizedResponse('Access denied. Not manager of this department');
       }
     }
 
@@ -79,21 +79,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Fetch all team members
-    const users = await prisma.user.findMany({
-      where: { teamId },
+    // Fetch all department members via employmentInfo
+    const employmentInfos = await prisma.employmentInfo.findMany({
+      where: { departmentId },
       select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        teamId: true,
-        team: {
-          select: { name: true }
+        userId: true,
+        department: {
+          select: { id: true, name: true }
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
         }
       },
-      orderBy: { name: 'asc' }
+      orderBy: { user: { name: 'asc' } }
     });
+
+    const users = employmentInfos.map(ei => ({
+      id: ei.user.id,
+      name: ei.user.name,
+      email: ei.user.email,
+      role: ei.user.role,
+      departmentId: ei.department?.id || null,
+      department: ei.department
+    }));
 
     // Fetch active sessions for team members today
     const activeSessions = await prisma.session.findMany({
@@ -184,8 +197,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         name: user.name,
         email: user.email,
         role: user.role,
-        teamId: user.teamId,
-        teamName: user.team?.name || null,
+        departmentId: user.departmentId,
+        departmentName: user.department?.name || null,
         seatNumber: index + 1, // Simple seat numbering (can be customized)
         status,
         lastActivity,
@@ -199,8 +212,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     return NextResponse.json({
       success: true,
-      teamId,
-      teamName: team.name,
+      departmentId,
+      departmentName: department.name,
       employees,
       stats,
       timestamp: new Date().toISOString()

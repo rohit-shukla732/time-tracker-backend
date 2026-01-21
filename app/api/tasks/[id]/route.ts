@@ -6,9 +6,10 @@ import { logger } from "@/lib/logger";
 // GET /api/tasks/[id] - Get a specific task
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(request);
     if (!authResult.user) {
       return NextResponse.json(
@@ -19,7 +20,7 @@ export async function GET(
 
     const user = authResult.user;
     const task = await prisma.task.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         project: true,
         assignee: {
@@ -31,7 +32,7 @@ export async function GET(
         approvedBy: {
           select: { id: true, name: true, email: true }
         },
-        team: {
+        department: {
           select: { id: true, name: true }
         },
         taskSessions: {
@@ -61,7 +62,7 @@ export async function GET(
         );
       }
     } else if (user.role === "MANAGER") {
-      if (task.teamId !== user.teamId) {
+      if (task.departmentId !== user.departmentId) {
         return NextResponse.json(
           { error: "Forbidden" },
           { status: 403 }
@@ -87,9 +88,10 @@ export async function GET(
 // PATCH /api/tasks/[id] - Update a task
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(request);
     if (!authResult.user) {
       return NextResponse.json(
@@ -102,7 +104,7 @@ export async function PATCH(
     const body = await request.json();
 
     const task = await prisma.task.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!task) {
@@ -134,7 +136,7 @@ export async function PATCH(
         );
       }
     } else if (user.role === "MANAGER") {
-      if (task.teamId !== user.teamId) {
+      if (task.departmentId && user.departmentId && task.departmentId !== user.departmentId) {
         return NextResponse.json(
           { error: "Forbidden" },
           { status: 403 }
@@ -163,7 +165,7 @@ export async function PATCH(
     }
 
     const updatedTask = await prisma.task.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         project: true,
@@ -176,13 +178,13 @@ export async function PATCH(
         approvedBy: {
           select: { id: true, name: true, email: true }
         },
-        team: {
+        department: {
           select: { id: true, name: true }
         }
       }
     });
 
-    logger.info(`Task updated: ${params.id} by user ${user.id}`);
+    logger.info(`Task updated: ${id} by user ${user.id}`);
 
     return NextResponse.json(updatedTask);
   } catch (error) {
@@ -197,9 +199,10 @@ export async function PATCH(
 // DELETE /api/tasks/[id] - Delete a task
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(request);
     if (!authResult.user) {
       return NextResponse.json(
@@ -211,7 +214,7 @@ export async function DELETE(
     const user = authResult.user;
 
     const task = await prisma.task.findUnique({
-      where: { id: params.id }
+      where: { id }
     });
 
     if (!task) {
@@ -229,7 +232,7 @@ export async function DELETE(
       );
     }
 
-    if (user.role === "MANAGER" && task.teamId !== user.teamId) {
+    if (user.role === "MANAGER" && task.departmentId && user.departmentId && task.departmentId !== user.departmentId) {
       return NextResponse.json(
         { error: "Forbidden" },
         { status: 403 }
@@ -237,10 +240,10 @@ export async function DELETE(
     }
 
     await prisma.task.delete({
-      where: { id: params.id }
+      where: { id }
     });
 
-    logger.info(`Task deleted: ${params.id} by user ${user.id}`);
+    logger.info(`Task deleted: ${id} by user ${user.id}`);
 
     return NextResponse.json({ success: true });
   } catch (error) {

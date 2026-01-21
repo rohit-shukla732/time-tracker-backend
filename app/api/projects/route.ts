@@ -18,17 +18,29 @@ export async function GET(request: NextRequest) {
     const where: any = {};
 
     // Filter based on role
-    if (user.role === "MANAGER" && user.teamId) {
-      where.teamId = user.teamId;
-    } else if (user.role === "EMPLOYEE" && user.teamId) {
-      where.teamId = user.teamId;
+    if (user.role === "MANAGER") {
+      const managerEmployment = await prisma.employmentInfo.findUnique({
+        where: { userId: user.id },
+        select: { departmentId: true }
+      });
+      if (managerEmployment?.departmentId) {
+        where.departmentId = managerEmployment.departmentId;
+      }
+    } else if (user.role === "EMPLOYEE") {
+      const employeeEmployment = await prisma.employmentInfo.findUnique({
+        where: { userId: user.id },
+        select: { departmentId: true }
+      });
+      if (employeeEmployment?.departmentId) {
+        where.departmentId = employeeEmployment.departmentId;
+      }
     }
     // Admin sees all projects
 
     const projects = await prisma.project.findMany({
       where,
       include: {
-        team: {
+        department: {
           select: { id: true, name: true }
         },
         createdBy: {
@@ -76,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, teamId, startDate, endDate } = body;
+    const { name, description, departmentId, startDate, endDate } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -85,14 +97,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let projectTeamId = teamId;
-    if (!projectTeamId && user.role === "MANAGER" && user.teamId) {
-      projectTeamId = user.teamId;
+    let projectDepartmentId = departmentId;
+    if (!projectDepartmentId && user.role === "MANAGER") {
+      const managerEmployment = await prisma.employmentInfo.findUnique({
+        where: { userId: user.id },
+        select: { departmentId: true }
+      });
+      if (managerEmployment?.departmentId) {
+        projectDepartmentId = managerEmployment.departmentId;
+      }
     }
 
-    if (!projectTeamId) {
+    if (!projectDepartmentId) {
       return NextResponse.json(
-        { error: "Team ID is required" },
+        { error: "Department ID is required" },
         { status: 400 }
       );
     }
@@ -101,13 +119,13 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description,
-        teamId: projectTeamId,
+        departmentId: projectDepartmentId,
         createdById: user.id,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null
       },
       include: {
-        team: {
+        department: {
           select: { id: true, name: true }
         },
         createdBy: {

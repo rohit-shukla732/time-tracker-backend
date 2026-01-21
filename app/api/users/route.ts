@@ -24,14 +24,24 @@ export async function GET(req: NextRequest) {
         whereCondition.role = role;
       }
     } else if (authResult.user.role === 'MANAGER') {
-      // Managers can only see their team members
-      if (authResult.user.teamId) {
-        whereCondition.teamId = authResult.user.teamId;
+      // Managers can only see their department members
+      const managerEmployment = await prisma.employmentInfo.findUnique({
+        where: { userId: authResult.user.id },
+        select: { departmentId: true }
+      });
+      
+      if (managerEmployment?.departmentId) {
+        // Find users in the same department
+        const departmentUsers = await prisma.employmentInfo.findMany({
+          where: { departmentId: managerEmployment.departmentId },
+          select: { userId: true }
+        });
+        whereCondition.id = { in: departmentUsers.map(emp => emp.userId) };
         if (role) {
           whereCondition.role = role;
         }
       } else {
-        // Manager without a team can only see themselves
+        // Manager without a department can only see themselves
         whereCondition.id = authResult.user.id;
       }
     } else {
@@ -46,17 +56,21 @@ export async function GET(req: NextRequest) {
         name: true,
         email: true,
         role: true,
-        teamId: true,
         createdAt: true,
         updatedAt: true,
-        team: includeTeam ? {
+        employmentInfo: includeTeam ? {
           select: {
-            id: true,
-            name: true,
-            description: true
+            departmentId: true,
+            department: {
+              select: {
+                id: true,
+                name: true,
+                description: true
+              }
+            }
           }
         } : false,
-        managedTeams: authResult.user.role === 'ADMIN' || authResult.user.role === 'HR' ? {
+        managedDepartment: authResult.user.role === 'ADMIN' || authResult.user.role === 'HR' ? {
           select: {
             id: true,
             name: true
@@ -76,16 +90,15 @@ export async function GET(req: NextRequest) {
         name: user.name,
         email: user.email,
         role: user.role,
-        teamId: user.teamId,
-        team: user.team || undefined,
-        managedTeams: user.managedTeams || undefined,
+        departmentId: user.employmentInfo?.departmentId || null,
+        department: user.employmentInfo?.department || undefined,
+        managedDepartment: user.managedDepartment || undefined,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       })),
       currentUser: {
         id: authResult.user.id,
-        role: authResult.user.role,
-        teamId: authResult.user.teamId
+        role: authResult.user.role
       }
     });
   } catch (error) {

@@ -8,7 +8,7 @@ export interface AuthenticatedUser {
   email: string;
   name?: string;
   role: Role;
-  teamId?: string;
+  departmentId?: string;
 }
 
 export interface AuthResult {
@@ -29,11 +29,15 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
     const token = header.replace("Bearer ", "");
     const payload = verifyAccessToken(token) as { userId: string };
     
-    // Get full user info including role and team from database
+    // Get full user info including role and department from database
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
       include: {
-        team: true
+        employmentInfo: {
+          include: {
+            department: true
+          }
+        }
       }
     });
 
@@ -47,7 +51,7 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
         email: user.email,
         name: user.name || undefined,
         role: user.role as Role,
-        teamId: user.teamId || undefined
+        departmentId: user.employmentInfo?.departmentId || undefined
       }
     };
   } catch {
@@ -118,14 +122,14 @@ export async function canAccessUserData(
     return true;
   }
 
-  // Managers can access their team members' data
-  if (currentUser.role === 'MANAGER' && currentUser.teamId) {
+  // Managers can access their department members' data
+  if (currentUser.role === 'MANAGER' && currentUser.departmentId) {
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { teamId: true }
+      include: { employmentInfo: true }
     });
     
-    if (targetUser?.teamId === currentUser.teamId) {
+    if (targetUser?.employmentInfo?.departmentId === currentUser.departmentId) {
       return true;
     }
   }
@@ -135,7 +139,7 @@ export async function canAccessUserData(
 }
 
 /**
- * Get users that the current user can access based on their role and team
+ * Get users that the current user can access based on their role and department
  */
 export async function getAccessibleUsers(currentUser: AuthenticatedUser): Promise<string[]> {
   // Admin and HR can access all users
@@ -146,13 +150,13 @@ export async function getAccessibleUsers(currentUser: AuthenticatedUser): Promis
     return allUsers.map((u: { id: string }) => u.id);
   }
 
-  // Managers can access their team members
-  if (currentUser.role === 'MANAGER' && currentUser.teamId) {
-    const teamMembers = await prisma.user.findMany({
-      where: { teamId: currentUser.teamId },
-      select: { id: true }
+  // Managers can access their department members
+  if (currentUser.role === 'MANAGER' && currentUser.departmentId) {
+    const deptMembers = await prisma.employmentInfo.findMany({
+      where: { departmentId: currentUser.departmentId },
+      select: { userId: true }
     });
-    return teamMembers.map((u: { id: string }) => u.id);
+    return deptMembers.map((e: { userId: string }) => e.userId);
   }
 
   // Employees can only access their own data

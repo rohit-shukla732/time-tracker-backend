@@ -38,8 +38,7 @@ const g: any = globalThis as any;
 if (!g[GLOBAL_SESSION_STATE_KEY]) g[GLOBAL_SESSION_STATE_KEY] = new Map<string, any>();
 const sessionStateStore: Map<string, any> = g[GLOBAL_SESSION_STATE_KEY];
 
-// Export for use in other routes (like floor-status)
-export { sessionStateStore };
+// Other routes can access this via globalThis[GLOBAL_SESSION_STATE_KEY]
 
 interface AppUsageItem {
   app: string;

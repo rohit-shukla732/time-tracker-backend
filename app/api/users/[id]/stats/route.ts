@@ -17,10 +17,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   // Authorization: admin/hr can view any; manager can view members; users can view own
   if (authResult.user.role === 'MANAGER') {
-    if (authResult.user.teamId) {
-      // manager can access users in their team
-      const target = await prisma.user.findUnique({ where: { id: userId }, select: { teamId: true } });
-      if (!target || target.teamId !== authResult.user.teamId) {
+    // Get manager's department
+    const managerEmployment = await prisma.employmentInfo.findUnique({
+      where: { userId: authResult.user.id },
+      select: { departmentId: true }
+    });
+    
+    if (managerEmployment?.departmentId) {
+      // manager can access users in their department
+      const targetEmployment = await prisma.employmentInfo.findUnique({ 
+        where: { userId }, 
+        select: { departmentId: true } 
+      });
+      if (!targetEmployment || targetEmployment.departmentId !== managerEmployment.departmentId) {
         return unauthorizedResponse('Access denied');
       }
     } else if (authResult.user.id !== userId) {

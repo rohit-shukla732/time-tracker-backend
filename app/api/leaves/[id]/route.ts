@@ -5,26 +5,32 @@ import { requireAuth } from "@/lib/roleAuth";
 // GET /api/leaves/[id] - Get single leave request
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(req);
     if (!authResult.user) {
       return NextResponse.json({ error: authResult.error }, { status: 401 });
     }
 
     const leave = await prisma.leaveRequest.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         user: {
           select: {
             id: true,
             name: true,
             email: true,
-            team: {
+            employmentInfo: {
               select: {
-                id: true,
-                name: true,
+                departmentId: true,
+                department: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
           },
@@ -61,19 +67,20 @@ export async function GET(
   }
 }
 
-// DELETE /api/leaves/[id] - Delete/Cancel leave request
+// DELETE /api/leaves/[id] - Delete leave request
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(req);
     if (!authResult.user) {
       return NextResponse.json({ error: authResult.error }, { status: 401 });
     }
 
     const leave = await prisma.leaveRequest.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!leave) {
@@ -135,7 +142,7 @@ export async function DELETE(
     }
 
     await prisma.leaveRequest.update({
-      where: { id: params.id },
+      where: { id },
       data: { status: "CANCELLED" },
     });
 

@@ -12,7 +12,7 @@ const SESSION_STATE_TIMEOUT_MS = 120_000; // 2 minutes
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const resolved = await params;
-  const teamId = resolved.id;
+  const departmentId = resolved.id;
 
   const authResult = await requireManager(req);
   if (authResult.error || !authResult.user) {
@@ -20,15 +20,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   try {
-    // Verify team exists
-    const team = await prisma.team.findUnique({ where: { id: teamId } });
-    if (!team) return NextResponse.json({ error: 'Team not found' }, { status: 404 });
+    // Verify department exists
+    const department = await prisma.department.findUnique({ where: { id: departmentId } });
+    if (!department) return NextResponse.json({ error: 'Department not found' }, { status: 404 });
 
-    // If manager role, ensure they are part of this team (or the assigned manager)
+    // If manager role, ensure they are part of this department (or the assigned manager)
     if (authResult.user.role === 'MANAGER') {
-      // Allow if user is the team's assigned manager, or the manager's user.teamId matches the team
-      if (team.managerId !== authResult.user.id && authResult.user.teamId !== teamId) {
-        return unauthorizedResponse('Access denied. Not manager of this team');
+      // Allow if user is the department's assigned manager, or the manager's departmentId matches
+      if (department.managerId !== authResult.user.id && authResult.user.departmentId !== departmentId) {
+        return unauthorizedResponse('Access denied. Not manager of this department');
       }
     }
 
@@ -45,9 +45,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return d;
     });
 
-    // Get member IDs for the team
-    const teamMembers = await prisma.user.findMany({ where: { teamId }, select: { id: true } });
-    const memberIds = new Set(teamMembers.map((m) => m.id));
+    // Get member IDs for the department
+    const deptMembers = await prisma.employmentInfo.findMany({ where: { departmentId }, select: { userId: true } });
+    const memberIds = new Set(deptMembers.map((m) => m.userId));
 
     // Calculate realtime status counts for team members
     let realtimeWorking = 0;
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     });
 
-    // Fetch counts and charts in parallel scoped to team
+    // Fetch counts and charts in parallel scoped to department
     const [
       totalUsers,
       activeSessionsToday,
@@ -83,41 +83,41 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       topWebsites,
       dailySessions,
     ] = await Promise.all([
-      prisma.user.count({ where: { teamId } }),
+      prisma.employmentInfo.count({ where: { departmentId } }),
 
       prisma.session.count({
         where: {
           startedAt: { gte: today },
           endedAt: null,
-          user: { teamId },
+          user: { employmentInfo: { departmentId } },
         },
       }),
 
       prisma.session.count({
         where: {
           startedAt: { gte: today },
-          user: { teamId },
+          user: { employmentInfo: { departmentId } },
         },
       }),
 
       prisma.session.count({
         where: {
           startedAt: { gte: thisWeekStart },
-          user: { teamId },
+          user: { employmentInfo: { departmentId } },
         },
       }),
 
       prisma.session.count({
         where: {
           startedAt: { gte: thisMonthStart },
-          user: { teamId },
+          user: { employmentInfo: { departmentId } },
         },
       }),
 
       prisma.session.findMany({
         take: 10,
         orderBy: { startedAt: 'desc' },
-        where: { user: { teamId } },
+        where: { user: { employmentInfo: { departmentId } } },
         include: { user: { select: { id: true, name: true, email: true } } },
       }),
 
@@ -125,7 +125,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         by: ['appName'],
         where: {
           createdAt: { gte: thisMonthStart },
-          user: { teamId },
+          user: { employmentInfo: { departmentId } },
         },
         _sum: { timeMs: true },
         orderBy: { _sum: { timeMs: 'desc' } },
@@ -136,7 +136,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         by: ['website', 'browser'],
         where: {
           createdAt: { gte: thisMonthStart },
-          user: { teamId },
+          user: { employmentInfo: { departmentId } },
         },
         _sum: { timeMs: true },
         orderBy: { _sum: { timeMs: 'desc' } },
@@ -149,7 +149,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         const count = await prisma.session.count({
           where: {
             startedAt: { gte: day, lt: nextDay },
-            user: { teamId },
+            user: { employmentInfo: { departmentId } },
           },
         });
         return {
@@ -160,9 +160,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       })),
     ]);
 
-    // Work time aggregates for team (this month)
+    // Work time aggregates for department (this month)
     const sessionSummaries = await prisma.sessionSummary.aggregate({
-      where: { createdAt: { gte: thisMonthStart }, user: { teamId } },
+      where: { createdAt: { gte: thisMonthStart }, user: { employmentInfo: { departmentId } } },
       _sum: {
         workTimeMs: true,
         totalBreakMs: true,
@@ -188,7 +188,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       hours: Number((Number(site._sum.timeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
     }));
 
-    // Daily work/break/idle totals for last 7 days (team scoped)
+    // Daily work/break/idle totals for last 7 days (department scoped)
     const dailyWorkData = await Promise.all(last7Days.map(async (day) => {
       const nextDay = new Date(day);
       nextDay.setDate(nextDay.getDate() + 1);
@@ -196,7 +196,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         where: {
           session: {
             startedAt: { gte: day, lt: nextDay },
-            user: { teamId },
+            user: { employmentInfo: { departmentId } },
           },
         },
         _sum: {
@@ -215,12 +215,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       };
     }));
 
-    // Top users by workTime (this month) for the team
+    // Top users by workTime (this month) for the department
     const topUsersGroup = await prisma.sessionSummary.groupBy({
       by: ['userId'],
       where: {
         createdAt: { gte: thisMonthStart },
-        user: { teamId },
+        user: { employmentInfo: { departmentId } },
       },
       _sum: { workTimeMs: true },
       orderBy: { _sum: { workTimeMs: 'desc' } },
@@ -242,7 +242,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({
       success: true,
       stats: {
-        team: { id: team.id, name: team.name },
+        team: { id: department.id, name: department.name },
         users: { total: totalUsers },
         sessions: {
           activeToday: activeSessionsToday,

@@ -243,7 +243,7 @@ export default function HRDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-yellow-900 mb-4">
-              {stats.employeesWithoutBalance} employee(s) don't have leave balances configured for this year.
+              {stats.employeesWithoutBalance} employee(s) don&apos;t have leave balances configured for this year.
               Initialize leave balances to enable leave management.
             </p>
             <Link href="/hr/employees">

@@ -20,7 +20,19 @@ export async function GET(
       where: { id },
       include: {
         user: {
-          select: { id: true, name: true, email: true, role: true, team: { select: { name: true } } },
+          select: { 
+            id: true, 
+            name: true, 
+            email: true, 
+            role: true, 
+            employmentInfo: { 
+              select: { 
+                department: { 
+                  select: { name: true } 
+                } 
+              } 
+            } 
+          },
         },
         summary: true,
         appUsage: {
@@ -62,7 +74,7 @@ export async function GET(
           name: session.user.name,
           email: session.user.email,
           role: session.user.role,
-          teamName: session.user.team?.name,
+          departmentName: session.user.employmentInfo?.department?.name || null,
         } : null,
         startedAt: session.startedAt,
         endedAt: session.endedAt,

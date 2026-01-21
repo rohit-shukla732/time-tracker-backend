@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
     // Get counts in parallel
     const [
       totalUsers,
-      totalTeams,
+      totalDepartments,
       activeSessionsToday,
       totalSessionsToday,
       totalSessionsThisWeek,
@@ -65,14 +65,14 @@ export async function GET(req: NextRequest) {
       topApps,
       topWebsites,
       dailySessions,
-      teams,
+      departments,
       dailyWorkSummaries,
     ] = await Promise.all([
       // Total users
       prisma.user.count(),
       
-      // Total teams
-      prisma.team.count(),
+      // Total departments
+      prisma.department.count(),
       
       // Active sessions (started today, not ended)
       prisma.session.count({
@@ -158,11 +158,11 @@ export async function GET(req: NextRequest) {
         };
       })),
       
-      // Teams with member counts
-      prisma.team.findMany({
+      // Departments with member counts
+      prisma.department.findMany({
         include: {
           _count: {
-            select: { members: true }
+            select: { employmentInfo: true }
           }
         },
         orderBy: { name: 'asc' }
@@ -229,11 +229,11 @@ export async function GET(req: NextRequest) {
       hours: Number((Number(site._sum.timeMs || 0) / (1000 * 60 * 60)).toFixed(1)),
     }));
     
-    // Format team composition
+    // Format department composition
     const chartColors = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
-    const teamComposition = teams.map((team: any, index: number) => ({
-      name: team.name,
-      memberCount: team._count.members,
+    const departmentComposition = departments.map((dept: any, index: number) => ({
+      name: dept.name,
+      memberCount: dept._count.employmentInfo,
       fill: chartColors[index % chartColors.length],
     }));
 
@@ -244,8 +244,9 @@ export async function GET(req: NextRequest) {
           total: totalUsers,
           byRole: roleDistribution,
         },
-        teams: {
-          total: totalTeams,
+        departments: {
+          total: totalDepartments,
+          composition: departmentComposition,
         },
         sessions: {
           activeToday: activeSessionsToday,
@@ -274,7 +275,7 @@ export async function GET(req: NextRequest) {
             name: role,
             value: count,
           })),
-          teamComposition,
+          departmentComposition,
           dailyWorkData: dailyWorkSummaries,
         },
         recentSessions: recentSessions.map((s: any) => ({

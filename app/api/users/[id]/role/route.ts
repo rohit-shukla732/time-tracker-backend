@@ -52,10 +52,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { id: userId },
       data: { role },
       include: {
-        team: {
+        employmentInfo: {
           select: {
-            id: true,
-            name: true
+            departmentId: true,
+            department: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         }
       }
@@ -70,7 +75,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         name: updatedUser.name,
         email: updatedUser.email,
         role: updatedUser.role,
-        team: updatedUser.team,
+        department: updatedUser.employmentInfo?.department || null,
         createdAt: updatedUser.createdAt,
         updatedAt: updatedUser.updatedAt
       }

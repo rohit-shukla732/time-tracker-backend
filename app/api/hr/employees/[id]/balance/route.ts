@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/roleAuth";
 // GET /api/hr/employees/[id]/balance - Get employee leave balance
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const authResult = await requireAuth(req);
@@ -18,11 +18,12 @@ export async function GET(
       return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
+    const { id } = await params;
     const currentYear = new Date().getFullYear();
     const balance = await prisma.leaveBalance.findUnique({
       where: {
         userId_year: {
-          userId: params.id,
+          userId: id,
           year: currentYear,
         },
       },
@@ -45,9 +46,10 @@ export async function GET(
 // PUT /api/hr/employees/[id]/balance - Update employee leave balance
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(req);
     if (!authResult.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -75,7 +77,7 @@ export async function PUT(
     const existingBalance = await prisma.leaveBalance.findUnique({
       where: {
         userId_year: {
-          userId: params.id,
+          userId: id,
           year: currentYear,
         },
       },
@@ -99,7 +101,7 @@ export async function PUT(
       // Create new balance
       balance = await prisma.leaveBalance.create({
         data: {
-          userId: params.id,
+          userId: id,
           year: currentYear,
           sickLeave: sickLeave || 12,
           casualLeave: casualLeave || 10,
@@ -121,12 +123,13 @@ export async function PUT(
   }
 }
 
-// POST /api/hr/employees/[id]/balance - Initialize leave balance for employee
+// POST /api/hr/employees/[id]/balance - Initialize leave balance
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const authResult = await requireAuth(req);
     if (!authResult.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -145,7 +148,7 @@ export async function POST(
     const existing = await prisma.leaveBalance.findUnique({
       where: {
         userId_year: {
-          userId: params.id,
+          userId: id,
           year: currentYear,
         },
       },
@@ -161,7 +164,7 @@ export async function POST(
     // Create default balance
     const balance = await prisma.leaveBalance.create({
       data: {
-        userId: params.id,
+        userId: id,
         year: currentYear,
       },
     });
