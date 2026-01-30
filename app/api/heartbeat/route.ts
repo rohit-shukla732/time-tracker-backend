@@ -27,9 +27,22 @@ function isAlive(lastSeenMs?: number) {
 // POST /api/heartbeat
 export async function POST(request: Request) {
     const auth = requireAuth(request);
-    if (!auth || "error" in auth || !auth.user) {
-        logger.warn("POST /api/heartbeat - Unauthorized");
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!auth.user) {
+        const ip =
+            (request.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() ||
+            request.headers.get("x-real-ip") ||
+            "unknown";
+        const decodedUserId =
+            auth.decoded?.userId || auth.decoded?.id || auth.decoded?.sub || null;
+        logger.warn("POST /api/heartbeat - Unauthorized", {
+            reason: auth.error,
+            ip,
+            decodedUserId,
+        });
+        return NextResponse.json(
+            { error: "Unauthorized", code: auth.expired ? "TOKEN_EXPIRED" : "AUTH_FAILED" },
+            { status: 401 }
+        );
     }
 
     try {
@@ -71,13 +84,26 @@ export async function POST(request: Request) {
                     ok: true, 
                     clientId, 
                     lastSeen: new Date(now).toISOString(),
-                    forceStop: true, 
+                    forceStop: true,
+                    forceStart: false,
                     reason: deviceControl.reason 
+                }, { status: 200 });
+            }
+
+            if ((deviceControl as any)?.forceStart) {
+                logger.info("POST /api/heartbeat - Force start signal sent", { userId });
+                return NextResponse.json({
+                    ok: true,
+                    clientId,
+                    lastSeen: new Date(now).toISOString(),
+                    forceStop: false,
+                    forceStart: true,
+                    reason: null,
                 }, { status: 200 });
             }
         }
 
-        return NextResponse.json({ ok: true, clientId, lastSeen: new Date(now).toISOString(), forceStop: false }, { status: 200 });
+        return NextResponse.json({ ok: true, clientId, lastSeen: new Date(now).toISOString(), forceStop: false, forceStart: false }, { status: 200 });
     } catch (err) {
         const error = err as Error;
         logger.error("POST /api/heartbeat - Failed", error);

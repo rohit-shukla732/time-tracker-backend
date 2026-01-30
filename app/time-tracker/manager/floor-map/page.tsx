@@ -322,15 +322,15 @@ export default function FloorMapPage() {
 
     try {
       const user = JSON.parse(storedUser);
-      if (!user.teamId) {
-        setError('No team assigned');
+      if (!user.departmentId) {
+        setError('No department assigned');
         setLoading(false);
         return;
       }
 
-      setTeamId(user.teamId);
+      setTeamId(user.departmentId);
 
-      const data = await authFetch(`/api/teams/${user.teamId}/floor-status`, {}, '/manager/login');
+      const data = await authFetch(`/api/teams/${user.departmentId}/floor-status`, {}, '/manager/login');
 
       if (data.success) {
         setEmployees(data.employees);

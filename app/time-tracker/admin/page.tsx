@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Progress } from '@/components/ui/progress';
 import {
   Table,
   TableBody,
@@ -56,10 +55,13 @@ import {
   Tooltip,
 } from 'recharts';
 
-interface DailySession {
+interface DailyActiveUsers {
   date: string;
   day: string;
-  sessions: number;
+  activeUsers: number;
+  totalWork: number;
+  totalBreak: number;
+  totalIdle: number;
 }
 
 interface TopApp {
@@ -74,7 +76,7 @@ interface RoleDistribution {
   fill: string;
 }
 
-interface TeamComposition {
+interface DepartmentComposition {
   name: string;
   memberCount: number;
   fill: string;
@@ -92,11 +94,10 @@ interface Stats {
     total: number;
     byRole: Record<string, number>;
   };
-  teams: {
+  departments: {
     total: number;
   };
-  sessions: {
-    activeToday: number;
+  activeUsers: {
     today: number;
     thisWeek: number;
     thisMonth: number;
@@ -112,29 +113,42 @@ interface Stats {
     totalBreakTimeMs: number;
     avgWorkTimeMs: number;
   };
+  dailyActiveUsers: DailyActiveUsers[];
   charts: {
-    dailySessions: DailySession[];
+    dailyActiveUsers: DailyActiveUsers[];
     topApps: TopApp[];
     roleDistribution: RoleDistribution[];
-    teamComposition?: TeamComposition[];
-    dailyWorkData?: DailyWorkData[];
+    departmentComposition?: DepartmentComposition[];
   };
-  recentSessions: Array<{
+  recentActivity: Array<{
     id: string;
-    sessionId: string;
     userId: string;
     userName: string;
     userEmail: string;
-    startedAt: string;
-    endedAt: string | null;
-    isActive: boolean;
+    date: string;
+    workTimeMs: number;
+    breakTimeMs: number;
+    idleTimeMs: number;
+    sessionsCount: number;
   }>;
 }
 
 // Chart configurations
-const sessionChartConfig = {
-  sessions: {
-    label: "Sessions",
+const activeUsersChartConfig = {
+  work: {
+    label: "Work Time",
+    color: "#10b981",
+  },
+  break: {
+    label: "Break Time",
+    color: "#3b82f6",
+  },
+  idle: {
+    label: "Idle Time",
+    color: "#f59e0b",
+  },
+  activeUsers: {
+    label: "Active Users",
     color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
@@ -319,8 +333,8 @@ export default function AdminDashboard() {
           </Badge>
         </div>
 
-        {/* Main Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Main Stats Grid - All in one row */}
+        <div className="grid gap-4 md:grid-cols-5">
           <Card className="relative overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -329,7 +343,7 @@ export default function AdminDashboard() {
             <CardContent>
               <div className="text-2xl font-bold">{stats?.users.total || 0}</div>
               <p className="text-xs text-muted-foreground">
-                Across {stats?.teams.total || 0} teams
+                Across {stats?.departments.total || 0} departments
               </p>
               <div className="absolute right-0 bottom-0 opacity-10">
                 <Users className="h-24 w-24 -mr-4 -mb-4" />
@@ -337,77 +351,91 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden border-green-200 dark:border-green-900">
+          <Card className="relative overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Now</CardTitle>
-              <Radio className="h-4 w-4 text-green-500 animate-pulse" />
+              <CardTitle className="text-sm font-medium">Active Today</CardTitle>
+              <UsersRound className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats?.realtime?.total || stats?.sessions.activeToday || 0}</div>
-              <div className="flex items-center gap-1 text-xs text-green-600">
-                <ArrowUpRight className="h-3 w-3" />
-                Currently working
-              </div>
+              <div className="text-2xl font-bold">{stats?.activeUsers?.today || 0}</div>
+              <p className="text-xs text-muted-foreground">
+                {stats?.activeUsers?.thisWeek || 0} this week
+              </p>
               <div className="absolute right-0 bottom-0 opacity-10">
-                <Activity className="h-24 w-24 -mr-4 -mb-4 text-green-500" />
+                <UsersRound className="h-24 w-24 -mr-4 -mb-4" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden">
+          {/* Real-time Status Cards - Smaller */}
+          <Card className="border-green-200 dark:border-green-900/50 bg-green-50/50 dark:bg-green-950/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Sessions Today</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs font-medium text-green-700 dark:text-green-400">Working</CardTitle>
+              <Monitor className="h-3 w-3 text-green-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.sessions.today || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats?.sessions.thisWeek || 0} this week
-              </p>
-              <div className="absolute right-0 bottom-0 opacity-10">
-                <Clock className="h-24 w-24 -mr-4 -mb-4" />
+            <CardContent className="pb-2">
+              <div className="text-2xl font-bold text-green-700 dark:text-green-400">
+                {stats?.realtime?.working || 0}
               </div>
+              <p className="text-xs text-green-600/70 dark:text-green-500/70">
+                Active now
+              </p>
             </CardContent>
           </Card>
 
-          <Card className="relative overflow-hidden">
+          <Card className="border-blue-200 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">This Month</CardTitle>
-              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-xs font-medium text-blue-700 dark:text-blue-400">On Break</CardTitle>
+              <Coffee className="h-3 w-3 text-blue-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.sessions.thisMonth || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                Total sessions
-              </p>
-              <div className="absolute right-0 bottom-0 opacity-10">
-                <Calendar className="h-24 w-24 -mr-4 -mb-4" />
+            <CardContent className="pb-2">
+              <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                {stats?.realtime?.break || 0}
               </div>
+              <p className="text-xs text-blue-600/70 dark:text-blue-500/70">
+                Break time
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-yellow-200 dark:border-yellow-900/50 bg-yellow-50/50 dark:bg-yellow-950/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-xs font-medium text-yellow-700 dark:text-yellow-400">Idle</CardTitle>
+              <Clock className="h-3 w-3 text-yellow-600" />
+            </CardHeader>
+            <CardContent className="pb-2">
+              <div className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
+                {stats?.realtime?.idle || 0}
+              </div>
+              <p className="text-xs text-yellow-600/70 dark:text-yellow-500/70">
+                Inactive
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Charts Row */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          {/* Sessions Trend Chart - Line Chart with Labels */}
-          <Card className="lg:col-span-4">
+        {/* Charts Section */}
+        <div className="grid gap-4 lg:grid-cols-7">
+          {/* Daily Active Users Bar Chart */}
+          <Card className="lg:col-span-5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
-                Session Activity
+                Daily Active Users
               </CardTitle>
-              <CardDescription>Daily sessions over the last 7 days</CardDescription>
+              <CardDescription>
+                Active users and time distribution over the last 7 days
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer config={sessionChartConfig} className="h-[220px] w-full">
-                <LineChart
+              <ChartContainer config={activeUsersChartConfig} className="h-[300px] w-full">
+                <BarChart
                   accessibilityLayer
-                  data={stats?.charts?.dailySessions || []}
+                  data={stats?.dailyActiveUsers || []}
                   margin={{
-                    top: 16,
+                    top: 20,
                     left: 12,
                     right: 12,
-                    bottom: 4,
                   }}
                 >
                   <CartesianGrid vertical={false} />
@@ -417,47 +445,55 @@ export default function AdminDashboard() {
                     axisLine={false}
                     tickMargin={8}
                   />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                  />
                   <ChartTooltip
                     cursor={false}
-                    content={<ChartTooltipContent indicator="line" />}
+                    content={<ChartTooltipContent indicator="dashed" />}
                   />
-                  <Line
-                    dataKey="sessions"
-                    type="natural"
-                    stroke="var(--color-sessions)"
-                    strokeWidth={2}
-                    dot={{
-                      fill: "var(--color-sessions)",
-                    }}
-                    activeDot={{
-                      r: 6,
-                    }}
-                  >
-                    <LabelList
-                      position="top"
-                      offset={12}
-                      className="fill-foreground"
-                      fontSize={12}
-                    />
-                  </Line>
-                </LineChart>
+                  <Bar dataKey="totalWork" fill="var(--color-work)" radius={[4, 4, 0, 0]} stackId="time" />
+                  <Bar dataKey="totalBreak" fill="var(--color-break)" radius={[0, 0, 0, 0]} stackId="time" />
+                  <Bar dataKey="totalIdle" fill="var(--color-idle)" radius={[0, 0, 4, 4]} stackId="time" />
+                </BarChart>
               </ChartContainer>
             </CardContent>
+            <CardFooter className="flex-col items-start gap-2 text-sm">
+              <div className="flex gap-2 font-medium leading-none">
+                Time breakdown by work, break, and idle
+              </div>
+              <div className="flex gap-4 text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-green-600" />
+                  Work
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-blue-600" />
+                  Break
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-yellow-600" />
+                  Idle
+                </span>
+              </div>
+            </CardFooter>
           </Card>
 
-          {/* Role Distribution - Donut Chart with Text */}
-          <Card className="lg:col-span-3 flex flex-col">
+          {/* Role Distribution - Donut Chart */}
+          <Card className="lg:col-span-2 flex flex-col">
             <CardHeader className="items-center pb-0">
               <CardTitle className="flex items-center gap-2">
                 <UsersRound className="h-5 w-5" />
-                Team Composition
+                User Roles
               </CardTitle>
-              <CardDescription>Users by role</CardDescription>
+              <CardDescription>Distribution by role</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 pb-0">
               <ChartContainer
                 config={roleChartConfig}
-                className="mx-auto aspect-square max-h-[220px]"
+                className="mx-auto aspect-square max-h-[250px]"
               >
                 <PieChart>
                   <ChartTooltip
@@ -471,9 +507,9 @@ export default function AdminDashboard() {
                     }))}
                     dataKey="value"
                     nameKey="name"
-                    innerRadius={45}
-                    outerRadius={80}
-                    strokeWidth={4}
+                    innerRadius={50}
+                    outerRadius={90}
+                    strokeWidth={5}
                   >
                     <Label
                       content={({ viewBox }) => {
@@ -508,7 +544,7 @@ export default function AdminDashboard() {
                 </PieChart>
               </ChartContainer>
             </CardContent>
-            <CardFooter className="flex-col gap-2 text-sm">
+            <CardFooter className="flex-col gap-2 text-sm pt-4">
               <div className="flex flex-wrap justify-center gap-3 text-muted-foreground leading-none">
                 {(stats?.charts?.roleDistribution || []).map((entry) => (
                   <span key={entry.name} className="flex items-center gap-1">
@@ -524,228 +560,70 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Second Row - Time Trends & Team Composition */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          {/* Time Trends Chart */}
-          <Card className="lg:col-span-4">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Timer className="h-5 w-5" />
-                Time Trends
-              </CardTitle>
-              <CardDescription>Work, break, and idle time over the last 7 days</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer
-                config={{
-                  work: { label: "Work", color: "#10b981" },
-                  break: { label: "Break", color: "#3b82f6" },
-                  idle: { label: "Idle", color: "#f59e0b" },
-                }}
-                className="h-[220px] w-full"
-              >
-                <LineChart
-                  accessibilityLayer
-                  data={stats?.charts?.dailyWorkData || []}
-                  margin={{
-                    left: 12,
-                    right: 12,
-                  }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="day"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    minTickGap={32}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line
-                    dataKey="work"
-                    type="monotone"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    dataKey="break"
-                    type="monotone"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    dataKey="idle"
-                    type="monotone"
-                    stroke="#f59e0b"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-
-          {/* Team Composition Donut */}
-          <Card className="lg:col-span-3 flex flex-col">
-            <CardHeader className="items-center pb-0">
-              <CardTitle className="flex items-center gap-2">
-                <UsersRound className="h-5 w-5" />
-                Teams Overview
-              </CardTitle>
-              <CardDescription>Members per team</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 pb-0">
-              <ChartContainer
-                config={{
-                  members: { label: "Members", color: "hsl(var(--chart-1))" },
-                }}
-                className="mx-auto aspect-square max-h-[220px]"
-              >
-                <PieChart>
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent hideLabel className="w-[150px]" />}
-
-                  />
-                  
-                  <Pie
-                    data={stats?.charts?.teamComposition || []}
-                    dataKey="memberCount"
-                    nameKey="name"
-                    innerRadius={45}
-                    outerRadius={80}
-                    strokeWidth={4}
-                  >
-                    {(stats?.charts?.teamComposition || []).map((entry, index) => {
-                      const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
-                      return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
-                    })}
-                    <Label
-                      content={({ viewBox }) => {
-                        if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                          const totalMembers = (stats?.charts?.teamComposition || []).reduce(
-                            (acc, curr) => acc + curr.memberCount,
-                            0
-                          );
-                          return (
-                            <text
-                              x={viewBox.cx}
-                              y={viewBox.cy}
-                              textAnchor="middle"
-                              dominantBaseline="middle"
-                            >
-                              <tspan
-                                x={viewBox.cx}
-                                y={viewBox.cy}
-                                className="fill-foreground text-2xl font-bold"
-                              >
-                                {totalMembers}
-                              </tspan>
-                              <tspan
-                                x={viewBox.cx}
-                                y={(viewBox.cy || 0) + 24}
-                                className="fill-muted-foreground"
-                              >
-                                Total
-                              </tspan>
-                            </text>
-                          )
-                        }
-                      }}
-                    />
-                  </Pie>
-                </PieChart>
-              </ChartContainer>
-            </CardContent>
-            <CardFooter className="flex-col gap-2 text-sm">
-              <div className="flex flex-wrap justify-center gap-3 text-muted-foreground leading-none">
-                {(stats?.charts?.teamComposition || []).map((entry) => (
-                  <span key={entry.name} className="flex items-center gap-1">
-                    <span 
-                      className="h-2 w-2 rounded-full" 
-                      style={{ backgroundColor: `var(--color-${entry.name})` }}
-                    />
-                    {entry.name}: {entry.memberCount}
-                  </span>
-                ))}
-              </div>
-            </CardFooter>
-          </Card>
-        </div>
-
-        {/* Recent Sessions Table */}
+        {/* Recent Activity Table */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5" />
-              Recent Activity
+              Recent User Activity
             </CardTitle>
-            <CardDescription>Latest work sessions across all users</CardDescription>
+            <CardDescription>Daily activity summary for users</CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>User</TableHead>
-                  <TableHead>Started</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Work Time</TableHead>
+                  <TableHead>Break Time</TableHead>
+                  <TableHead>Idle Time</TableHead>
+                  <TableHead>Sessions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {stats?.recentSessions.map((session) => {
-                  const duration = session.endedAt 
-                    ? new Date(session.endedAt).getTime() - new Date(session.startedAt).getTime()
-                    : Date.now() - new Date(session.startedAt).getTime();
-                  
-                  return (
-                    <TableRow key={session.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
-                            {(session.userName || session.userId || '?')[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-medium">{session.userName || 'Unknown'}</div>
-                            <div className="text-sm text-muted-foreground">{session.userId}</div>
-                          </div>
+                {stats?.recentActivity?.map((activity) => (
+                  <TableRow key={activity.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
+                          {(activity.userName || activity.userId || '?')[0].toUpperCase()}
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-sm">{formatTimeAgo(session.startedAt)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(session.startedAt).toLocaleTimeString()}
+                        <div>
+                          <div className="font-medium">{activity.userName || 'Unknown'}</div>
+                          <div className="text-sm text-muted-foreground">{activity.userId}</div>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono text-sm">
-                          {formatDuration(duration)}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant="outline"
-                          className={session.isActive ? 'bg-green-100/5 text-green-700 hover:bg-green-100/15' : 'bg-muted text-muted-foreground'}
-                        >
-                          {session.isActive ? (
-                            <span className="flex items-center gap-1">
-                              <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                              Active
-                            </span>
-                          ) : (
-                            'Completed'
-                          )}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {(!stats?.recentSessions || stats.recentSessions.length === 0) && (
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">{new Date(activity.date).toLocaleDateString()}</div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-sm text-green-600">
+                        {formatDuration(activity.workTimeMs)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-sm text-blue-600">
+                        {formatDuration(activity.breakTimeMs)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-sm text-yellow-600">
+                        {formatDuration(activity.idleTimeMs)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {activity.sessionsCount}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {(!stats?.recentActivity || stats.recentActivity.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                      No recent sessions
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      No recent activity
                     </TableCell>
                   </TableRow>
                 )}

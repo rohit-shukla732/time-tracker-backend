@@ -30,6 +30,8 @@ interface FloorEmployee {
   lastActivity: string | null;
   currentApp: string | null;
   sessionId: string | null;
+  sessionStartedAt: string | null;
+  sessionEndedAt: string | null;
   onBreakSince: string | null;
   idleSince: string | null;
   workingDuration: number | null;
@@ -151,6 +153,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       let onBreakSince: string | null = null;
       let idleSince: string | null = null;
       let workingDuration: number | null = null;
+      let sessionStartedAt: string | null = null;
+      let sessionEndedAt: string | null = null;
 
       // Check if user has recent heartbeat
       const isOnline = lastHeartbeat && (now - lastHeartbeat <= HEARTBEAT_TIMEOUT_MS);
@@ -164,7 +168,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       
       if (hasRecentSessionState && sessionState.currentState?.clockedIn) {
         const state = sessionState.currentState;
-        sessionId = state.sessionId || null;
+        // sessionId is stored at the top level of sessionState, not inside currentState
+        sessionId = sessionState.sessionId || state.sessionId || null;
         currentApp = state.currentApp || null;
 
         if (state.onBreak || state.autoBreak) {
@@ -179,12 +184,40 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
         // Calculate working duration from sessions today
         const userSessions = sessionMap.get(user.id) || [];
-        workingDuration = 0;
-        userSessions.forEach(session => {
-          const start = session.startedAt.getTime();
-          const end = session.endedAt ? session.endedAt.getTime() : now;
-          workingDuration! += (end - start);
-        });
+        if (userSessions.length > 0) {
+          workingDuration = 0;
+          const sessionStarts: Date[] = [];
+          const sessionEnds: Date[] = [];
+          let hasActiveSession = false;
+          
+          userSessions.forEach(session => {
+            const start = session.startedAt.getTime();
+            const end = session.endedAt ? session.endedAt.getTime() : now;
+            workingDuration! += (end - start);
+            
+            // Track session start
+            sessionStarts.push(session.startedAt);
+            
+            // Track session end
+            if (session.endedAt) {
+              sessionEnds.push(session.endedAt);
+            } else {
+              hasActiveSession = true;
+            }
+          });
+          
+          // Set session start time (earliest)
+          if (sessionStarts.length > 0) {
+            const earliest = sessionStarts.reduce((min, date) => date < min ? date : min);
+            sessionStartedAt = earliest.toISOString();
+          }
+          
+          // Set session end time (latest, only if all sessions have ended)
+          if (sessionEnds.length > 0 && !hasActiveSession) {
+            const latest = sessionEnds.reduce((max, date) => date > max ? date : max);
+            sessionEndedAt = latest.toISOString();
+          }
+        }
       } else if (isOnline) {
         // Has heartbeat but no active session = idle/offline
         status = 'offline';
@@ -204,6 +237,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         lastActivity,
         currentApp,
         sessionId,
+        sessionStartedAt,
+        sessionEndedAt,
         onBreakSince,
         idleSince,
         workingDuration

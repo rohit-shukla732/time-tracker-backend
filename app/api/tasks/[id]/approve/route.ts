@@ -38,11 +38,20 @@ export async function POST(
       );
     }
 
-    if (user.role === "MANAGER" && task.departmentId && user.departmentId && task.departmentId !== user.departmentId) {
-      return NextResponse.json(
-        { error: "You can only approve tasks in your department" },
-        { status: 403 }
-      );
+    if (user.role === "MANAGER" && task.departmentId) {
+      // Check if manager manages this task's department
+      const department = await prisma.department.findFirst({
+        where: {
+          id: task.departmentId,
+          managerId: user.id
+        }
+      });
+      if (!department) {
+        return NextResponse.json(
+          { error: "You can only approve tasks in your department" },
+          { status: 403 }
+        );
+      }
     }
 
     if (task.status !== "PENDING_APPROVAL") {

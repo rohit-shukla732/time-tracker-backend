@@ -85,9 +85,22 @@ export async function POST(request: NextRequest) {
 
   try {
     const auth = requireAuth(request);
-    if (!auth || "error" in auth || !auth.user) {
-      logger.warn("POST /api/session/summary - Unauthorized");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!auth.user) {
+      const ip =
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        request.headers.get("x-real-ip") ||
+        "unknown";
+      const decodedUserId =
+        auth.decoded?.userId || auth.decoded?.id || auth.decoded?.sub || null;
+      logger.warn("POST /api/session/summary - Unauthorized", {
+        reason: auth.error,
+        ip,
+        decodedUserId,
+      });
+      return NextResponse.json(
+        { error: "Unauthorized", code: auth.expired ? "TOKEN_EXPIRED" : "AUTH_FAILED" },
+        { status: 401 }
+      );
     }
 
     const body: SummaryPayload = await request.json();
@@ -259,9 +272,22 @@ export async function GET(request: NextRequest) {
 
   try {
     const auth = requireAuth(request);
-    if (!auth || "error" in auth || !auth.user) {
-      logger.warn("GET /api/session/summary - Unauthorized");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!auth.user) {
+      const ip =
+        request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        request.headers.get("x-real-ip") ||
+        "unknown";
+      const decodedUserId =
+        auth.decoded?.userId || auth.decoded?.id || auth.decoded?.sub || null;
+      logger.warn("GET /api/session/summary - Unauthorized", {
+        reason: auth.error,
+        ip,
+        decodedUserId,
+      });
+      return NextResponse.json(
+        { error: "Unauthorized", code: auth.expired ? "TOKEN_EXPIRED" : "AUTH_FAILED" },
+        { status: 401 }
+      );
     }
 
     const url = new URL(request.url);

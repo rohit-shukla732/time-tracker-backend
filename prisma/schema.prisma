@@ -4,6 +4,681 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id             String           @id @default(uuid())
+  name           String
+  code           String?          @unique
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  branches       Branch[]
+  employmentInfo EmploymentInfo[]
+}
+
+model PersonalInfo {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  firstName   String
+  middleName  String?
+  lastName    String
+  pronoun     Pronoun?
+  gender      Gender?
+  dateOfBirth DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ContactInfo {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  email                String   @unique
+  alternateEmail       String?
+  phoneNumber          String?
+  alternatePhoneNumber String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+}
+
+model AddressInfo {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  residentialAddress String?
+  permanentAddress   String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FamilyInfo {
+  id            String         @id @default(uuid())
+  userId        String         @unique
+  maritalStatus MaritalStatus?
+  fatherName    String?
+  spouseName    String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GovernmentID {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  panCardNumber    String?  @unique
+  aadharCardNumber String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([panCardNumber])
+  @@index([aadharCardNumber])
+}
+
+model EmploymentInfo {
+  id                String         @id @default(uuid())
+  userId            String         @unique
+  companyId         String?
+  branchId          String?
+  departmentId      String?
+  designationId     String?
+  jobType           JobType?
+  status            EmployeeStatus @default(ACTIVE)
+  joiningDate       DateTime?
+  confirmationDate  DateTime?
+  probationEndDate  DateTime?
+  lastIncrementDate DateTime?
+  resignationDate   DateTime?
+  lastWorkingDate   DateTime?
+  retiringDate      DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  branch            Branch?        @relation(fields: [branchId], references: [id])
+  company           Company?       @relation(fields: [companyId], references: [id])
+  department        Department?    @relation(fields: [departmentId], references: [id])
+  designation       Designation?   @relation(fields: [designationId], references: [id])
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([branchId])
+  @@index([departmentId])
+  @@index([designationId])
+  @@index([status])
+}
+
+model BankDetails {
+  id              String        @id @default(uuid())
+  userId          String        @unique
+  bankName        String
+  accountNumber   String        @unique
+  accountType     AccountType?
+  accountBase     AccountBase?
+  transferType    TransferType?
+  beneficiaryName String
+  ifscCode        String
+  branchName      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([accountNumber])
+  @@index([ifscCode])
+}
+
+model Branch {
+  id             String           @id @default(uuid())
+  name           String
+  code           String?          @unique
+  address        String?
+  city           String?
+  state          String?
+  country        String?
+  pincode        String?
+  companyId      String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  company        Company          @relation(fields: [companyId], references: [id])
+  employmentInfo EmploymentInfo[]
+
+  @@unique([companyId, name])
+}
+
+model Department {
+  id             String           @id @default(uuid())
+  name           String           @unique
+  code           String?          @unique
+  description    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  managerId      String?          @unique
+  manager        User?            @relation("DepartmentManager", fields: [managerId], references: [id])
+  employmentInfo EmploymentInfo[]
+  projects       Project[]
+  tasks          Task[]
+}
+
+model Designation {
+  id             String           @id @default(uuid())
+  title          String           @unique
+  code           String?          @unique
+  level          Int?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  employmentInfo EmploymentInfo[]
+}
+
+model User {
+  id                 String                @id
+  name               String
+  email              String                @unique
+  passwordHash       String
+  role               Role                  @default(EMPLOYEE)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  lateThresholdMins  Int?                  @default(15)
+  shiftStartTime     String?
+  addressInfo        AddressInfo?
+  appSwitchEvents    AppSwitchEvent[]
+  assignedAssetsBy   AssetAssignment[]     @relation("AssetAssigner")
+  assignedAssets     AssetAssignment[]     @relation("AssetAssignee")
+  bankDetails        BankDetails?
+  contactInfo        ContactInfo?
+  managedDepartments Department?           @relation("DepartmentManager")
+  deviceControl      DeviceControl?
+  employmentInfo     EmploymentInfo?
+  events             Event[]
+  familyInfo         FamilyInfo?
+  governmentID       GovernmentID?
+  leaveBalance       LeaveBalance?
+  approvedLeaves     LeaveRequest[]        @relation("LeaveApprover")
+  leaveRequests      LeaveRequest[]        @relation("LeaveRequestor")
+  notifications      Notification[]
+  personalInfo       PersonalInfo?
+  createdProjects    Project[]             @relation("ProjectCreator")
+  refreshTokens      RefreshToken[]
+  sessions           Session[]
+  appUsage           SessionAppUsage[]
+  sessionSummaries   SessionSummary[]
+  websiteUsage       SessionWebsiteUsage[]
+  approvedTasks      Task[]                @relation("TaskApprover")
+  assignedTasks      Task[]                @relation("TaskAssignee")
+  createdTasks       Task[]                @relation("TaskCreator")
+  taskSessions       TaskSession[]
+  assignedTickets    Ticket[]              @relation("TicketAssignee")
+  createdTickets     Ticket[]              @relation("TicketCreator")
+  ticketComments     TicketComment[]
+  websiteVisits      WebsiteVisit[]
+  lateComingRecords  LateComingRecord[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  otp       String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
+model Session {
+  id            String                @id @default(uuid())
+  sessionId     String                @unique
+  userId        String?
+  startedAt     DateTime
+  endedAt       DateTime?
+  autoClockOut  Boolean               @default(false)
+  autoReason    String?
+  rawStartEvent Json?
+  rawEndEvent   Json?
+  createdAt     DateTime              @default(now())
+  appSwitch     AppSwitchEvent[]
+  events        Event[]
+  user          User?                 @relation(fields: [userId], references: [id])
+  appUsage      SessionAppUsage[]
+  summary       SessionSummary?
+  websiteUsage  SessionWebsiteUsage[]
+  taskSessions  TaskSession[]
+  websiteVisits WebsiteVisit[]
+}
+
+model SessionSummary {
+  id                String   @id @default(uuid())
+  sessionId         String   @unique
+  userId            String?
+  sessionDurationMs BigInt
+  totalBreakMs      BigInt
+  totalIdleMs       BigInt
+  workTimeMs        BigInt
+  createdAt         DateTime @default(now())
+  session           Session  @relation(fields: [sessionId], references: [sessionId])
+  user              User?    @relation(fields: [userId], references: [id])
+}
+
+model SessionAppUsage {
+  id        String   @id @default(uuid())
+  sessionId String
+  userId    String?
+  appName   String
+  timeMs    BigInt
+  createdAt DateTime @default(now())
+  session   Session  @relation(fields: [sessionId], references: [sessionId])
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model Event {
+  id         String   @id @default(uuid())
+  sessionId  String
+  userId     String?
+  type       String
+  reason     String?
+  durationMs BigInt?
+  timestamp  DateTime
+  epochMs    BigInt
+  payload    Json
+  createdAt  DateTime @default(now())
+  session    Session  @relation(fields: [sessionId], references: [sessionId])
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+model AppSwitchEvent {
+  id         String   @id @default(uuid())
+  sessionId  String
+  userId     String?
+  fromApp    String?
+  toApp      String?
+  durationMs BigInt?
+  timestamp  DateTime
+  epochMs    BigInt
+  payload    Json
+  createdAt  DateTime @default(now())
+  session    Session  @relation(fields: [sessionId], references: [sessionId])
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+model WebsiteVisit {
+  id          String   @id @default(uuid())
+  sessionId   String
+  userId      String?
+  fromWebsite String?
+  toWebsite   String?
+  durationMs  BigInt?
+  browser     String?
+  timestamp   DateTime
+  epochMs     BigInt?
+  payload     Json?
+  createdAt   DateTime @default(now())
+  session     Session  @relation(fields: [sessionId], references: [sessionId])
+  user        User?    @relation(fields: [userId], references: [id])
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([toWebsite])
+  @@index([browser])
+}
+
+model SessionWebsiteUsage {
+  id        String   @id @default(uuid())
+  sessionId String
+  userId    String?
+  website   String
+  browser   String?
+  timeMs    BigInt
+  createdAt DateTime @default(now())
+  session   Session  @relation(fields: [sessionId], references: [sessionId])
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([sessionId])
+  @@index([userId])
+}
+
+model DeviceControl {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  forceStop   Boolean   @default(false)
+  forceStart  Boolean   @default(false)
+  reason      String?
+  stoppedBy   String?
+  stoppedAt   DateTime?
+  startedBy   String?
+  startedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model Ticket {
+  id           String                @id @default(uuid())
+  title        String
+  description  String
+  priority     TicketPriority        @default(MEDIUM)
+  status       TicketStatus          @default(OPEN)
+  category     TicketCategory        @default(IT_SUPPORT)
+  subcategory  ITSupportSubcategory?
+  createdBy    String
+  assignedTo   String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  resolvedAt   DateTime?
+  ticketNumber Int                   @unique @default(autoincrement())
+  assignee     User?                 @relation("TicketAssignee", fields: [assignedTo], references: [id])
+  creator      User                  @relation("TicketCreator", fields: [createdBy], references: [id])
+  comments     TicketComment[]
+  screenshots  TicketScreenshot[]
+
+  @@index([createdBy])
+  @@index([assignedTo])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([ticketNumber])
+}
+
+model TicketComment {
+  id         String   @id @default(uuid())
+  ticketId   String
+  userId     String
+  content    String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@index([userId])
+}
+
+model TicketScreenshot {
+  id        String   @id @default(uuid())
+  ticketId  String
+  filename  String
+  url       String
+  size      Int
+  mimeType  String
+  createdAt DateTime @default(now())
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+model Project {
+  id           String     @id @default(uuid())
+  name         String
+  description  String?
+  createdById  String
+  startDate    DateTime?
+  endDate      DateTime?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  departmentId String
+  createdBy    User       @relation("ProjectCreator", fields: [createdById], references: [id])
+  department   Department @relation(fields: [departmentId], references: [id])
+  tasks        Task[]
+
+  @@index([departmentId])
+  @@index([createdById])
+}
+
+model Task {
+  id             String        @id @default(uuid())
+  title          String
+  description    String?
+  projectId      String?
+  assignedTo     String?
+  createdById    String
+  approvedById   String?
+  approvedAt     DateTime?
+  status         TaskStatus    @default(PENDING_APPROVAL)
+  priority       TaskPriority  @default(MEDIUM)
+  estimatedHours Float?
+  dueDate        DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  departmentId   String?
+  approvedBy     User?         @relation("TaskApprover", fields: [approvedById], references: [id])
+  assignee       User?         @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  createdBy      User          @relation("TaskCreator", fields: [createdById], references: [id])
+  department     Department?   @relation(fields: [departmentId], references: [id])
+  project        Project?      @relation(fields: [projectId], references: [id])
+  taskSessions   TaskSession[]
+
+  @@index([projectId])
+  @@index([departmentId])
+  @@index([assignedTo])
+  @@index([createdById])
+  @@index([status])
+}
+
+model TaskSession {
+  id         String    @id @default(uuid())
+  taskId     String
+  sessionId  String
+  userId     String
+  startedAt  DateTime
+  endedAt    DateTime?
+  durationMs BigInt?
+  createdAt  DateTime  @default(now())
+  session    Session   @relation(fields: [sessionId], references: [sessionId])
+  task       Task      @relation(fields: [taskId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@index([sessionId])
+  @@index([userId])
+}
+
+model LeaveRequest {
+  id              String      @id @default(uuid())
+  userId          String
+  type            LeaveType
+  status          LeaveStatus @default(PENDING)
+  startDate       DateTime
+  endDate         DateTime
+  days            Float
+  reason          String
+  attachment      String?
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  approvedBy      User?       @relation("LeaveApprover", fields: [approvedById], references: [id])
+  user            User        @relation("LeaveRequestor", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model LeaveBalance {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  sickLeave        Float    @default(0)
+  casualLeave      Float    @default(0)
+  annualLeave      Float    @default(0)
+  maternityLeave   Float    @default(0)
+  paternityLeave   Float    @default(0)
+  compensatoryOff  Float    @default(0)
+  sickUsed         Float    @default(0)
+  casualUsed       Float    @default(0)
+  annualUsed       Float    @default(0)
+  maternityUsed    Float    @default(0)
+  paternityUsed    Float    @default(0)
+  compensatoryUsed Float    @default(0)
+  year             Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, year])
+  @@index([userId])
+  @@index([year])
+}
+
+model LeaveSettings {
+  id                   String   @id @default(uuid())
+  monthlySickLeave     Float    @default(0)
+  monthlyCasualLeave   Float    @default(0)
+  monthlyAnnualLeave   Float    @default(0)
+  allowMonthlyRollover Boolean  @default(false)
+  allowYearlyRollover  Boolean  @default(false)
+  maxMonthlyRollover   Float?
+  maxYearlyRollover    Float?
+  annualSickLeave      Float    @default(0)
+  annualCasualLeave    Float    @default(0)
+  annualAnnualLeave    Float    @default(0)
+  annualMaternityLeave Float    @default(0)
+  annualPaternityLeave Float    @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  lateComingCredits    Int      @default(0)
+  lateThresholdMinutes Int      @default(15)
+
+  @@map("leave_settings")
+}
+
+model LateComingRecord {
+  id          String   @id @default(uuid())
+  userId      String
+  year        Int
+  month       Int
+  creditsUsed Int      @default(0)
+  lateCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, year, month])
+  @@index([userId])
+  @@index([year, month])
+  @@map("late_coming_records")
+}
+
+model HRSettings {
+  id               String   @id @default(uuid())
+  maxServiceMonths Int      @default(720)
+  retirementAge    Int?
+  probationMonths  Int      @default(6)
+  noticePeriodDays Int      @default(30)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("hr_settings")
+}
+
+model Asset {
+  id                 String             @id @default(uuid())
+  assetType          AssetType
+  category           AssetCategory
+  name               String
+  description        String?
+  serialNumber       String?            @unique
+  model              String?
+  manufacturer       String?
+  purchaseDate       DateTime?
+  warrantyExpiry     DateTime?
+  purchaseCost       Float?
+  currentValue       Float?
+  status             AssetStatus        @default(AVAILABLE)
+  location           String?
+  notes              String?
+  // Laptop peripherals
+  monitorName        String?
+  monitorCount       Int?
+  keyboardName       String?
+  mouseName          String?
+  headphoneName      String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  assignments        AssetAssignment[]
+  maintenanceRecords AssetMaintenance[]
+
+  @@index([assetType])
+  @@index([category])
+  @@index([status])
+  @@index([serialNumber])
+}
+
+model AssetAssignment {
+  id                 String           @id @default(uuid())
+  assetId            String
+  userId             String
+  assignedBy         String
+  assignedDate       DateTime         @default(now())
+  returnedDate       DateTime?
+  expectedReturnDate DateTime?
+  status             AssignmentStatus @default(ACTIVE)
+  condition          AssetCondition?
+  notes              String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  asset              Asset            @relation(fields: [assetId], references: [id])
+  assignedByUser     User             @relation("AssetAssigner", fields: [assignedBy], references: [id])
+  user               User             @relation("AssetAssignee", fields: [userId], references: [id])
+
+  @@index([assetId])
+  @@index([userId])
+  @@index([status])
+}
+
+model AssetMaintenance {
+  id              String            @id @default(uuid())
+  assetId         String
+  maintenanceType MaintenanceType
+  description     String
+  scheduledDate   DateTime
+  completedDate   DateTime?
+  cost            Float?
+  performedBy     String?
+  status          MaintenanceStatus @default(SCHEDULED)
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  asset           Asset             @relation(fields: [assetId], references: [id])
+
+  @@index([assetId])
+  @@index([status])
+  @@index([scheduledDate])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  data      Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([createdAt])
 }
 
 enum Role {
@@ -74,6 +749,7 @@ enum AccountBase {
   Primary
   Secondary
 }
+
 enum TicketPriority {
   LOW
   MEDIUM
@@ -136,694 +812,72 @@ enum LeaveStatus {
   CANCELLED
 }
 
-// HR Management Models
-model Company {
-  id             String           @id @default(uuid())
-  name           String
-  code           String?          @unique
-  branches       Branch[]
-  employmentInfo EmploymentInfo[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+enum AssetType {
+  USER_SIDE
+  IT_INFRASTRUCTURE
 }
 
-// Personal Information Table
-model PersonalInfo {
-  id          String    @id @default(uuid())
-  userId      String    @unique
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  firstName   String
-  middleName  String?
-  lastName    String
-  pronoun     Pronoun?
-  gender      Gender?
-  dateOfBirth DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+enum AssetCategory {
+  LAPTOP
+  KEYBOARD
+  MOUSE
+  HEADSET
+  MONITOR
+  SWITCH
+  FIREWALL
+  ACCESS_POINT
+  BIOMETRIC
+  TELEPHONE_MATRIX
+  TELEPHONE_HANDSET
+  CCTV_CAMERA
+  NVR
+  INTERNET_LINE
 }
 
-// Contact Information Table
-model ContactInfo {
-  id                   String   @id @default(uuid())
-  userId               String   @unique
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  email                String   @unique
-  alternateEmail       String?
-  phoneNumber          String?
-  alternatePhoneNumber String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  
-  @@index([email])
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  IN_MAINTENANCE
+  RETIRED
+  DAMAGED
+  LOST
 }
 
-// Address Information Table
-model AddressInfo {
-  id                 String   @id @default(uuid())
-  userId             String   @unique
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  residentialAddress String?
-  permanentAddress   String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+enum AssignmentStatus {
+  ACTIVE
+  RETURNED
+  OVERDUE
 }
 
-// Family Information Table
-model FamilyInfo {
-  id            String         @id @default(uuid())
-  userId        String         @unique
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  maritalStatus MaritalStatus?
-  fatherName    String?
-  spouseName    String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+enum AssetCondition {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  DAMAGED
 }
 
-// Government ID Information Table
-model GovernmentID {
-  id               String   @id @default(uuid())
-  userId           String   @unique
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  panCardNumber    String?  @unique
-  aadharCardNumber String?  @unique
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
-  @@index([panCardNumber])
-  @@index([aadharCardNumber])
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  INSPECTION
+  UPGRADE
 }
 
-// Employment Information Table
-model EmploymentInfo {
-  id                  String          @id @default(uuid())
-  userId              String          @unique
-  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  companyId           String?
-  company             Company?        @relation(fields: [companyId], references: [id])
-  branchId            String?
-  branch              Branch?         @relation(fields: [branchId], references: [id])
-  departmentId        String?
-  department          Department?     @relation(fields: [departmentId], references: [id])
-  designationId       String?
-  designation         Designation?    @relation(fields: [designationId], references: [id])
-  jobType             JobType?
-  status              EmployeeStatus  @default(ACTIVE)
-  joiningDate         DateTime?
-  confirmationDate    DateTime?       // Same as joining or after probation
-  probationEndDate    DateTime?
-  lastIncrementDate   DateTime?
-  resignationDate     DateTime?
-  lastWorkingDate     DateTime?
-  retiringDate        DateTime?       // Derived based on service months
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  
-  @@index([companyId])
-  @@index([branchId])
-  @@index([departmentId])
-  @@index([designationId])
-  @@index([status])
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
 }
 
-// Bank Details Table
-model BankDetails {
-  id              String        @id @default(uuid())
-  userId          String        @unique
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bankName        String
-  accountNumber   String        @unique
-  accountType     AccountType?
-  accountBase     AccountBase?       // Primary or Secondary
-  transferType    TransferType?
-  beneficiaryName String        // Name as per bank account
-  ifscCode        String
-  branchName      String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
-  @@index([accountNumber])
-  @@index([ifscCode])
-}
-
-model Branch {
-  id             String           @id @default(uuid())
-  name           String
-  code           String?          @unique
-  address        String?
-  city           String?
-  state          String?
-  country        String?
-  pincode        String?
-  companyId      String
-  company        Company          @relation(fields: [companyId], references: [id])
-  employmentInfo EmploymentInfo[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  
-  @@unique([companyId, name])
-}
-
-model Department {
-  id             String           @id @default(uuid())
-  name           String           @unique
-  code           String?          @unique
-  description    String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  
-  // Department manager
-  managerId      String?          @unique
-  manager        User?            @relation("DepartmentManager", fields: [managerId], references: [id])
-  
-  // Department members (via EmploymentInfo)
-  employmentInfo EmploymentInfo[]
-  
-  // Task management (previously team-based)
-  projects       Project[]
-  tasks          Task[]
-}
-
-model Designation {
-  id             String           @id @default(uuid())
-  title          String           @unique
-  code           String?          @unique
-  level          Int?             // Hierarchy level
-  employmentInfo EmploymentInfo[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-}
-
-model User {
-  id           String          @id
-  
-  // Core Identity (for display only - detailed info in PersonalInfo)
-  name         String          // Full name for quick display
-  email        String          @unique  // For authentication
-  
-  // Authentication
-  passwordHash String
-  role         Role            @default(EMPLOYEE)
-  
-  // System fields
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  
-  // Normalized Relations (One-to-One)
-  personalInfo     PersonalInfo?
-  contactInfo      ContactInfo?
-  addressInfo      AddressInfo?
-  familyInfo       FamilyInfo?
-  governmentID     GovernmentID?
-  employmentInfo   EmploymentInfo?
-  bankDetails      BankDetails?
-  
-  // Department management (if user is a manager)
-  managedDepartment Department?  @relation("DepartmentManager")
-
-  refreshTokens     RefreshToken[]
-  sessions          Session[]
-  sessionSummaries  SessionSummary[]
-  appUsage          SessionAppUsage[]
-  websiteUsage      SessionWebsiteUsage[]
-  websiteVisits     WebsiteVisit[]
-  events            Event[]
-  appSwitchEvents   AppSwitchEvent[]
-  deviceControl     DeviceControl?
-  
-  // Ticketing system
-  createdTickets    Ticket[]         @relation("TicketCreator")
-  assignedTickets   Ticket[]         @relation("TicketAssignee")
-  ticketComments    TicketComment[]
-  
-  // Task management
-  createdProjects   Project[]        @relation("ProjectCreator")
-  createdTasks      Task[]           @relation("TaskCreator")
-  assignedTasks     Task[]           @relation("TaskAssignee")
-  approvedTasks     Task[]           @relation("TaskApprover")
-  taskSessions      TaskSession[]
-  
-  // Leave management
-  leaveRequests     LeaveRequest[]   @relation("LeaveRequestor")
-  approvedLeaves    LeaveRequest[]   @relation("LeaveApprover")
-  leaveBalance      LeaveBalance?
-  lateComingRecords LateComingRecord[]
-  
-  @@index([email])
-  @@index([role])
-}
-
-model RefreshToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-}
-
-model PasswordResetToken {
-  id        String   @id @default(uuid())
-  email     String
-  token     String   @unique
-  otp       String
-  expiresAt DateTime
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  
-  @@index([email])
-  @@index([token])
-}
-
-model Session {
-  id          String   @id @default(uuid())
-  sessionId   String   @unique
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id])
-
-  startedAt   DateTime
-  endedAt     DateTime?
-  autoClockOut Boolean @default(false)
-  autoReason  String?
-  rawStartEvent Json?
-  rawEndEvent   Json?
-
-  createdAt DateTime @default(now())
-
-  summary          SessionSummary?
-  appUsage         SessionAppUsage[]
-  websiteUsage     SessionWebsiteUsage[]
-  websiteVisits    WebsiteVisit[]
-  events           Event[]
-  appSwitch        AppSwitchEvent[]
-  taskSessions     TaskSession[]
-}
-
-model SessionSummary {
-  id                String   @id @default(uuid())
-  sessionId         String   @unique
-  session           Session  @relation(fields: [sessionId], references: [sessionId])
-
-  userId            String?
-  user              User?    @relation(fields: [userId], references: [id])
-
-  sessionDurationMs BigInt
-  totalBreakMs      BigInt
-  totalIdleMs       BigInt
-  workTimeMs        BigInt
-
-  createdAt         DateTime @default(now())
-}
-
-model SessionAppUsage {
-  id         String   @id @default(uuid())
-  sessionId  String
-  session    Session  @relation(fields: [sessionId], references: [sessionId])
-
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
-
-  appName    String
-  timeMs     BigInt
-
-  createdAt  DateTime @default(now())
-}
-
-model Event {
-  id         String   @id @default(uuid())
-  sessionId  String
-  session    Session  @relation(fields: [sessionId], references: [sessionId])
-
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
-
-  type       String
-  reason     String?
-  durationMs BigInt?
-
-  timestamp  DateTime
-  epochMs    BigInt
-
-  payload    Json
-  createdAt  DateTime @default(now())
-}
-
-model AppSwitchEvent {
-  id         String   @id @default(uuid())
-  sessionId  String
-  session    Session @relation(fields: [sessionId], references: [sessionId])
-
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
-
-  fromApp    String?
-  toApp      String?
-  durationMs BigInt?
-
-  timestamp  DateTime
-  epochMs    BigInt
-
-  payload    Json
-  createdAt  DateTime @default(now())
-}
-
-model WebsiteVisit {
-  id           String   @id @default(uuid())
-  sessionId    String
-  session      Session  @relation(fields: [sessionId], references: [sessionId])
-
-  userId       String?
-  user         User?    @relation(fields: [userId], references: [id])
-
-  fromWebsite  String?
-  toWebsite    String?
-  durationMs   BigInt?
-  browser      String?
-
-  timestamp    DateTime
-  epochMs      BigInt?
-
-  payload      Json?
-  createdAt    DateTime @default(now())
-  
-  @@index([sessionId])
-  @@index([userId])
-  @@index([toWebsite])
-  @@index([browser])
-}
-
-model SessionWebsiteUsage {
-  id         String   @id @default(uuid())
-  sessionId  String
-  session    Session  @relation(fields: [sessionId], references: [sessionId])
-
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
-
-  website    String
-  browser    String?
-  timeMs     BigInt
-
-  createdAt  DateTime @default(now())
-  
-  @@index([sessionId])
-  @@index([userId])
-}
-
-// Device control for remote force-stop/resume
-model DeviceControl {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id])
-  
-  forceStop   Boolean  @default(false)
-  reason      String?
-  stoppedBy   String?  // Admin ID who initiated the stop
-  stoppedAt   DateTime?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-// Ticketing System Models
-model Ticket {
-  id           String                 @id @default(uuid())
-  ticketNumber Int                    @unique @default(autoincrement())
-  title        String
-  description  String
-  priority     TicketPriority         @default(MEDIUM)
-  status       TicketStatus           @default(OPEN)
-  category     TicketCategory         @default(IT_SUPPORT)
-  subcategory  ITSupportSubcategory?
-  
-  createdBy    String
-  creator      User                   @relation("TicketCreator", fields: [createdBy], references: [id])
-  
-  assignedTo   String?
-  assignee     User?                  @relation("TicketAssignee", fields: [assignedTo], references: [id])
-  
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  resolvedAt   DateTime?
-  
-  comments     TicketComment[]
-  screenshots  TicketScreenshot[]
-  
-  @@index([createdBy])
-  @@index([assignedTo])
-  @@index([status])
-  @@index([priority])
-  @@index([category])
-  @@index([ticketNumber])
-}
-
-model TicketComment {
-  id        String   @id @default(uuid())
-  ticketId  String
-  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  
-  content   String
-  isInternal Boolean @default(false)
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  @@index([ticketId])
-  @@index([userId])
-}
-
-model TicketScreenshot {
-  id        String   @id @default(uuid())
-  ticketId  String
-  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  
-  filename  String
-  url       String
-  size      Int
-  mimeType  String
-  
-  createdAt DateTime @default(now())
-  
-  @@index([ticketId])
-}
-
-// Task Management Models
-model Project {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  departmentId String
-  department   Department @relation(fields: [departmentId], references: [id])
-  
-  createdById String
-  createdBy   User     @relation("ProjectCreator", fields: [createdById], references: [id])
-  
-  startDate   DateTime?
-  endDate     DateTime?
-  
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  tasks       Task[]
-  
-  @@index([departmentId])
-  @@index([createdById])
-}
-
-model Task {
-  id          String       @id @default(uuid())
-  title       String
-  description String?
-  
-  projectId   String?
-  project     Project?     @relation(fields: [projectId], references: [id])
-  
-  departmentId String?
-  department   Department?  @relation(fields: [departmentId], references: [id])
-  
-  assignedTo  String?
-  assignee    User?        @relation("TaskAssignee", fields: [assignedTo], references: [id])
-  
-  createdById String
-  createdBy   User         @relation("TaskCreator", fields: [createdById], references: [id])
-  
-  approvedById String?
-  approvedBy   User?       @relation("TaskApprover", fields: [approvedById], references: [id])
-  approvedAt   DateTime?
-  
-  status      TaskStatus   @default(PENDING_APPROVAL)
-  priority    TaskPriority @default(MEDIUM)
-  
-  estimatedHours Float?
-  
-  dueDate     DateTime?
-  startedAt   DateTime?
-  completedAt DateTime?
-  
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  
-  taskSessions TaskSession[]
-  
-  @@index([projectId])
-  @@index([departmentId])
-  @@index([assignedTo])
-  @@index([createdById])
-  @@index([status])
-}
-
-model TaskSession {
-  id          String   @id @default(uuid())
-  taskId      String
-  task        Task     @relation(fields: [taskId], references: [id])
-  
-  sessionId   String
-  session     Session  @relation(fields: [sessionId], references: [sessionId])
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  
-  startedAt   DateTime
-  endedAt     DateTime?
-  durationMs  BigInt?
-  
-  createdAt   DateTime @default(now())
-  
-  @@index([taskId])
-  @@index([sessionId])
-  @@index([userId])
-}
-
-model LeaveRequest {
-  id          String      @id @default(uuid())
-  userId      String
-  user        User        @relation("LeaveRequestor", fields: [userId], references: [id])
-  
-  type        LeaveType
-  status      LeaveStatus @default(PENDING)
-  
-  startDate   DateTime
-  endDate     DateTime
-  days        Float       // Support half days (0.5, 1, 1.5, etc.)
-  
-  reason      String
-  attachment  String?     // File path for medical certificates, etc.
-  
-  approvedById String?
-  approvedBy   User?      @relation("LeaveApprover", fields: [approvedById], references: [id])
-  
-  approvedAt   DateTime?
-  rejectedAt   DateTime?
-  rejectionReason String?
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  
-  @@index([userId])
-  @@index([status])
-  @@index([startDate])
-  @@index([endDate])
-}
-
-model LeaveBalance {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id])
-  
-  sickLeave       Float @default(0)      // Annual sick leave quota
-  casualLeave     Float @default(0)      // Annual casual leave quota
-  annualLeave     Float @default(0)      // Annual/vacation leave quota
-  maternityLeave  Float @default(0)     // Maternity leave quota (in days)
-  paternityLeave  Float @default(0)       // Paternity leave quota
-  compensatoryOff Float @default(0)       // Earned comp-offs
-  
-  sickUsed        Float @default(0)
-  casualUsed      Float @default(0)
-  annualUsed      Float @default(0)
-  maternityUsed   Float @default(0)
-  paternityUsed   Float @default(0)
-  compensatoryUsed Float @default(0)
-  
-  year        Int      // Leave balance year
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@unique([userId, year])
-  @@index([userId])
-  @@index([year])
-}
-
-model LeaveSettings {
-  id                    String   @id @default(uuid())
-  
-  // Monthly leave allocation
-  monthlySickLeave      Float    @default(0)  // Sick leave allocated per month
-  monthlyCasualLeave    Float    @default(0)  // Casual leave allocated per month
-  monthlyAnnualLeave    Float    @default(0)  // Annual leave allocated per month
-  
-  // Rollover settings
-  allowMonthlyRollover  Boolean  @default(false)  // Allow unused monthly leaves to rollover to next month
-  allowYearlyRollover   Boolean  @default(false)  // Allow unused yearly leaves to rollover to next year
-  
-  // Maximum rollover limits
-  maxMonthlyRollover    Float?   // Max leaves that can be rolled over monthly
-  maxYearlyRollover     Float?   // Max leaves that can be rolled over yearly
-  
-  // Annual defaults (for reference/initial setup)
-  annualSickLeave       Float    @default(0)
-  annualCasualLeave     Float    @default(0)
-  annualAnnualLeave     Float    @default(0)
-  annualMaternityLeave  Float    @default(0)
-  annualPaternityLeave  Float    @default(0)
-  
-  // Late coming settings
-  lateComingCredits     Int      @default(0)     // Total late coming credits in minutes per month
-  lateThresholdMinutes  Int      @default(15)    // Minutes late before counting as late (e.g., 15 mins grace period)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  @@map("leave_settings")
-}
-
-model LateComingRecord {
-  id                  String   @id @default(uuid())
-  userId              String
-  user                User     @relation(fields: [userId], references: [id])
-  
-  year                Int      // Year of the record
-  month               Int      // Month (1-12)
-  
-  creditsUsed         Int      @default(0)  // Total minutes of late coming used this month
-  lateCount           Int      @default(0)  // Number of times late this month
-  
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
-  @@unique([userId, year, month])
-  @@index([userId])
-  @@index([year, month])
-  @@map("late_coming_records")
-}
-
-// HR Configuration
-model HRSettings {
-  id                    String   @id @default(uuid())
-  
-  // Service configuration
-  maxServiceMonths      Int      @default(720)  // Default 60 years (720 months)
-  retirementAge         Int?     // Optional retirement age
-  probationMonths       Int      @default(6)    // Default 6 months probation
-  
-  // Notice period configuration
-  noticePeriodDays      Int      @default(30)   // Default 30 days
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  @@map("hr_settings")
+enum NotificationType {
+  LATE_ARRIVAL
+  TASK_ASSIGNED
+  TASK_COMPLETED
+  TICKET_ASSIGNED
+  TICKET_UPDATED
+  LEAVE_APPROVED
+  LEAVE_REJECTED
+  GENERAL
 }

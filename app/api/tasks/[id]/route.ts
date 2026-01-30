@@ -62,16 +62,25 @@ export async function GET(
         );
       }
     } else if (user.role === "MANAGER") {
-      if (task.departmentId !== user.departmentId) {
-        return NextResponse.json(
-          { error: "Forbidden" },
-          { status: 403 }
-        );
+      // Check if manager manages this task's department
+      if (task.departmentId) {
+        const department = await prisma.department.findFirst({
+          where: {
+            id: task.departmentId,
+            managerId: user.id
+          }
+        });
+        if (!department) {
+          return NextResponse.json(
+            { error: "Forbidden" },
+            { status: 403 }
+          );
+        }
       }
     }
 
     // Calculate total time
-    const totalTimeMs = task.taskSessions.reduce((sum, session) => 
+    const totalTimeMs = task.taskSessions.reduce((sum: number, session: any) => 
       sum + (session.durationMs ? Number(session.durationMs) : 0), 0
     );
 
@@ -136,11 +145,20 @@ export async function PATCH(
         );
       }
     } else if (user.role === "MANAGER") {
-      if (task.departmentId && user.departmentId && task.departmentId !== user.departmentId) {
-        return NextResponse.json(
-          { error: "Forbidden" },
-          { status: 403 }
-        );
+      // Check if manager manages this task's department
+      if (task.departmentId) {
+        const department = await prisma.department.findFirst({
+          where: {
+            id: task.departmentId,
+            managerId: user.id
+          }
+        });
+        if (!department) {
+          return NextResponse.json(
+            { error: "Forbidden" },
+            { status: 403 }
+          );
+        }
       }
     }
 
@@ -232,13 +250,28 @@ export async function DELETE(
       );
     }
 
-    if (user.role === "MANAGER" && task.departmentId && user.departmentId && task.departmentId !== user.departmentId) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403 }
-      );
+    if (user.role === "MANAGER" && task.departmentId) {
+      // Check if manager manages this task's department
+      const department = await prisma.department.findFirst({
+        where: {
+          id: task.departmentId,
+          managerId: user.id
+        }
+      });
+      if (!department) {
+        return NextResponse.json(
+          { error: "Forbidden" },
+          { status: 403 }
+        );
+      }
     }
 
+    // Delete task sessions first (foreign key constraint)
+    await prisma.taskSession.deleteMany({
+      where: { taskId: id }
+    });
+
+    // Now delete the task
     await prisma.task.delete({
       where: { id }
     });

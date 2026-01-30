@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     const user = authResult.user;
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status");
+    const statusParams = searchParams.getAll("status");
     const projectId = searchParams.get("projectId");
     const assignedTo = searchParams.get("assignedTo");
 
@@ -30,14 +30,24 @@ export async function GET(request: NextRequest) {
         { createdById: user.id }
       ];
     } else if (user.role === "MANAGER") {
-      // Managers see all tasks in their department
-      if (user.departmentId) {
-        where.departmentId = user.departmentId;
+      // Managers see all tasks in their department(s)
+      const managedDepartments = await prisma.department.findMany({
+        where: { managerId: user.id },
+        select: { id: true }
+      });
+      const departmentIds = managedDepartments.map((d: { id: string }) => d.id);
+      if (departmentIds.length > 0) {
+        where.departmentId = { in: departmentIds };
+      } else {
+        // Manager with no departments sees nothing
+        where.id = "__no_match__";
       }
     }
     // Admin sees all tasks
 
-    if (status) where.status = status;
+    if (statusParams.length > 0) {
+      where.status = statusParams.length === 1 ? statusParams[0] : { in: statusParams };
+    }
     if (projectId) where.projectId = projectId;
     if (assignedTo) where.assignedTo = assignedTo;
 
@@ -73,13 +83,20 @@ export async function GET(request: NextRequest) {
       ]
     });
 
-    // Calculate total time spent on each task
-    const tasksWithTime = tasks.map(task => ({
-      ...task,
-      totalTimeMs: task.taskSessions.reduce((sum, session) => 
+    // Calculate total time spent on each task and handle BigInt serialization
+    const tasksWithTime = tasks.map((task: any) => {
+      const totalTimeMs = task.taskSessions.reduce((sum: number, session: any) => 
         sum + (session.durationMs ? Number(session.durationMs) : 0), 0
-      )
-    }));
+      );
+      
+      // Remove taskSessions from response and add totalTimeMs
+      const { taskSessions, ...taskWithoutSessions } = task;
+      
+      return {
+        ...taskWithoutSessions,
+        totalTimeMs
+      };
+    });
 
     return NextResponse.json(tasksWithTime);
   } catch (error) {

@@ -96,7 +96,7 @@ class EmailService {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
           .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
           .enterprise .header { background: #1f2937; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
-          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; border-radius: 100%; font-size: x-small; }
           .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
           .enterprise .header-right { text-align: right; }
           .enterprise .ticket-number { color: #9ca3af; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -117,7 +117,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
            <div class="img">
-                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -181,7 +181,7 @@ class EmailService {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
           .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
           .enterprise .header { background: #1f2937; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
-          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; border-radius: 3px; font-size: x-small; }
           .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
           .enterprise .header-right { text-align: right; }
           .enterprise .ticket-number { color: #9ca3af; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -202,7 +202,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -276,7 +276,7 @@ class EmailService {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
           .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
           .enterprise .header { background: #1f2937; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
-          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; border-radius: 100%; font-size: x-small; }
           .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
           .enterprise .header-right { text-align: right; }
           .enterprise .ticket-number { color: #9ca3af; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -298,7 +298,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -369,7 +369,7 @@ class EmailService {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
           .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
           .enterprise .header { background: #1f2937; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
-          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; border-radius: 100%; font-size: x-small; }
           .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
           .enterprise .header-right { text-align: right; }
           .enterprise .ticket-number { color: #9ca3af; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -390,7 +390,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -453,7 +453,7 @@ class EmailService {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
           .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
           .enterprise .header { background: #059669; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
-          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; border-radius: 100%; font-size: x-small; }
           .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
           .enterprise .header-right { text-align: right; }
           .enterprise .ticket-number { color: #d1fae5; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -474,7 +474,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -539,7 +539,7 @@ class EmailService {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
           .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
           .enterprise .header { background: #1f2937; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
-          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; border-radius: 100%; font-size: x-small; }
           .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
           .enterprise .header-right { text-align: right; }
           .enterprise .ticket-number { color: #9ca3af; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -563,7 +563,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -627,7 +627,7 @@ class EmailService {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f5f7fa; padding: 40px 20px; line-height: 1.6; }
           .enterprise { background: #ffffff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); overflow: hidden; max-width: 600px; margin: 0 auto; }
           .enterprise .header { background: #dc2626; padding: 30px 50px; display: flex; justify-content: space-between; align-items: center; }
-          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; padding: 5px; border-radius: 3px; font-size: x-small; }
+          .enterprise .img { display: flex; align-items: center; justify-content: center; height: 70px; width: 70px; background-color: #ffffff; border-radius: 100%; font-size: x-small; }
           .enterprise .logo-text { color: #ffffff; font-size: 22px; font-weight: 700; }
           .enterprise .header-right { text-align: right; }
           .enterprise .ticket-number { color: #fecaca; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -649,7 +649,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://scontent-bom5-1.xx.fbcdn.net/v/t39.30808-1/305219258_504517791677834_6144998750798505197_n.png?stp=dst-png_s200x200&_nc_cat=109&ccb=1-7&_nc_sid=2d3e12&_nc_ohc=UltkVGztHwAQ7kNvwGQr-5F&_nc_oc=Adnn2yaznuVzV6r7k-a2bUZ8TdMg335pLEN9wBgUUf0vPP0KLHSirJ2Pjzt_YjmxcWw&_nc_zt=24&_nc_ht=scontent-bom5-1.xx&_nc_gid=84IfZ53vFPTMSh6i1twDkA&oh=00_Afpo1dxy6ZzVhbnjErHdioPQhywB4njPa9eefG7oObVwQw&oe=695DAFA8" alt="ACE Healthcare Solutions" style="height:40px;">
+                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">

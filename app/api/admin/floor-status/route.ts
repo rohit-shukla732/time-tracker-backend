@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Build real-time session state by userId (from /api/session/summary)
+    // Build real-time session state by userId (from /api/session/summary) - THIS IS THE ONLY SOURCE
     const realtimeStateByUser = new Map<string, any>();
     sessionStateStore.forEach((value, key) => {
       if (key.startsWith('user:')) {
@@ -195,20 +195,17 @@ export async function GET(request: NextRequest) {
 
     // Assign seat numbers (based on index for now - could be stored in DB later)
     const floorEmployees: FloorEmployee[] = users.map((user, index) => {
-      const heartbeat = heartbeatByUser.get(user.id);
-      const session = sessionByUser.get(user.id);
-      const latestEvent = latestEventByUser.get(user.id);
       const realtimeState = realtimeStateByUser.get(user.id);
-      const currentApp = realtimeState?.appUsage?.topApps?.[0]?.app || latestAppByUser.get(user.id) || null;
-      const workDuration = realtimeState?.workTimeMs || workDurationByUser.get(user.id) || null;
+      const currentApp = realtimeState?.appUsage?.topApps?.[0]?.app || null;
+      const workDuration = realtimeState?.workTimeMs || null;
 
-      // Determine status - prioritize real-time state from summary endpoint
+      // Determine status ONLY from real-time state (summary data)
       let status: EmployeeStatus = 'offline';
       let onBreakSince: string | null = null;
       let idleSince: string | null = null;
 
       if (realtimeState?.currentState) {
-        // Use real-time state from desktop app
+        // Use real-time state from desktop app summary
         const state = realtimeState.currentState;
         if (!state.clockedIn) {
           status = 'offline';
@@ -221,21 +218,8 @@ export async function GET(request: NextRequest) {
         } else {
           status = 'working';
         }
-      } else if (heartbeat?.alive && session) {
-        // Fallback to heartbeat + events
-        if (latestEvent?.type === 'BREAK_START') {
-          status = 'break';
-          onBreakSince = latestEvent.timestamp.toISOString();
-        } else if (latestEvent?.type === 'IDLE_START') {
-          status = 'idle';
-          idleSince = latestEvent.timestamp.toISOString();
-        } else {
-          status = 'working';
-        }
-      } else if (session && !heartbeat?.alive) {
-        // Has session but no recent heartbeat - could be idle
-        status = 'idle';
       }
+      // If no realtime state, user is offline
 
       return {
         id: user.id,
@@ -246,11 +230,9 @@ export async function GET(request: NextRequest) {
         departmentName: user.employmentInfo?.department?.name || null,
         seatNumber: index + 1, // Assign seat based on index (can be customized)
         status,
-        lastActivity: realtimeState?.timestamp 
-          || (heartbeat?.lastSeenMs ? new Date(heartbeat.lastSeenMs).toISOString() : null)
-          || session?.startedAt.toISOString() || null,
+        lastActivity: realtimeState?.timestamp || null,
         currentApp,
-        sessionId: realtimeState?.sessionId || session?.sessionId || null,
+        sessionId: realtimeState?.sessionId || null,
         onBreakSince,
         idleSince,
         workingDuration: workDuration,

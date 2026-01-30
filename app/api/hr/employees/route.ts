@@ -23,16 +23,26 @@ export async function GET(req: NextRequest) {
     const employees = await prisma.user.findMany({
       include: {
         employmentInfo: {
-          select: {
-            departmentId: true,
+          include: {
             department: {
               select: {
                 id: true,
                 name: true,
               },
             },
+            designation: {
+              select: {
+                title: true,
+              },
+            },
           },
         },
+        personalInfo: true,
+        familyInfo: true,
+        contactInfo: true,
+        addressInfo: true,
+        governmentID: true,
+        bankDetails: true,
         leaveBalance: true,
         lateComingRecords: {
           where: {
@@ -140,9 +150,16 @@ export async function POST(req: NextRequest) {
             lastName: personalInfo.lastName,
             dateOfBirth: personalInfo.dateOfBirth ? new Date(personalInfo.dateOfBirth) : null,
             gender: personalInfo.gender,
-            bloodGroup: personalInfo.bloodGroup,
+          },
+        });
+      }
+
+      // Create FamilyInfo if provided
+      if (personalInfo?.maritalStatus) {
+        await tx.familyInfo.create({
+          data: {
+            userId: newUser.id,
             maritalStatus: personalInfo.maritalStatus,
-            nationality: personalInfo.nationality || "Indian",
           },
         });
       }
@@ -259,6 +276,7 @@ export async function POST(req: NextRequest) {
       where: { id: user.id },
       include: {
         personalInfo: true,
+        familyInfo: true,
         contactInfo: true,
         addressInfo: true,
         governmentID: true,

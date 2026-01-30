@@ -3,16 +3,22 @@ import { requireRoles, requireAdmin, unauthorizedResponse } from "../../../lib/r
 import { prisma } from "../../../lib/prisma";
 import { logger } from "../../../lib/logger";
 
-// GET /api/teams - List all departments (Admin/HR only)
+// GET /api/teams - List all departments (Admin/HR see all, Manager sees their own)
 export async function GET(req: NextRequest) {
-  const authResult = await requireRoles(req, ['ADMIN', 'HR']);
+  const authResult = await requireRoles(req, ['ADMIN', 'HR', 'MANAGER']);
   
   if (authResult.error || !authResult.user) {
     return unauthorizedResponse(authResult.error);
   }
 
   try {
+    // Managers can only see departments they manage
+    const whereClause = authResult.user.role === 'MANAGER' 
+      ? { managerId: authResult.user.id }
+      : {};
+
     const departments = await prisma.department.findMany({
+      where: whereClause,
       include: {
         manager: {
           select: {
@@ -46,10 +52,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      teams: departments.map((dept: any) => ({
+      departments: departments.map((dept: any) => ({
         id: dept.id,
         name: dept.name,
+        code: dept.code,
         description: dept.description,
+        managerId: dept.managerId,
         manager: dept.manager,
         members: dept.employmentInfo.map((e: any) => e.user),
         memberCount: dept._count.employmentInfo,
@@ -63,10 +71,10 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/teams - Create a new department (Admin only)
+// POST /api/teams - Create a new department (Admin/HR only)
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
-  const authResult = await requireAdmin(req);
+  const authResult = await requireRoles(req, ['ADMIN', 'HR']);
   
   if (authResult.error || !authResult.user) {
     logger.warn("POST /api/teams - Unauthorized");
@@ -74,8 +82,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { name, description, managerId } = await req.json();
-    logger.info("POST /api/teams - Creating department", { name, managerId, by: authResult.user.id });
+    const { name, code, description, managerId } = await req.json();
+    logger.info("POST /api/teams - Creating department", { name, code, managerId, by: authResult.user.id });
 
     if (!name) {
       return NextResponse.json({ error: 'Department name is required' }, { status: 400 });
@@ -108,6 +116,7 @@ export async function POST(req: NextRequest) {
     const department = await prisma.department.create({
       data: {
         name,
+        code: code || null,
         description,
         managerId
       },

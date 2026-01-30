@@ -1,35 +1,50 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { TicketsLayout } from '@/components/tickets/TicketsLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { TicketsLayout } from "@/components/tickets/TicketsLayout";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { TicketPriority, TicketCategory, ITSupportSubcategory } from '@/types';
-import { toast } from 'sonner';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+} from "@/components/ui/select";
+import { TicketPriority, TicketCategory, ITSupportSubcategory } from "@/types";
+import { toast } from "sonner";
+import { Upload, X, Image as ImageIcon } from "lucide-react";
+import FullTrainScene from "@/components/animated/Loader";
 
 export default function NewTicketPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
+    title: "",
+    description: "",
     priority: TicketPriority.MEDIUM,
     category: TicketCategory.IT_SUPPORT,
     subcategory: ITSupportSubcategory.OTHER,
   });
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [showQueueDialog, setShowQueueDialog] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -61,10 +76,10 @@ export default function NewTicketPage() {
 
   const processFiles = (files: File[]) => {
     // Validate file types
-    const validFiles = files.filter(file => {
-      const isImage = file.type.startsWith('image/');
+    const validFiles = files.filter((file) => {
+      const isImage = file.type.startsWith("image/");
       const isUnder5MB = file.size <= 5 * 1024 * 1024; // 5MB limit
-      
+
       if (!isImage) {
         toast.error(`${file.name} is not an image file`);
         return false;
@@ -77,15 +92,15 @@ export default function NewTicketPage() {
     });
 
     if (screenshots.length + validFiles.length > 5) {
-      toast.error('Maximum 5 screenshots allowed');
+      toast.error("Maximum 5 screenshots allowed");
       return;
     }
 
     // Create preview URLs
-    const newPreviewUrls = validFiles.map(file => URL.createObjectURL(file));
-    
-    setScreenshots(prev => [...prev, ...validFiles]);
-    setPreviewUrls(prev => [...prev, ...newPreviewUrls]);
+    const newPreviewUrls = validFiles.map((file) => URL.createObjectURL(file));
+
+    setScreenshots((prev) => [...prev, ...validFiles]);
+    setPreviewUrls((prev) => [...prev, ...newPreviewUrls]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,8 +110,8 @@ export default function NewTicketPage() {
 
   const removeScreenshot = (index: number) => {
     URL.revokeObjectURL(previewUrls[index]);
-    setScreenshots(prev => prev.filter((_, i) => i !== index));
-    setPreviewUrls(prev => prev.filter((_, i) => i !== index));
+    setScreenshots((prev) => prev.filter((_, i) => i !== index));
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,7 +122,7 @@ export default function NewTicketPage() {
     }
 
     if (!formData.title.trim() || !formData.description.trim()) {
-      toast.error('Please fill in all required fields');
+      toast.error("Please fill in all required fields");
       return;
     }
 
@@ -115,29 +130,29 @@ export default function NewTicketPage() {
 
     try {
       // Get user info from localStorage
-      const storedUser = localStorage.getItem('user');
+      const storedUser = localStorage.getItem("user");
       const user = storedUser ? JSON.parse(storedUser) : null;
 
       if (!user) {
-        toast.error('Please log in to create a ticket');
+        toast.error("Please log in to create a ticket");
         return;
       }
 
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem("accessToken");
       if (!token) {
-        toast.error('Please log in to continue');
-        router.push('/ticketing/employee/login');
+        toast.error("Please log in to continue");
+        router.push("/ticketing/employee/login");
         return;
       }
 
       // Create ticket via API
-      const response = await fetch('/api/tickets', {
-        method: 'POST',
+      const response = await fetch("/api/tickets", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        credentials: 'include',
+        credentials: "include",
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
@@ -148,18 +163,18 @@ export default function NewTicketPage() {
       });
 
       if (response.status === 401) {
-        toast.error('Session expired. Please log in again.');
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        router.push('/ticketing/employee/login');
+        toast.error("Session expired. Please log in again.");
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+        router.push("/ticketing/employee/login");
         return;
       }
 
       if (!response.ok) {
         const error = await response.json();
         setIsSubmitting(false);
-        throw new Error(error.error || 'Failed to create ticket');
+        throw new Error(error.error || "Failed to create ticket");
       }
 
       const ticket = await response.json();
@@ -169,55 +184,60 @@ export default function NewTicketPage() {
         try {
           const formDataToSend = new FormData();
           screenshots.forEach((file) => {
-            formDataToSend.append('screenshots', file);
-          });
-          
-          const uploadResponse = await fetch(`/api/tickets/${ticket.id}/screenshots`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-            credentials: 'include',
-            body: formDataToSend,
+            formDataToSend.append("screenshots", file);
           });
 
+          const uploadResponse = await fetch(
+            `/api/tickets/${ticket.id}/screenshots`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+              credentials: "include",
+              body: formDataToSend,
+            },
+          );
+
           if (!uploadResponse.ok) {
-            console.error('Failed to upload screenshots');
-            toast.error('Ticket created but screenshots failed to upload');
+            console.error("Failed to upload screenshots");
+            toast.error("Ticket created but screenshots failed to upload");
           }
         } catch (uploadError) {
-          console.error('Error uploading screenshots:', uploadError);
-          toast.error('Ticket created but screenshots failed to upload');
+          console.error("Error uploading screenshots:", uploadError);
+          toast.error("Ticket created but screenshots failed to upload");
         }
       }
 
       // Send email notifications via API
       try {
-        await fetch('/api/tickets/send-new-ticket-emails', {
-          method: 'POST',
+        await fetch("/api/tickets/send-new-ticket-emails", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
-          credentials: 'include',
+          credentials: "include",
           body: JSON.stringify({
             ticketId: ticket.id,
           }),
         });
       } catch (emailError) {
-        console.error('Failed to send email notifications:', emailError);
+        console.error("Failed to send email notifications:", emailError);
       }
 
-      toast.success('Ticket created successfully! Check your email for confirmation.');
-      
+      toast.success(
+        "Ticket created successfully! Check your email for confirmation.",
+      );
+
       // Clean up preview URLs
-      previewUrls.forEach(url => URL.revokeObjectURL(url));
-      
-      router.push('/ticketing/employee/my-tickets');
+      previewUrls.forEach((url) => URL.revokeObjectURL(url));
+
+      setShowQueueDialog(true);
     } catch (error) {
-      console.error('Error creating ticket:', error);
+      console.error("Error creating ticket:", error);
       setIsSubmitting(false);
-      toast.error('Failed to create ticket. Please try again.');
+      toast.error("Failed to create ticket. Please try again.");
     }
   };
 
@@ -225,8 +245,12 @@ export default function NewTicketPage() {
     <TicketsLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Create IT Support Ticket</h1>
-          <p className="text-muted-foreground">Submit a technical issue or IT request</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Create IT Support Ticket
+          </h1>
+          <p className="text-muted-foreground">
+            Submit a technical issue or IT request
+          </p>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -234,7 +258,9 @@ export default function NewTicketPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Ticket Details</CardTitle>
-                <CardDescription>Provide detailed information about your issue</CardDescription>
+                <CardDescription>
+                  Provide detailed information about your issue
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -244,7 +270,9 @@ export default function NewTicketPage() {
                       id="title"
                       placeholder="Brief description of the issue"
                       value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, title: e.target.value })
+                      }
                       maxLength={100}
                       required
                     />
@@ -259,7 +287,12 @@ export default function NewTicketPage() {
                       id="description"
                       placeholder="Provide detailed information about your issue..."
                       value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
+                      }
                       rows={6}
                       maxLength={1000}
                       required
@@ -275,85 +308,118 @@ export default function NewTicketPage() {
                       <Select
                         value={formData.priority}
                         onValueChange={(value) =>
-                          setFormData({ ...formData, priority: value as TicketPriority })
+                          setFormData({
+                            ...formData,
+                            priority: value as TicketPriority,
+                          })
                         }
                       >
                         <SelectTrigger id="priority">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={TicketPriority.LOW}>Low</SelectItem>
-                          <SelectItem value={TicketPriority.MEDIUM}>Medium</SelectItem>
-                          <SelectItem value={TicketPriority.HIGH}>High</SelectItem>
-                          <SelectItem value={TicketPriority.URGENT}>Urgent</SelectItem>
+                          <SelectItem value={TicketPriority.LOW}>
+                            Low
+                          </SelectItem>
+                          <SelectItem value={TicketPriority.MEDIUM}>
+                            Medium
+                          </SelectItem>
+                          <SelectItem value={TicketPriority.HIGH}>
+                            High
+                          </SelectItem>
+                          <SelectItem value={TicketPriority.URGENT}>
+                            Urgent
+                          </SelectItem>
                         </SelectContent>
                       </Select>
-                  </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="subcategory">Issue Type *</Label>
-                    <Select
-                      value={formData.subcategory}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, subcategory: value as ITSupportSubcategory })
-                      }
-                      
-                    >
-                      <SelectTrigger id="subcategory">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={ITSupportSubcategory.HARDWARE}>
-                          <div className="flex flex-col items-start">
-                            <span className="font-medium">Hardware</span>
-                            <span className="text-xs text-muted-foreground">Computer, laptop, monitor, keyboard, mouse</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.SOFTWARE}>
-                          <div className="flex flex-col items-start">
-                            <span className="font-medium">Software</span>
-                            <span className="text-xs text-muted-foreground">Application issues, installation, licensing</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.NETWORK}>
-                          <div className="flex flex-col items-start">
-                            <span className="font-medium">Network</span>
-                            <span className="text-xs text-muted-foreground">Internet, WiFi, VPN, connectivity</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.EMAIL}>
-                          <div className="flex flex-col items-start">
-                            <span className="font-medium">Email</span>
-                            <span className="text-xs text-muted-foreground">Email issues, Outlook</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.ACCESS}>
-                          <div className="flex flex-col items-start">
-                            <span className="font-medium">Access & Permissions</span>
-                            <span className="text-xs text-muted-foreground">Login issues, password reset, access rights</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.PRINTER}>
-                          <div className="flex flex-col items-start">
-                            <span className="font-medium">Printer</span>
-                            <span className="text-xs text-muted-foreground">Printing issues</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.PHONE}>
-                          <div className="flex flex-col items-start">
-                            <span className="font-medium">Phone & Communication</span>
-                            <span className="text-xs text-muted-foreground">Desk phone, mobile, Teams</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.OTHER}>
-                          <div className="flex flex-col items-start">
-                            <span className="font-medium">Other</span>
-                            <span className="text-xs text-muted-foreground">Other IT-related issues</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="subcategory">Issue Type *</Label>
+                      <Select
+                        value={formData.subcategory}
+                        onValueChange={(value) =>
+                          setFormData({
+                            ...formData,
+                            subcategory: value as ITSupportSubcategory,
+                          })
+                        }
+                      >
+                        <SelectTrigger id="subcategory">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={ITSupportSubcategory.HARDWARE}>
+                            <div className="flex flex-col items-start">
+                              <span className="font-medium">Hardware</span>
+                              <span className="text-xs text-muted-foreground">
+                                Computer, laptop, monitor, keyboard, mouse
+                              </span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value={ITSupportSubcategory.SOFTWARE}>
+                            <div className="flex flex-col items-start">
+                              <span className="font-medium">Software</span>
+                              <span className="text-xs text-muted-foreground">
+                                Application issues, installation, licensing
+                              </span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value={ITSupportSubcategory.NETWORK}>
+                            <div className="flex flex-col items-start">
+                              <span className="font-medium">Network</span>
+                              <span className="text-xs text-muted-foreground">
+                                Internet, WiFi, VPN, connectivity
+                              </span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value={ITSupportSubcategory.EMAIL}>
+                            <div className="flex flex-col items-start">
+                              <span className="font-medium">Email</span>
+                              <span className="text-xs text-muted-foreground">
+                                Email issues, Outlook
+                              </span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value={ITSupportSubcategory.ACCESS}>
+                            <div className="flex flex-col items-start">
+                              <span className="font-medium">
+                                Access & Permissions
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                Login issues, password reset, access rights
+                              </span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value={ITSupportSubcategory.PRINTER}>
+                            <div className="flex flex-col items-start">
+                              <span className="font-medium">Printer</span>
+                              <span className="text-xs text-muted-foreground">
+                                Printing issues
+                              </span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value={ITSupportSubcategory.PHONE}>
+                            <div className="flex flex-col items-start">
+                              <span className="font-medium">
+                                Phone & Communication
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                Desk phone, mobile, Teams
+                              </span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value={ITSupportSubcategory.OTHER}>
+                            <div className="flex flex-col items-start">
+                              <span className="font-medium">Other</span>
+                              <span className="text-xs text-muted-foreground">
+                                Other IT-related issues
+                              </span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -364,13 +430,17 @@ export default function NewTicketPage() {
                         onDragOver={handleDragOver}
                         onDragLeave={handleDragLeave}
                         onDrop={handleDrop}
-                        onClick={() => document.getElementById('screenshots')?.click()}
+                        onClick={() =>
+                          document.getElementById("screenshots")?.click()
+                        }
                         className={`relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                          isDragging 
-                            ? 'border-primary bg-primary/5' 
-                            : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50'
+                          isDragging
+                            ? "border-primary bg-primary/5"
+                            : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50"
                         } ${
-                          screenshots.length >= 5 ? 'opacity-50 cursor-not-allowed' : ''
+                          screenshots.length >= 5
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
                         }`}
                       >
                         <Input
@@ -388,18 +458,25 @@ export default function NewTicketPage() {
                           </div>
                           <div className="space-y-1">
                             <p className="text-sm font-medium">
-                              {isDragging ? 'Drop images here' : 'Drag and drop images here'}
+                              {isDragging
+                                ? "Drop images here"
+                                : "Drag and drop images here"}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              or <span className="text-primary hover:underline">browse</span> to upload
+                              or{" "}
+                              <span className="text-primary hover:underline">
+                                browse
+                              </span>{" "}
+                              to upload
                             </p>
                           </div>
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Upload up to 5 images (max 5MB each). Supported formats: JPG, PNG, GIF
+                        Upload up to 5 images (max 5MB each). Supported formats:
+                        JPG, PNG, GIF
                       </p>
-                      
+
                       {screenshots.length > 0 && (
                         <div className="grid grid-cols-2 gap-3">
                           {screenshots.map((file, index) => (
@@ -429,8 +506,12 @@ export default function NewTicketPage() {
                   </div>
 
                   <div className="flex gap-3 pt-4">
-                    <Button type="submit" className="flex-1" disabled={isSubmitting}>
-                      {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? "Submitting..." : "Submit Ticket"}
                     </Button>
                     <Button
                       type="button"
@@ -458,19 +539,25 @@ export default function NewTicketPage() {
                   </p>
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-1">Choose the Right Category</h4>
+                  <h4 className="font-semibold mb-1">
+                    Choose the Right Category
+                  </h4>
                   <p className="text-muted-foreground">
-                    Select the most appropriate category to ensure faster resolution.
+                    Select the most appropriate category to ensure faster
+                    resolution.
                   </p>
                 </div>
                 <div>
                   <h4 className="font-semibold mb-1">Set Correct Priority</h4>
                   <p className="text-muted-foreground">
-                    Use urgent only for critical issues that need immediate attention.
+                    Use urgent only for critical issues that need immediate
+                    attention.
                   </p>
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-1">Include Steps to Reproduce</h4>
+                  <h4 className="font-semibold mb-1">
+                    Include Steps to Reproduce
+                  </h4>
                   <p className="text-muted-foreground">
                     If applicable, list the steps that lead to the issue.
                   </p>
@@ -481,7 +568,8 @@ export default function NewTicketPage() {
                     Add Screenshots
                   </h4>
                   <p className="text-muted-foreground">
-                    Screenshots help us understand and resolve your issue faster.
+                    Screenshots help us understand and resolve your issue
+                    faster.
                   </p>
                 </div>
               </CardContent>
@@ -489,6 +577,43 @@ export default function NewTicketPage() {
           </div>
         </div>
       </div>
+      <Dialog
+        open={showQueueDialog}
+        onOpenChange={(open) => {
+          if (!open) router.push("/ticketing/employee/my-tickets");
+          setShowQueueDialog(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-xl">
+          <div className="flex flex-col items-center text-center gap-8">
+
+            <DialogHeader>
+              <DialogTitle className="text-2xl">
+                You’re in the Support Queue
+              </DialogTitle>
+
+              <DialogDescription className="text-base space-y-4">
+                <p>
+                  Your ticket has been successfully submitted and is now moving
+                  through our <span className="font-bold">Support Queue</span>.
+                  Tickets are handled in the order they arrive, ensuring fair
+                  and timely resolution for everyone.
+                </p>
+
+                <p className="text-muted-foreground">
+                  You can monitor progress, add updates, or attach more
+                  information anytime from the <strong>My Tickets</strong>{" "}
+                  section.
+                </p>
+              </DialogDescription>
+            </DialogHeader>
+
+            <Button onClick={() => setShowQueueDialog(false)} className="px-10">
+              Go to My Tickets
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </TicketsLayout>
   );
 }

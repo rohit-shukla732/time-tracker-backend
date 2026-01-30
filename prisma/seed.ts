@@ -15,10 +15,10 @@ const departments = [
 ];
 
 const users = [
-  { id: 'ACE012', name: 'Mantu Madhheshiya', email: 'mmaddheshiya@acehcs.com', Role: Role.ADMIN, departments: ['IT'] },
+  { id: 'ACE012', name: 'Mantu Madhheshiya', email: 'mmaddheshiya@acehcs.com', Role: Role.ADMIN},
   { id: 'ACE004', name: 'Gautam Chakravarty', email: 'gchakravarty@acehcs.com' },
   { id: 'ACE008', name: 'Jinendra Shah', email: 'jshah@acehcs.com' },
-  { id: 'ACE009', name: 'Jitender Sharma', email: 'jsharma@acehcs.com', Role: Role.MANAGER, departments: ['Payment Posting'] },
+  { id: 'ACE009', name: 'Jitender Sharma', email: 'jsharma@acehcs.com', Role: Role.MANAGER},
   { id: 'ACE011', name: 'Manojkumar Patel', email: 'mpatel@acehcs.com' },
   { id: 'ACE013', name: 'Urvi Kadia', email: 'ukadia@acehcs.com' },
   { id: 'ACE014', name: 'Urja Shah', email: 'ushah@acehcs.com' },
@@ -30,9 +30,9 @@ const users = [
   { id: 'ACE033', name: 'Jyotika Shyamdasani', email: 'jshyamdasani@acehcs.com' },
   { id: 'ACE042', name: 'Bhakti Mehta', email: 'bmehta@acehcs.com' },
   { id: 'ACE045', name: 'Kapil Sharma', email: 'ksharma@acehcs.com' },
-  { id: 'ACE048', name: 'Aman H Kumar', email: 'ahkumar@acehcs.com', departments: ['Payment Posting'] },
-  { id: 'ACE052', name: 'Aarif Shaikh', email: 'ashaikh@acehcs.com', departments: ['Payment Posting'] },
-  { id: 'ACE055', name: 'Uday Amin', email: 'uamin@acehcs.com', departments: ['Payment Posting'] },
+  { id: 'ACE048', name: 'Aman H Kumar', email: 'ahkumar@acehcs.com' },
+  { id: 'ACE052', name: 'Aarif Shaikh', email: 'ashaikh@acehcs.com' },
+  { id: 'ACE055', name: 'Uday Amin', email: 'uamin@acehcs.com' },
   { id: 'ACE062', name: 'Rizwan Shaikh', email: 'rshaikh@acehcs.com' },
   { id: 'ACE071', name: 'Drishti Ghosh', email: 'dghosh@acehcs.com' },
   { id: 'ACE074', name: 'Aayush Rajput', email: 'arajput@acehcs.com' },
@@ -42,7 +42,7 @@ const users = [
   { id: 'ACE094', name: 'Arjun Singh', email: 'arjunsingh@acehcs.com' },
   { id: 'ACE098', name: 'Rahul Shetty', email: 'rshetty@acehcs.com' },
   { id: 'ACE099', name: 'Mohammadujef Shaikh', email: 'mshaikh@acehcs.com' },
-  { id: 'ACE101', name: 'Ami Suthar', email: 'asuthar@acehcs.com', departments: ['Payment Posting'] },
+  { id: 'ACE101', name: 'Ami Suthar', email: 'asuthar@acehcs.com', },
   { id: 'ACE110', name: 'Nihal Mansuri', email: 'nmansuri@acehcs.com' },
   { id: 'ACE111', name: 'Chhamavi Jain', email: 'cjain@acehcs.com' },
   { id: 'ACE117', name: 'Karan Shukla', email: 'kshukla@acehcs.com' },
@@ -76,12 +76,12 @@ const users = [
   { id: 'ACE223', name: 'Kismat Solanki', email: 'KSolanki@acehcs.com' },
   { id: 'ACE224', name: 'Bhavesh Firke', email: 'BFirke@acehcs.com' },
   { id: 'ACE229', name: 'Obaid Koreishi', email: 'OKoreishi@acehcs.com' },
-  { id: 'ACE233', name: 'Mahesh Chauhan', email: 'MChauhan@acehcs.com', departments: ['Payment Posting'] },
-  { id: 'ACE235', name: 'Payal Parmar', email: 'PParmar@acehcs.com', departments: ['Payment Posting'] },
+  { id: 'ACE233', name: 'Mahesh Chauhan', email: 'MChauhan@acehcs.com' },
+  { id: 'ACE235', name: 'Payal Parmar', email: 'PParmar@acehcs.com' },
   { id: 'ACE236', name: 'Sufel Shaikh', email: 'SShaikh@acehcs.com' },
   { id: 'ACE237', name: 'Priyanka Ganeshan', email: 'PGaneshan@acehcs.com' },
   { id: 'ACE239', name: 'Yug Gor', email: 'ygor@acehcs.com' },
-  { id: 'ACE240', name: 'Anurag Rathor', email: 'arathor@acehcs.com', Role: Role.ADMIN, departments: ['IT'] },
+  { id: 'ACE240', name: 'Anurag Rathor', email: 'arathor@acehcs.com', Role: Role.ADMIN },
   { id: 'ACE241', name: 'Shish Chauhan', email: 'SChauhan@acehcs.com' },
   { id: 'ACE242', name: 'Nikshay Agrawal', email: 'NAgrawal@acehcs.com' },
   { id: 'ACE243', name: 'Saumil Patel', email: 'SPatel@acehcs.com' },
@@ -105,20 +105,20 @@ const users = [
   { id: 'ACE283', name: 'Sudeep Mehra', email: 'SMehra@acehcs.com' },
   { id: 'ACE285', name: 'Abdoul Karim Kiple', email: 'AKiple@acehcs.com' },
   { id: 'ACE291', name: 'Raliz Hamid', email: 'RHamid@acehcs.com' },
-  { id: 'ACE292', name: 'Bajrang Kumar', email: 'BKumar@acehcs.com', departments: ['Payment Posting'] },
+  { id: 'ACE292', name: 'Bajrang Kumar', email: 'BKumar@acehcs.com' },
   { id: 'ACE294', name: 'Nishit Pasiya', email: 'NPasiya@acehcs.com' },
   { id: 'ACE296', name: 'Prakashbhai Ladumor', email: 'pladumor@acehcs.com' },
   { id: 'ACE297', name: 'Tanaji More', email: 'TMore@acehcs.com' },
   { id: 'ACE298', name: 'Saifuddin Shaikh', email: 'SaShaikh@acehcs.com' },
   { id: 'ACE300', name: 'Kuir John Mayen', email: 'KMayen@acehcs.com' },
-  { id: 'ACE303', name: 'Akshit Jain', email: 'AJain@acehcs.com', departments: ['Payment Posting'] },
+  { id: 'ACE303', name: 'Akshit Jain', email: 'AJain@acehcs.com' },
   { id: 'ACE305', name: 'Rohit Mistari', email: 'RMistari@acehcs.com' },
   { id: 'ACE306', name: 'Prerana Jain', email: 'PJain@acehcs.com' },
   { id: 'ACE307', name: 'Malou Garang', email: 'MGarang@acehcs.com' },
   { id: 'ACE308', name: 'Adilson Gafur', email: 'AGafur@acehcs.com' },
   { id: 'ACE309', name: 'Rohan Macwan', email: 'RMacwan@acehcs.com' },
   { id: 'ACE310', name: 'Pranav Kalbhut', email: 'PKalbhut@acehcs.com' },
-  { id: 'ACE311', name: 'Het Prajapati', email: 'HPrajapati@acehcs.com', departments: ['Payment Posting'] },
+  { id: 'ACE311', name: 'Het Prajapati', email: 'HPrajapati@acehcs.com' },
   { id: 'ACE312', name: 'Anshul Mandloi', email: 'AMandloi@acehcs.com' },
   { id: 'ACE313', name: 'Shweta Ghadage', email: 'SGhadage@acehcs.com' },
   { id: 'ACE314', name: 'Priya Gaikwad', email: 'PGaikwad@acehcs.com' },
@@ -127,12 +127,28 @@ const users = [
   { id: 'ACE317', name: 'Ketan Ghorpade', email: 'KGhorpade@acehcs.com' },
   { id: 'ACE318', name: 'Anthony Mwangi', email: 'AMwangi@acehcs.com' },
   { id: 'ACE320', name: 'Devesh Punjabi', email: 'DPunjabi@acehcs.com' },
-  { id: 'ACE321', name: 'Rohit Shukla', email: 'RShukla@acehcs.com', Role: Role.ADMIN, departments: ['IT'] },
+  { id: 'ACE321', name: 'Rohit Shukla', email: 'RShukla@acehcs.com', Role: Role.ADMIN },
   { id: 'ACE322', name: 'Mading Daniel', email: 'MDaniel@acehcs.com' },
   { id: 'ACE323', name: 'Harnish Patel', email: 'HarPatel@acehcs.com' },
   { id: 'ACE324', name: 'Atem Mabior', email: 'amabior@acehcs.com' },
   { id: 'ACE325', name: 'Harshil Patel', email: 'HarsPatel@acehcs.com' },
   { id: 'ACE326', name: 'Rutuja Wankar', email: 'RWankar@acehcs.com' },
+  { id: 'ACE327', name: 'Aditya Pavatekar', email: 'APavatekar@acehcs.com' },
+  { id: 'ACE328', name: 'Ankit Mali', email: 'AMali@acehcs.com' },
+  { id: 'ACE331', name: 'Pradip Andhale', email: 'PAndhale@acehcs.com' },
+  { id: 'ACE332', name: 'Kaustab Hazarika', email: 'KHazarika@acehcs.com' },
+  { id: 'ACE333', name: 'Monali Kale', email: 'MKale@acehcs.com' },
+  { id: 'ACE334', name: 'Jayesh Kachave', email: 'JKachave@acehcs.com' },
+  { id: 'ACE335', name: 'Krish Purohit', email: 'KPurohit@acehcs.com' },
+  { id: 'ACE336', name: 'Resego Nsagwa', email: 'RNsagwa@acehcs.com' },
+  { id: 'ACE337', name: 'Freda Pule', email: 'FPule@acehcs.com' },
+  { id: 'ACE338', name: 'Hiral Vadera', email: 'HVadera@acehcs.com' },
+  { id: 'ACE339', name: 'Yash Sureliya', email: 'YSureliya@acehcs.com' },
+  { id: 'ACE340', name: 'Zenil Shah', email: 'ZShah@acehcs.com' },
+  { id: 'ACE341', name: 'Abhi Mistry', email: 'AMistry@acehcs.com' },
+  { id: 'ACE342', name: 'Saniya Hamid', email: 'SHamid@acehcs.com' },
+  { id: 'ACE343', name: 'Maan Bheer', email: 'MBheer@acehcs.com' },
+  { id: 'ACE344', name: 'Joyal Mehta', email: 'JMehta@acehcs.com' },
 ];
 
 async function main() {
@@ -171,13 +187,6 @@ async function main() {
     // Hash the user ID as password
     const passwordHash = await bcrypt.hash(userData.id, 10);
 
-    // Find department ID if user belongs to a department
-    let departmentId = null;
-    if (userData.departments && userData.departments.length > 0) {
-      const deptName = userData.departments[0];
-      departmentId = createdDepartments[deptName]?.id || null;
-    }
-
     const user = await prisma.user.upsert({
       where: { email: userData.email },
       update: {},
@@ -189,127 +198,11 @@ async function main() {
         role: userData.Role || Role.EMPLOYEE,
       },
     });
-
-    // Create employmentInfo if user has a department
-    if (departmentId) {
-      await prisma.employmentInfo.upsert({
-        where: { userId: user.id },
-        update: { departmentId },
-        create: {
-          userId: user.id,
-          departmentId,
-        },
-      });
-    }
-
-    console.log(`Created user: ${userData.id} - ${userData.name} ${departmentId ? `(Department: ${userData.departments?.[0]})` : ''}`);
-  }
-
-  // Set manager for Payment Posting department
-  const paymentPostingDept = createdDepartments['Payment Posting'];
-  if (paymentPostingDept) {
-    const manager = await prisma.user.findFirst({
-      where: { id: 'ACE009' } // Jitender Sharma
-    });
-    
-    if (manager) {
-      await prisma.department.update({
-        where: { id: paymentPostingDept.id },
-        data: { managerId: manager.id }
-      });
-      console.log('\nSet Jitender Sharma as Payment Posting department manager');
-    }
-  }
-
-  // Create realistic session data for Payment Posting department members
-  console.log('\nCreating session data for Payment Posting department...');
-  const paymentPostingMembers = users.filter(u => u.departments?.includes('Payment Posting'));
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const apps = [
-    'google chrome',
-    'microsoft excel',
-    'microsoft word',
-    'microsoft outlook',
-    'live captions',
-    'windows explorer',
-    'microsoft edge',
-    'calculator',
-    'teams'
-  ];
-
-  for (const member of paymentPostingMembers) {
-    // Create 5 days of historical sessions
-    for (let dayOffset = 0; dayOffset < 5; dayOffset++) {
-      const sessionDate = new Date(today);
-      sessionDate.setDate(today.getDate() - dayOffset);
-      
-      const startHour = 9 + Math.floor(Math.random() * 2); // 9-10 AM start
-      const startMinute = Math.floor(Math.random() * 60);
-      sessionDate.setHours(startHour, startMinute, 0, 0);
-      
-      const sessionDurationHours = 7 + Math.random() * 2; // 7-9 hours
-      const endDate = new Date(sessionDate.getTime() + sessionDurationHours * 60 * 60 * 1000);
-      
-      const workTimeMs = Math.floor(sessionDurationHours * 0.7 * 60 * 60 * 1000); // 70% work
-      const breakTimeMs = Math.floor(sessionDurationHours * 0.15 * 60 * 60 * 1000); // 15% break
-      const idleTimeMs = Math.floor(sessionDurationHours * 0.15 * 60 * 60 * 1000); // 15% idle
-      const totalMs = workTimeMs + breakTimeMs + idleTimeMs;
-      
-      const sessionId = `${member.id}-${sessionDate.toISOString().split('T')[0]}-${startHour}${startMinute}`;
-      
-      // Only create ended sessions for historical data (not today)
-      const isHistorical = dayOffset > 0;
-      
-      const session = await prisma.session.create({
-        data: {
-          sessionId,
-          userId: member.id,
-          startedAt: sessionDate,
-          endedAt: isHistorical ? endDate : null,
-          autoClockOut: false,
-        },
-      });
-      
-      await prisma.sessionSummary.create({
-        data: {
-          sessionId,
-          userId: member.id,
-          sessionDurationMs: BigInt(totalMs),
-          totalBreakMs: BigInt(breakTimeMs),
-          totalIdleMs: BigInt(idleTimeMs),
-          workTimeMs: BigInt(workTimeMs),
-        },
-      });
-      
-      // Create app usage data
-      const numApps = 3 + Math.floor(Math.random() * 5); // 3-7 apps
-      const selectedApps = [...apps].sort(() => 0.5 - Math.random()).slice(0, numApps);
-      
-      for (let i = 0; i < selectedApps.length; i++) {
-        const appTimeMs = Math.floor((workTimeMs / selectedApps.length) * (0.8 + Math.random() * 0.4));
-        await prisma.sessionAppUsage.create({
-          data: {
-            sessionId,
-            userId: member.id,
-            appName: selectedApps[i],
-            timeMs: BigInt(appTimeMs),
-          },
-        });
-      }
-      
-      console.log(`Created ${isHistorical ? 'historical' : 'active'} session for ${member.name} on ${sessionDate.toLocaleDateString()}`);
-    }
-  }
-
+}
   console.log(`\n✅ Seeding completed!`);
   console.log(`Created ${users.length} users`);
   console.log(`Created ${departments.length} departments`);
-  console.log(`Created ${paymentPostingMembers.length * 5} sessions for Payment Posting department`);
   console.log('\nDefault password for each user is their User ID (e.g., ACE012)');
-  console.log('\nPayment Posting Department Members:');
-  paymentPostingMembers.forEach(m => console.log(`  - ${m.name} (${m.id})`));
 }
 
 main()

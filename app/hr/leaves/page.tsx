@@ -48,10 +48,12 @@ interface LeaveRequest {
     id: string;
     name: string;
     email: string;
-    team?: {
-      id: string;
-      name: string;
-    };
+    employmentInfo?: Array<{
+      department: {
+        id: string;
+        name: string;
+      };
+    }>;
   };
   approvedBy?: {
     id: string;
@@ -435,9 +437,9 @@ export default function LeaveManagementPage() {
                     <TableCell>
                       <div>
                         <div className="font-medium">{leave.user.name}</div>
-                        {leave.user.team && (
+                        {leave.user.employmentInfo?.[0]?.department && (
                           <div className="text-xs text-muted-foreground">
-                            {leave.user.team.name}
+                            {leave.user.employmentInfo[0].department.name}
                           </div>
                         )}
                       </div>

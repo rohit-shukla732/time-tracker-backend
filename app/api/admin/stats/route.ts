@@ -25,6 +25,13 @@ export async function GET(req: NextRequest) {
     thisWeekStart.setDate(today.getDate() - today.getDay());
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     
+    console.log('=== DATE RANGES ===');
+    console.log('Current time:', now.toISOString());
+    console.log('Today start:', today.toISOString());
+    console.log('Week start:', thisWeekStart.toISOString());
+    console.log('Month start:', thisMonthStart.toISOString());
+    console.log('==================');
+    
     // Last 7 days for chart
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today);
@@ -32,34 +39,61 @@ export async function GET(req: NextRequest) {
       return d;
     });
 
-    // Calculate real-time status counts from session state store
-    let realtimeWorking = 0;
-    let realtimeIdle = 0;
-    let realtimeBreak = 0;
-    
+    // Calculate real-time status counts from floor status endpoint logic
+    // Build real-time session state by userId from summary data ONLY
+    const realtimeStateByUser = new Map<string, any>();
     sessionStateStore.forEach((value, key) => {
-      if (key.startsWith('user:') && value.lastUpdated && Date.now() - value.lastUpdated <= SESSION_STATE_TIMEOUT_MS) {
-        const state = value.currentState;
-        if (state?.clockedIn) {
-          if (state.onBreak || state.autoBreak) {
-            realtimeBreak++;
-          } else if (state.isIdle) {
-            realtimeIdle++;
-          } else {
-            realtimeWorking++;
-          }
+      if (key.startsWith('user:')) {
+        const userId = key.replace('user:', '');
+        if (value.lastUpdated && Date.now() - value.lastUpdated <= SESSION_STATE_TIMEOUT_MS) {
+          realtimeStateByUser.set(userId, value);
+          console.log(`Realtime state for ${userId}:`, {
+            clockedIn: value.currentState?.clockedIn,
+            onBreak: value.currentState?.onBreak,
+            isIdle: value.currentState?.isIdle,
+            autoBreak: value.currentState?.autoBreak,
+            lastUpdated: new Date(value.lastUpdated).toISOString(),
+            age: Math.round((Date.now() - value.lastUpdated) / 1000) + 's ago'
+          });
         }
       }
     });
+
+    console.log('Realtime state users:', realtimeStateByUser.size);
+
+    // Calculate real-time status ONLY from summary data
+    let realtimeWorking = 0;
+    let realtimeIdle = 0;
+    let realtimeBreak = 0;
+
+    realtimeStateByUser.forEach((value, userId) => {
+      const state = value.currentState;
+      
+      if (state?.clockedIn) {
+        if (state.onBreak || state.autoBreak) {
+          realtimeBreak++;
+          console.log(`User ${userId}: On break`);
+        } else if (state.isIdle) {
+          realtimeIdle++;
+          console.log(`User ${userId}: Idle`);
+        } else {
+          realtimeWorking++;
+          console.log(`User ${userId}: Working`);
+        }
+      }
+    });
+    
+    console.log('Realtime counts:', { realtimeWorking, realtimeIdle, realtimeBreak });
+    console.log('=== END DEBUG ===');
 
     // Get counts in parallel
     const [
       totalUsers,
       totalDepartments,
       activeSessionsToday,
-      totalSessionsToday,
-      totalSessionsThisWeek,
-      totalSessionsThisMonth,
+      uniqueUsersToday,
+      uniqueUsersThisWeek,
+      uniqueUsersThisMonth,
       usersByRole,
       recentSessions,
       topApps,
@@ -82,25 +116,40 @@ export async function GET(req: NextRequest) {
         },
       }),
       
-      // Total sessions today
-      prisma.session.count({
+      // Unique users today
+      prisma.session.findMany({
         where: {
           startedAt: { gte: today },
         },
+        distinct: ['userId'],
+        select: { userId: true },
+      }).then(users => {
+        console.log('Unique users today:', users.length, 'Users:', users.map(u => u.userId));
+        return users.length;
       }),
       
-      // Total sessions this week
-      prisma.session.count({
+      // Unique users this week
+      prisma.session.findMany({
         where: {
           startedAt: { gte: thisWeekStart },
         },
+        distinct: ['userId'],
+        select: { userId: true },
+      }).then(users => {
+        console.log('Unique users this week:', users.length);
+        return users.length;
       }),
       
-      // Total sessions this month
-      prisma.session.count({
+      // Unique users this month
+      prisma.session.findMany({
         where: {
           startedAt: { gte: thisMonthStart },
         },
+        distinct: ['userId'],
+        select: { userId: true },
+      }).then(users => {
+        console.log('Unique users this month:', users.length);
+        return users.length;
       }),
       
       // Users by role
@@ -248,11 +297,10 @@ export async function GET(req: NextRequest) {
           total: totalDepartments,
           composition: departmentComposition,
         },
-        sessions: {
-          activeToday: activeSessionsToday,
-          today: totalSessionsToday,
-          thisWeek: totalSessionsThisWeek,
-          thisMonth: totalSessionsThisMonth,
+        activeUsers: {
+          today: uniqueUsersToday,
+          thisWeek: uniqueUsersThisWeek,
+          thisMonth: uniqueUsersThisMonth,
         },
         realtime: {
           working: realtimeWorking,
@@ -278,16 +326,48 @@ export async function GET(req: NextRequest) {
           departmentComposition,
           dailyWorkData: dailyWorkSummaries,
         },
-        recentSessions: recentSessions.map((s: any) => ({
-          id: s.id,
-          sessionId: s.sessionId,
-          userId: s.userId,
-          userName: s.user?.name,
-          userEmail: s.user?.email,
-          startedAt: s.startedAt,
-          endedAt: s.endedAt,
-          isActive: !s.endedAt,
+        dailyActiveUsers: dailyWorkSummaries.map((d, i) => ({
+          date: last7Days[i].toISOString().split('T')[0],
+          day: d.day,
+          activeUsers: dailySessions[i].sessions,
+          totalWork: d.work,
+          totalBreak: d.break,
+          totalIdle: d.idle,
         })),
+        recentActivity: await Promise.all(
+          recentSessions.slice(0, 10).map(async (s: any, index: number) => {
+            const sessionDate = new Date(s.startedAt);
+            sessionDate.setHours(0, 0, 0, 0);
+            const nextDay = new Date(sessionDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            
+            const summary = await prisma.sessionSummary.findFirst({
+              where: {
+                userId: s.userId,
+                createdAt: { gte: sessionDate, lt: nextDay },
+              },
+            });
+            
+            const sessionsCount = await prisma.session.count({
+              where: {
+                userId: s.userId,
+                startedAt: { gte: sessionDate, lt: nextDay },
+              },
+            });
+            
+            return {
+              id: `${s.userId}-${sessionDate.toISOString().split('T')[0]}-${index}`,
+              userId: s.userId,
+              userName: s.user?.name,
+              userEmail: s.user?.email,
+              date: sessionDate.toISOString(),
+              workTimeMs: Number(summary?.workTimeMs || 0),
+              breakTimeMs: Number(summary?.totalBreakMs || 0),
+              idleTimeMs: Number(summary?.totalIdleMs || 0),
+              sessionsCount,
+            };
+          })
+        ),
       },
     });
   } catch (error) {

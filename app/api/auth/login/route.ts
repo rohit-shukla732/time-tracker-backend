@@ -4,6 +4,21 @@ import { signAccessToken, signRefreshToken } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/prisma";
 import { logger } from "../../../../lib/logger";
 
+/** Parse a duration string like "7d", "30d", "2h", "90m" into milliseconds. */
+function parseDurationMs(duration: string): number {
+  const match = duration.match(/^(\d+)(s|m|h|d|w)$/i);
+  if (!match) return 7 * 24 * 3600 * 1000; // default 7 days
+  const value = parseInt(match[1], 10);
+  switch (match[2].toLowerCase()) {
+    case 's': return value * 1000;
+    case 'm': return value * 60 * 1000;
+    case 'h': return value * 3600 * 1000;
+    case 'd': return value * 24 * 3600 * 1000;
+    case 'w': return value * 7 * 24 * 3600 * 1000;
+    default:  return 7 * 24 * 3600 * 1000;
+  }
+}
+
 // Handle CORS preflight
 export async function OPTIONS() {
   return new NextResponse(null, {
@@ -53,11 +68,14 @@ export async function POST(req: NextRequest) {
     const accessToken = signAccessToken({ userId: user.id, email });
     const refreshToken = signRefreshToken({ userId: user.id });
 
+    const refreshExpiresIn = process.env.REFRESH_EXPIRES_IN || "7d";
+    const refreshExpiryMs = parseDurationMs(refreshExpiresIn);
+
     await prisma.refreshToken.create({
       data: {
         token: refreshToken,
         userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+        expiresAt: new Date(Date.now() + refreshExpiryMs),
       },
     });
 

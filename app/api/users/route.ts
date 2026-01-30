@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
             }
           }
         } : false,
-        managedDepartment: authResult.user.role === 'ADMIN' || authResult.user.role === 'HR' ? {
+        managedDepartments: authResult.user.role === 'ADMIN' || authResult.user.role === 'HR' ? {
           select: {
             id: true,
             name: true

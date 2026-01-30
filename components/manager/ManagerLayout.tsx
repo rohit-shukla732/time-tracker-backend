@@ -59,17 +59,19 @@ export default function ManagerLayout({ children }: ManagerLayoutProps) {
   const [user, setUser] = useState<User | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [timezone, setTimezone] = useState<string>('Asia/Kolkata');
+  const [shiftStartTime, setShiftStartTime] = useState<string>('09:00');
+  const [lateThresholdMins, setLateThresholdMins] = useState<number>(15);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [savingShiftSettings, setSavingShiftSettings] = useState(false);
 
   const navItems = [
     { href: '/time-tracker/manager', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/time-tracker/manager/team', label: 'Team', icon: Users },
     { href: '/time-tracker/manager/tasks', label: 'Tasks', icon: CheckSquare },
     { href: '/time-tracker/manager/reports', label: 'Reports', icon: FileText },
-    { href: '/time-tracker/manager/sessions', label: 'Sessions', icon: Clock },
   ];
 
   useEffect(() => {
@@ -89,6 +91,24 @@ export default function ManagerLayout({ children }: ManagerLayoutProps) {
     if (storedTimezone) {
       setTimezone(storedTimezone);
     }
+    
+    // Load shift settings
+    const loadShiftSettings = async () => {
+      try {
+        const response = await fetch('/api/users/settings/shift', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setShiftStartTime(data.shiftStartTime || '09:00');
+          setLateThresholdMins(data.lateThresholdMins || 15);
+        }
+      } catch (error) {
+        console.error('Failed to load shift settings:', error);
+      }
+    };
+    
+    loadShiftSettings();
     
     // Load user immediately
     loadUser();
@@ -169,6 +189,35 @@ export default function ManagerLayout({ children }: ManagerLayoutProps) {
       toast.error('Failed to change password');
     } finally {
       setChangingPassword(false);
+    }
+  };
+
+  const handleSaveShiftSettings = async () => {
+    setSavingShiftSettings(true);
+    try {
+      const response = await fetch('/api/users/settings/shift', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          shiftStartTime,
+          lateThresholdMins,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Shift settings saved successfully');
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to save shift settings');
+      }
+    } catch (error) {
+      console.error('Failed to save shift settings:', error);
+      toast.error('Failed to save shift settings');
+    } finally {
+      setSavingShiftSettings(false);
     }
   };
 
@@ -269,7 +318,7 @@ export default function ManagerLayout({ children }: ManagerLayoutProps) {
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription>
@@ -299,6 +348,65 @@ export default function ManagerLayout({ children }: ManagerLayoutProps) {
               <p className="text-xs text-muted-foreground mt-2">
                 Current: {timezone === 'Asia/Kolkata' ? 'Indian Standard Time (UTC+5:30)' : 'Eastern Standard Time (UTC-5:00)'}
               </p>
+            </div>
+
+            {/* Shift Time Settings */}
+            <div className="space-y-4 border-t pt-4">
+              <div>
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Shift & Late Arrival Settings
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Configure shift time and late arrival notifications
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="shift-start-time">Shift Start Time</Label>
+                <Input
+                  id="shift-start-time"
+                  type="time"
+                  value={shiftStartTime}
+                  onChange={(e) => setShiftStartTime(e.target.value)}
+                  placeholder="09:00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  The time when your team members should start work
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="late-threshold">Late Threshold (minutes)</Label>
+                <Input
+                  id="late-threshold"
+                  type="number"
+                  min="0"
+                  max="120"
+                  value={lateThresholdMins}
+                  onChange={(e) => setLateThresholdMins(parseInt(e.target.value) || 0)}
+                  placeholder="15"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Grace period after shift start time before marking as late
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <p className="text-xs text-blue-800">
+                  <strong>Note:</strong> You&apos;ll receive email and web notifications when team members 
+                  haven&apos;t clocked in by {shiftStartTime || '09:00'} + {lateThresholdMins} minutes.
+                </p>
+              </div>
+
+              <Button 
+                onClick={handleSaveShiftSettings} 
+                disabled={savingShiftSettings}
+                className="w-full"
+                variant="outline"
+              >
+                {savingShiftSettings ? 'Saving...' : 'Save Shift Settings'}
+              </Button>
             </div>
 
             {/* Change Password */}

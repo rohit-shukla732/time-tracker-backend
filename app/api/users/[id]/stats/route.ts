@@ -143,6 +143,59 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     });
 
+    // Fetch user tasks with sessions
+    const tasks = await prisma.task.findMany({
+      where: {
+        OR: [
+          { assignedTo: userId },
+          { createdById: userId }
+        ]
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        taskSessions: {
+          where: {
+            userId: userId
+          },
+          orderBy: {
+            startedAt: 'desc'
+          }
+        }
+      },
+      orderBy: [
+        { status: 'asc' },
+        { priority: 'desc' },
+        { createdAt: 'desc' }
+      ],
+      take: 20
+    });
+
+    // Calculate total time for each task
+    const tasksWithTime = tasks.map(task => ({
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      priority: task.priority,
+      project: task.project,
+      taskSessions: task.taskSessions.map(session => ({
+        id: session.id,
+        taskId: session.taskId,
+        sessionId: session.sessionId,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+        durationMs: Number(session.durationMs || 0)
+      })),
+      totalTimeMs: task.taskSessions.reduce((sum, session) => 
+        sum + (session.durationMs ? Number(session.durationMs) : 0), 0
+      )
+    }));
+
     // realtime status
     let status = 'Offline';
     const key = `user:${userId}`;
@@ -162,7 +215,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         userId,
         status,
         recentSessions: recentSessions.map((s) => ({ 
-          id: s.id, 
+          id: s.id,
+          sessionId: s.sessionId,
           startedAt: s.startedAt, 
           endedAt: s.endedAt, 
           isActive: !s.endedAt,
@@ -200,6 +254,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         charts: { dailyWorkData, dailySessions },
         topApps,
         topWebsites,
+        tasks: tasksWithTime,
         aggregates: {
           totalWorkMs: Number(summaryAgg._sum.workTimeMs || 0),
           totalBreakMs: Number(summaryAgg._sum.totalBreakMs || 0),

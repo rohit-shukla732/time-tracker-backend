@@ -35,9 +35,12 @@ export async function GET(req: NextRequest) {
         userName: dc.user.name,
         userEmail: dc.user.email,
         forceStop: dc.forceStop,
+        forceStart: (dc as any).forceStart,
         reason: dc.reason,
         stoppedBy: dc.stoppedBy,
         stoppedAt: dc.stoppedAt,
+        startedBy: (dc as any).startedBy,
+        startedAt: (dc as any).startedAt,
         updatedAt: dc.updatedAt,
       })),
     });
@@ -62,9 +65,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
-    if (!action || !["stop", "resume"].includes(action)) {
+    if (!action || !["stop", "resume", "start"].includes(action)) {
       return NextResponse.json(
-        { error: "action must be 'stop' or 'resume'" },
+        { error: "action must be 'stop', 'resume', or 'start'" },
         { status: 400 }
       );
     }
@@ -79,22 +82,29 @@ export async function POST(req: NextRequest) {
     }
 
     const isStop = action === "stop";
+    const isStart = action === "start";
 
     // Upsert device control record
-    const deviceControl = await prisma.deviceControl.upsert({
+    const deviceControl = await (prisma as any).deviceControl.upsert({
       where: { userId },
       create: {
         userId,
         forceStop: isStop,
+        forceStart: isStart,
         reason: isStop ? reason || "Stopped by admin" : null,
         stoppedBy: isStop ? authResult.user.id : null,
         stoppedAt: isStop ? new Date() : null,
+        startedBy: isStart ? authResult.user.id : null,
+        startedAt: isStart ? new Date() : null,
       },
       update: {
         forceStop: isStop,
+        forceStart: isStart,
         reason: isStop ? reason || "Stopped by admin" : null,
         stoppedBy: isStop ? authResult.user.id : null,
         stoppedAt: isStop ? new Date() : null,
+        startedBy: isStart ? authResult.user.id : null,
+        startedAt: isStart ? new Date() : null,
       },
       include: {
         user: {
@@ -116,15 +126,18 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Device ${isStop ? "stopped" : "resumed"} successfully`,
+      message: `Device ${isStop ? "stopped" : isStart ? "started" : "resumed"} successfully`,
       deviceControl: {
         userId: deviceControl.userId,
         userName: deviceControl.user.name,
         userEmail: deviceControl.user.email,
         forceStop: deviceControl.forceStop,
+        forceStart: deviceControl.forceStart,
         reason: deviceControl.reason,
         stoppedBy: deviceControl.stoppedBy,
         stoppedAt: deviceControl.stoppedAt,
+        startedBy: deviceControl.startedBy,
+        startedAt: deviceControl.startedAt,
       },
     });
   } catch (error) {

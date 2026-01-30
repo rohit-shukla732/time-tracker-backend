@@ -16,6 +16,12 @@ export async function POST(req: NextRequest) {
     if (!stored)
       return NextResponse.json({ error: "Invalid refresh token" }, { status: 401 });
 
+    // Check DB-level expiry
+    if (stored.expiresAt < new Date()) {
+      await prisma.refreshToken.delete({ where: { token: refreshToken } }).catch(() => {});
+      return NextResponse.json({ error: "Refresh token expired" }, { status: 401 });
+    }
+
     try {
       const payload = verifyRefreshToken(refreshToken) as any;
       const newAccess = signAccessToken({ userId: payload.userId, email: payload.email });

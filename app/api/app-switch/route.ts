@@ -5,10 +5,44 @@ import { logger } from "../../../lib/logger";
 
 export async function POST(req: NextRequest) {
   const auth = requireAuth(req);
-  if (!auth || "error" in auth || !auth.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const user = auth.user as { id: string };
+  const ip =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown";
 
+  if (!auth.user) {
+    const decodedUserId =
+      auth.decoded?.userId || auth.decoded?.id || auth.decoded?.sub || null;
+
+    // Expired-token fallback: accept the DB write if user still exists
+    if (auth.expired && decodedUserId) {
+      const userExists = await prisma.user.findUnique({
+        where: { id: String(decodedUserId) },
+        select: { id: true },
+      });
+      if (userExists) {
+        return await recordAppSwitch(req, String(decodedUserId), true);
+      }
+    }
+
+    logger.warn("POST /api/app-switch - Unauthorized", {
+      reason: auth.error,
+      ip,
+      decodedUserId,
+    });
+    return NextResponse.json(
+      { error: "Unauthorized", code: auth.expired ? "TOKEN_EXPIRED" : "AUTH_FAILED" },
+      { status: 401 }
+    );
+  }
+
+  const claimedUserId =
+    (auth.user as any).userId || (auth.user as any).id || (auth.user as any).sub;
+  return await recordAppSwitch(req, String(claimedUserId), false);
+}
+
+async function recordAppSwitch(req: NextRequest, resolvedUserId: string, fromExpiredToken: boolean) {
   const body = await req.json();
   const {
     userId,
@@ -18,14 +52,23 @@ export async function POST(req: NextRequest) {
     durationMs,
     timestamp,
     epochMs,
-    rawEvent
+    rawEvent,
   } = body;
 
-  logger.info("POST /api/app-switch - Received app switch event", { userId, sessionId, fromApp, toApp });
+  const effectiveUserId = resolvedUserId || userId;
+
+  logger.info("POST /api/app-switch - Received app switch event", {
+    userId: effectiveUserId,
+    sessionId,
+    fromApp,
+    toApp,
+    ...(fromExpiredToken ? { expiredTokenFallback: true } : {}),
+  });
+
   await prisma.appSwitchEvent.create({
     data: {
       sessionId,
-      userId: userId,
+      userId: effectiveUserId,
       fromApp: fromApp || null,
       toApp: toApp || null,
       durationMs: durationMs ? BigInt(durationMs) : null,

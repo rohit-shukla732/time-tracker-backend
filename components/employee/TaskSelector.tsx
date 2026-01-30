@@ -151,6 +151,7 @@ export default function TaskSelector({ sessionId }: TaskSelectorProps) {
 
   const handleStopTask = async () => {
     if (!sessionId) {
+      toast.error("No active session found");
       return;
     }
 
@@ -166,7 +167,9 @@ export default function TaskSelector({ sessionId }: TaskSelectorProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to stop task");
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || "Failed to stop task";
+        throw new Error(errorMessage);
       }
 
       setCurrentTask(null);
@@ -174,7 +177,7 @@ export default function TaskSelector({ sessionId }: TaskSelectorProps) {
       fetchAvailableTasks();
     } catch (error) {
       console.error("Error stopping task:", error);
-      toast.error("Failed to stop task");
+      toast.error(error instanceof Error ? error.message : "Failed to stop task");
     }
   };
 

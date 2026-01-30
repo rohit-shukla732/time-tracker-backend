@@ -25,19 +25,23 @@ export async function POST(req: NextRequest) {
 
     // If no control record or forceStop is false, allow resume
     const canResume = !deviceControl || !deviceControl.forceStop;
+    const forceStart = (deviceControl as any)?.forceStart || false;
 
     logger.debug("POST /api/device/status - Status check", { 
       userId, 
       canResume, 
-      forceStop: deviceControl?.forceStop 
+      forceStop: deviceControl?.forceStop,
+      forceStart,
     });
 
     return NextResponse.json({
       success: true,
       canResume,
       forceStop: deviceControl?.forceStop || false,
+      forceStart,
       reason: deviceControl?.reason || null,
       stoppedAt: deviceControl?.stoppedAt || null,
+      startedAt: (deviceControl as any)?.startedAt || null,
     });
   } catch (error) {
     logger.error("POST /api/device/status - Failed", error as Error);
@@ -64,13 +68,16 @@ export async function GET(req: NextRequest) {
     });
 
     const canResume = !deviceControl || !deviceControl.forceStop;
+    const forceStart = (deviceControl as any)?.forceStart || false;
 
     return NextResponse.json({
       success: true,
       canResume,
       forceStop: deviceControl?.forceStop || false,
+      forceStart,
       reason: deviceControl?.reason || null,
       stoppedAt: deviceControl?.stoppedAt || null,
+      startedAt: (deviceControl as any)?.startedAt || null,
     });
   } catch (error) {
     logger.error("GET /api/device/status - Failed", error as Error);

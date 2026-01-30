@@ -170,6 +170,27 @@ export default function HRSettings() {
         )}
       </div>
 
+      {/* Reference Data Quick Link */}
+      <Card className="bg-muted/50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Reference Data Management
+          </CardTitle>
+          <CardDescription>
+            Manage departments, designations, and other reference data
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <a href="/hr/settings/departments">Manage Departments</a>
+          </Button>
+          <Button asChild variant="outline" className="ml-2">
+            <a href="/hr/settings/designations">Manage Designations</a>
+          </Button>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>

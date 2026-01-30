@@ -74,9 +74,12 @@ interface DeviceControl {
   userName: string | null;
   userEmail: string;
   forceStop: boolean;
+  forceStart: boolean;
   reason: string | null;
   stoppedBy: string | null;
   stoppedAt: string | null;
+  startedBy: string | null;
+  startedAt: string | null;
   updatedAt: string;
 }
 
@@ -109,7 +112,7 @@ export default function AdminDeviceControl() {
   // Dialog state
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [actionType, setActionType] = useState<'stop' | 'resume'>('stop');
+  const [actionType, setActionType] = useState<'stop' | 'resume' | 'start'>('stop');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -183,7 +186,7 @@ export default function AdminDeviceControl() {
     return onlineUserIds.size;
   };
 
-  const openActionDialog = (user: User, action: 'stop' | 'resume') => {
+  const openActionDialog = (user: User, action: 'stop' | 'resume' | 'start') => {
     setSelectedUser(user);
     setActionType(action);
     setReason('');
@@ -443,7 +446,7 @@ export default function AdminDeviceControl() {
           <CardHeader>
             <CardTitle>All Users</CardTitle>
             <CardDescription>
-              Click Stop to force-stop a user&apos;s time tracker, or Resume to allow it to run again
+              Start recording via biometric trigger, Stop to force-stop a tracker, or Resume to allow it to run again
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -462,6 +465,7 @@ export default function AdminDeviceControl() {
                 {paginatedUsers.map((user) => {
                   const deviceStatus = getDeviceStatus(user.id);
                   const isStopped = deviceStatus?.forceStop || false;
+                  const isPendingStart = !isStopped && (deviceStatus?.forceStart || false);
                   const online = isUserOnline(user.id);
                   
                   return (
@@ -509,6 +513,11 @@ export default function AdminDeviceControl() {
                               </p>
                             )}
                           </div>
+                        ) : isPendingStart ? (
+                          <Badge variant="outline" className="gap-1 text-blue-600 border-blue-400">
+                            <Play className="h-3 w-3 animate-pulse" />
+                            Pending Start
+                          </Badge>
                         ) : (
                           <Badge variant="outline" className="gap-1 text-green-600 border-green-600">
                             <Play className="h-3 w-3" />
@@ -517,27 +526,51 @@ export default function AdminDeviceControl() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {isStopped ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1 text-green-600 hover:text-green-700 hover:bg-green-50"
-                            onClick={() => openActionDialog(user, 'resume')}
-                          >
-                            <Play className="h-4 w-4" />
-                            Resume
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => openActionDialog(user, 'stop')}
-                          >
-                            <Square className="h-4 w-4" />
-                            Stop
-                          </Button>
-                        )}
+                        <div className="flex gap-1 flex-wrap">
+                          {isStopped ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={() => openActionDialog(user, 'resume')}
+                              >
+                                <Play className="h-4 w-4" />
+                                Resume
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => openActionDialog(user, 'start')}
+                              >
+                                <Play className="h-4 w-4" />
+                                Start
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => openActionDialog(user, 'stop')}
+                              >
+                                <Square className="h-4 w-4" />
+                                Stop
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => openActionDialog(user, 'start')}
+                              >
+                                <Play className="h-4 w-4" />
+                                Start
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -661,6 +694,11 @@ export default function AdminDeviceControl() {
                   <PowerOff className="h-5 w-5 text-red-600" />
                   Force Stop Device
                 </>
+              ) : actionType === 'start' ? (
+                <>
+                  <Play className="h-5 w-5 text-blue-600" />
+                  Signal Start Recording
+                </>
               ) : (
                 <>
                   <Power className="h-5 w-5 text-green-600" />
@@ -674,6 +712,12 @@ export default function AdminDeviceControl() {
                   This will force-stop the time tracker application for{' '}
                   <strong>{selectedUser?.name || selectedUser?.email}</strong>.
                   The app will stop tracking until you resume it.
+                </>
+              ) : actionType === 'start' ? (
+                <>
+                  This will send a <strong>start recording</strong> signal to the time tracker for{' '}
+                  <strong>{selectedUser?.name || selectedUser?.email}</strong>.
+                  The app will begin a new session on its next heartbeat.
                 </>
               ) : (
                 <>
@@ -710,7 +754,10 @@ export default function AdminDeviceControl() {
               variant={actionType === 'stop' ? 'destructive' : 'default'}
               onClick={handleAction}
               disabled={submitting}
-              className={actionType === 'resume' ? 'bg-green-600 hover:bg-green-700' : ''}
+              className={
+                actionType === 'resume' ? 'bg-green-600 hover:bg-green-700' :
+                actionType === 'start'  ? 'bg-blue-600 hover:bg-blue-700'  : ''
+              }
             >
               {submitting ? (
                 'Processing...'
@@ -718,6 +765,11 @@ export default function AdminDeviceControl() {
                 <>
                   <Square className="h-4 w-4 mr-2" />
                   Force Stop
+                </>
+              ) : actionType === 'start' ? (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  Signal Start
                 </>
               ) : (
                 <>

@@ -82,7 +82,7 @@ interface Task {
     id: string;
     name: string;
   };
-  team: {
+  department?: {
     id: string;
     name: string;
   };
@@ -93,10 +93,12 @@ interface TeamMember {
   id: string;
   name: string;
   email: string;
-  team?: {
-    id: string;
-    name: string;
-  };
+  employmentInfo?: Array<{
+    department: {
+      id: string;
+      name: string;
+    };
+  }>;
 }
 
 interface Project {
@@ -456,7 +458,7 @@ export default function TasksPage() {
       task.description?.toLowerCase().includes(searchLower) ||
       task.assignee?.name?.toLowerCase().includes(searchLower) ||
       task.project?.name?.toLowerCase().includes(searchLower) ||
-      task.team?.name?.toLowerCase().includes(searchLower)
+      task.department?.name?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -582,7 +584,7 @@ export default function TasksPage() {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="title" className="mb-1">Task Title</Label>
+                  <Label htmlFor="title" className="mb-1">Task Title <span className="text-red-500">*</span></Label>
                   <Input
                     id="title"
                     value={newTask.title}
@@ -590,10 +592,11 @@ export default function TasksPage() {
                       setNewTask({ ...newTask, title: e.target.value })
                     }
                     placeholder="Enter task title"
+                    required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="description" className="mb-1">Description</Label>
+                  <Label htmlFor="description" className="mb-1">Description <span className="text-red-500">*</span></Label>
                   <Textarea
                     id="description"
                     value={newTask.description}
@@ -601,16 +604,18 @@ export default function TasksPage() {
                       setNewTask({ ...newTask, description: e.target.value })
                     }
                     placeholder="Task description"
+                    required
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="project" className="mb-1">Project (Optional)</Label>
+                    <Label htmlFor="project" className="mb-1">Project <span className="text-red-500">*</span></Label>
                     <Select
                       value={newTask.projectId}
                       onValueChange={(value) =>
                         setNewTask({ ...newTask, projectId: value })
                       }
+                      required
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select project" />
@@ -626,7 +631,7 @@ export default function TasksPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="assignee" className="mb-1">Assign To</Label>
+                    <Label htmlFor="assignee" className="mb-1">Assign To <span className="text-red-500">*</span></Label>
                     <Popover open={createTaskAssigneePopoverOpen} onOpenChange={setCreateTaskAssigneePopoverOpen}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="w-full justify-between">
@@ -698,12 +703,13 @@ export default function TasksPage() {
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="priority" className="mb-1">Priority</Label>
+                    <Label htmlFor="priority" className="mb-1">Priority <span className="text-red-500">*</span></Label>
                     <Select
                       value={newTask.priority}
                       onValueChange={(value) =>
                         setNewTask({ ...newTask, priority: value })
                       }
+                      required
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -717,7 +723,7 @@ export default function TasksPage() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="estimated" className="mb-1">Estimated Hours</Label>
+                    <Label htmlFor="estimated" className="mb-1">Estimated Hours (Optional)</Label>
                     <Input
                       id="estimated"
                       type="number"
@@ -915,9 +921,9 @@ export default function TasksPage() {
                                 />
                                 <div className="flex flex-col">
                                   <span>{member.name || member.email}</span>
-                                  {member.team && (
+                                  {member.employmentInfo?.[0]?.department && (
                                     <span className="text-xs text-muted-foreground">
-                                      {member.team.name}
+                                      {member.employmentInfo[0].department.name}
                                     </span>
                                   )}
                                 </div>
@@ -1068,9 +1074,9 @@ export default function TasksPage() {
                       />
                       <div className="flex flex-col">
                         <span>{member.name || member.email}</span>
-                        {member.team && (
+                        {member.employmentInfo?.[0]?.department && (
                           <span className="text-xs text-muted-foreground">
-                            {member.team.name}
+                            {member.employmentInfo[0].department.name}
                           </span>
                         )}
                       </div>
@@ -1147,9 +1153,9 @@ export default function TasksPage() {
                       {task.assignee ? (
                         <div>
                           <div className="text-sm">{task.assignee.name}</div>
-                          {task.team && (
+                          {task.department && (
                             <div className="text-xs text-muted-foreground">
-                              {task.team.name}
+                              {task.department.name}
                             </div>
                           )}
                         </div>

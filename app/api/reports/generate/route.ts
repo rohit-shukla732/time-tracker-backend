@@ -102,6 +102,18 @@ export async function POST(request: NextRequest) {
     let reportData: any = {};
 
     switch (filters.reportType) {
+      case 'task-summary':
+        reportData = await generateTaskSummaryReport(memberIds, dateFrom, dateTo, timezone);
+        break;
+      
+      case 'task-productivity':
+        reportData = await generateTaskProductivityReport(memberIds, dateFrom, dateTo, timezone);
+        break;
+      
+      case 'task-time-tracking':
+        reportData = await generateTaskTimeTrackingReport(memberIds, dateFrom, dateTo, timezone);
+        break;
+      
       case 'exception-alert':
         reportData = await generateExceptionReport(memberIds, dateFrom, dateTo, filters, timezone);
         break;
@@ -398,93 +410,112 @@ async function generateAttendanceReport(
   dateTo: Date,
   timezone: 'IST' | 'EST' = 'IST'
 ) {
+  // Fetch all team member profiles (so absent members still appear)
+  const allMembers = await prisma.user.findMany({
+    where: { id: { in: memberIds } },
+    select: { id: true, name: true, email: true },
+    orderBy: { name: 'asc' },
+  });
+
+  // Fetch all sessions in the date range with summaries
   const sessions = await prisma.session.findMany({
     where: {
       userId: { in: memberIds },
-      startedAt: {
-        gte: dateFrom,
-        lte: dateTo,
-      },
+      startedAt: { gte: dateFrom, lte: dateTo },
     },
     include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-        },
-      },
+      summary: true,
     },
     orderBy: { startedAt: 'asc' },
   });
 
-  // Group by user and date
-  const attendanceByUser = new Map<string, any>();
+  // Build the full date range (one entry per calendar day)
+  const dateKeys: string[] = [];
+  const cursor = new Date(dateFrom);
+  while (cursor <= dateTo) {
+    dateKeys.push(getDateInTimezone(cursor, timezone));
+    cursor.setDate(cursor.getDate() + 1);
+  }
 
-  sessions.forEach((session) => {
-    const userId = session.userId;
-    if (!userId) return; // Skip sessions without userId
-    
-    const dateKey = getDateInTimezone(session.startedAt, timezone);
-
-    if (!attendanceByUser.has(userId)) {
-      attendanceByUser.set(userId, {
-        user: session.user,
-        dates: new Map(),
-        totalSessions: 0,
-        totalActiveDays: 0,
-      });
-    }
-
-    const userAttendance = attendanceByUser.get(userId)!;
-    userAttendance.totalSessions++;
-
-    if (!userAttendance.dates.has(dateKey)) {
-      userAttendance.dates.set(dateKey, {
-        date: dateKey,
-        firstLogin: session.startedAt,
-        lastLogout: session.endedAt,
-        sessions: [],
-      });
-      userAttendance.totalActiveDays++;
-    }
-
-    const dayData = userAttendance.dates.get(dateKey)!;
-    dayData.sessions.push(session);
-    
-    if (session.endedAt && (!dayData.lastLogout || session.endedAt > dayData.lastLogout)) {
-      dayData.lastLogout = session.endedAt;
-    }
+  // Group sessions: date → userId → session[]
+  const byDateUser = new Map<string, Map<string, any[]>>();
+  sessions.forEach((s) => {
+    if (!s.userId) return;
+    const dk = getDateInTimezone(s.startedAt, timezone);
+    if (!byDateUser.has(dk)) byDateUser.set(dk, new Map());
+    const uMap = byDateUser.get(dk)!;
+    if (!uMap.has(s.userId)) uMap.set(s.userId, []);
+    uMap.get(s.userId)!.push(s);
   });
 
-  const attendanceRecords = Array.from(attendanceByUser.values()).map(ua => ({
-    user: ua.user,
-    totalSessions: ua.totalSessions,
-    totalActiveDays: ua.totalActiveDays,
-    dailyRecords: Array.from(ua.dates.values()).map((day: any) => ({
-      date: day.date,
-      firstLogin: day.firstLogin,
-      lastLogout: day.lastLogout,
-      sessionCount: day.sessions.length,
-      totalMinutes: day.sessions.reduce((sum: number, s: any) => {
-        const duration = s.endedAt
-          ? s.endedAt.getTime() - s.startedAt.getTime()
-          : 0;
-        return sum + Math.round(duration / 60000);
-      }, 0),
-    })),
-  }));
+  // Build per-date attendance records
+  const dailyAttendance = dateKeys.map((date) => {
+    const uMap = byDateUser.get(date) || new Map();
+
+    const members = allMembers.map((member) => {
+      const userSessions = uMap.get(member.id) || [];
+      if (userSessions.length === 0) {
+        return { user: member, present: false };
+      }
+
+      // Earliest clock-in, latest clock-out
+      const clockIn = userSessions.reduce((min: Date, s: any) =>
+        s.startedAt < min ? s.startedAt : min, userSessions[0].startedAt);
+      const lastSession = userSessions.reduce((max: any, s: any) =>
+        (s.endedAt && (!max.endedAt || s.endedAt > max.endedAt)) ? s : max, userSessions[0]);
+
+      const workMs   = userSessions.reduce((sum: number, s: any) => sum + Number(s.summary?.workTimeMs  || 0), 0);
+      const breakMs  = userSessions.reduce((sum: number, s: any) => sum + Number(s.summary?.totalBreakMs || 0), 0);
+      const idleMs   = userSessions.reduce((sum: number, s: any) => sum + Number(s.summary?.totalIdleMs  || 0), 0);
+      // Use summary-based total (work + break + idle) so activePct can never exceed 100
+      const summaryTotalMs = workMs + breakMs + idleMs;
+
+      const workMinutes  = Math.round(workMs  / 60000);
+      const breakMinutes = Math.round(breakMs / 60000);
+      const idleMinutes  = Math.round(idleMs  / 60000);
+      const totalMinutes = Math.round(summaryTotalMs / 60000);
+      const activePct    = totalMinutes > 0 ? Math.min(100, Math.round((workMinutes / totalMinutes) * 100)) : 0;
+
+      return {
+        user: member,
+        present: true,
+        clockIn,
+        clockOut: lastSession.endedAt || null,
+        workMinutes,
+        breakMinutes,
+        idleMinutes,
+        totalMinutes,
+        activePct,
+      };
+    });
+
+    // Present members first, then absent; within present sort by name
+    members.sort((a, b) => {
+      if (a.present && !b.present) return -1;
+      if (!a.present && b.present) return 1;
+      return (a.user.name || '').localeCompare(b.user.name || '');
+    });
+
+    const presentCount = members.filter((m) => m.present).length;
+    return {
+      date,
+      presentCount,
+      absentCount: allMembers.length - presentCount,
+      members,
+    };
+  });
 
   return {
     summary: {
-      totalUsers: attendanceRecords.length,
-      totalSessions: sessions.length,
+      totalMembers: allMembers.length,
+      totalDays: dailyAttendance.length,
+      daysWithActivity: dailyAttendance.filter((d) => d.presentCount > 0).length,
       dateRange: {
         from: getDateInTimezone(dateFrom, timezone),
         to: getDateInTimezone(dateTo, timezone),
       },
     },
-    attendance: attendanceRecords,
+    dailyAttendance,
   };
 }
 
@@ -875,5 +906,299 @@ async function generateActiveIdleReport(
         : 0,
     },
     userAnalysis: analysis.sort((a, b) => b.activityPercentage - a.activityPercentage),
+  };
+}
+
+// ==================== TASK-BASED REPORTS ====================
+
+// Task Summary Report
+async function generateTaskSummaryReport(
+  memberIds: string[],
+  dateFrom: Date,
+  dateTo: Date,
+  timezone: 'IST' | 'EST'
+) {
+  // Get all tasks for the members in the date range
+  const tasks = await prisma.task.findMany({
+    where: {
+      OR: [
+        { assignedTo: { in: memberIds } },
+        { createdById: { in: memberIds } }
+      ],
+      createdAt: { gte: dateFrom, lte: dateTo }
+    },
+    include: {
+      assignee: { select: { id: true, name: true, email: true } },
+      createdBy: { select: { id: true, name: true, email: true } },
+      project: { select: { id: true, name: true } },
+      taskSessions: {
+        select: {
+          startedAt: true,
+          endedAt: true,
+          durationMs: true,
+          userId: true
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  // Calculate metrics by user
+  const userMetrics = memberIds.map(userId => {
+    const userTasks = tasks.filter(t => t.assignedTo === userId || t.createdById === userId);
+    const assignedTasks = tasks.filter(t => t.assignedTo === userId);
+    const createdTasks = tasks.filter(t => t.createdById === userId);
+    
+    const completedTasks = assignedTasks.filter(t => t.status === 'COMPLETED');
+    const pendingTasks = assignedTasks.filter(t => t.status === 'PENDING_APPROVAL' || t.status === 'ACTIVE');
+    const inProgressTasks = assignedTasks.filter(t => t.status === 'IN_PROGRESS');
+    
+    // Calculate total time spent
+    const totalTimeMs = assignedTasks.reduce((sum, task) => {
+      const taskTime = task.taskSessions
+        .filter(s => s.userId === userId)
+        .reduce((tSum, session) => tSum + Number(session.durationMs || 0), 0);
+      return sum + taskTime;
+    }, 0);
+
+    const user = tasks.find(t => t.assignee?.id === userId || t.createdBy?.id === userId);
+    
+    return {
+      userId,
+      userName: user?.assignee?.name || user?.createdBy?.name || 'Unknown',
+      totalTasks: assignedTasks.length,
+      completedTasks: completedTasks.length,
+      pendingTasks: pendingTasks.length,
+      inProgressTasks: inProgressTasks.length,
+      createdTasks: createdTasks.length,
+      totalTimeMs,
+      totalTimeHours: Number((totalTimeMs / (1000 * 60 * 60)).toFixed(2)),
+      completionRate: assignedTasks.length > 0 
+        ? Math.round((completedTasks.length / assignedTasks.length) * 100)
+        : 0
+    };
+  });
+
+  // Task breakdown by status
+  const statusBreakdown = {
+    ACTIVE: tasks.filter(t => t.status === 'ACTIVE').length,
+    IN_PROGRESS: tasks.filter(t => t.status === 'IN_PROGRESS').length,
+    COMPLETED: tasks.filter(t => t.status === 'COMPLETED').length,
+    PENDING_APPROVAL: tasks.filter(t => t.status === 'PENDING_APPROVAL').length,
+    CANCELLED: tasks.filter(t => t.status === 'CANCELLED').length,
+  };
+
+  // Task breakdown by priority
+  const priorityBreakdown = {
+    LOW: tasks.filter(t => t.priority === 'LOW').length,
+    MEDIUM: tasks.filter(t => t.priority === 'MEDIUM').length,
+    HIGH: tasks.filter(t => t.priority === 'HIGH').length,
+    URGENT: tasks.filter(t => t.priority === 'URGENT').length,
+  };
+
+  return {
+    summary: {
+      totalTasks: tasks.length,
+      totalUsers: memberIds.length,
+      dateRange: { from: dateFrom.toISOString(), to: dateTo.toISOString() },
+      statusBreakdown,
+      priorityBreakdown
+    },
+    userMetrics: userMetrics.sort((a, b) => b.totalTimeHours - a.totalTimeHours),
+    taskList: tasks.map(t => ({
+      id: t.id,
+      title: t.title,
+      status: t.status,
+      priority: t.priority,
+      assignee: t.assignee?.name,
+      project: t.project?.name,
+      createdAt: t.createdAt,
+      completedAt: t.completedAt,
+      totalTime: t.taskSessions.reduce((sum, s) => sum + Number(s.durationMs || 0), 0)
+    }))
+  };
+}
+
+// Task Productivity Report
+async function generateTaskProductivityReport(
+  memberIds: string[],
+  dateFrom: Date,
+  dateTo: Date,
+  timezone: 'IST' | 'EST'
+) {
+  const tasks = await prisma.task.findMany({
+    where: {
+      assignedTo: { in: memberIds },
+      taskSessions: {
+        some: {
+          startedAt: { gte: dateFrom, lte: dateTo }
+        }
+      }
+    },
+    include: {
+      assignee: { select: { id: true, name: true, email: true } },
+      project: { select: { id: true, name: true } },
+      taskSessions: {
+        where: {
+          startedAt: { gte: dateFrom, lte: dateTo }
+        },
+        select: {
+          userId: true,
+          startedAt: true,
+          endedAt: true,
+          durationMs: true
+        }
+      }
+    }
+  });
+
+  const productivityMetrics = memberIds.map(userId => {
+    const userTasks = tasks.filter(t => t.assignedTo === userId);
+    const completedTasks = userTasks.filter(t => t.status === 'COMPLETED');
+    
+    const totalTimeMs = userTasks.reduce((sum, task) => {
+      const taskTime = task.taskSessions
+        .filter(s => s.userId === userId)
+        .reduce((tSum, session) => tSum + Number(session.durationMs || 0), 0);
+      return sum + taskTime;
+    }, 0);
+
+    const avgTimePerTask = userTasks.length > 0 ? totalTimeMs / userTasks.length : 0;
+    const avgTimePerCompletedTask = completedTasks.length > 0 
+      ? completedTasks.reduce((sum, task) => {
+          const taskTime = task.taskSessions
+            .filter(s => s.userId === userId)
+            .reduce((tSum, session) => tSum + Number(session.durationMs || 0), 0);
+          return sum + taskTime;
+        }, 0) / completedTasks.length
+      : 0;
+
+    // Calculate estimated vs actual time
+    const estimatedVsActual = userTasks
+      .filter(t => t.estimatedHours)
+      .map(task => {
+        const actualMs = task.taskSessions
+          .filter(s => s.userId === userId)
+          .reduce((sum, s) => sum + Number(s.durationMs || 0), 0);
+        const estimatedMs = (task.estimatedHours || 0) * 60 * 60 * 1000;
+        return {
+          taskId: task.id,
+          taskTitle: task.title,
+          estimated: task.estimatedHours,
+          actual: Number((actualMs / (1000 * 60 * 60)).toFixed(2)),
+          variance: estimatedMs > 0 ? Math.round(((actualMs - estimatedMs) / estimatedMs) * 100) : 0
+        };
+      });
+
+    const user = tasks.find(t => t.assignee?.id === userId)?.assignee;
+
+    return {
+      userId,
+      userName: user?.name || 'Unknown',
+      totalTasks: userTasks.length,
+      completedTasks: completedTasks.length,
+      completionRate: userTasks.length > 0 ? Math.round((completedTasks.length / userTasks.length) * 100) : 0,
+      totalTimeHours: Number((totalTimeMs / (1000 * 60 * 60)).toFixed(2)),
+      avgTimePerTaskHours: Number((avgTimePerTask / (1000 * 60 * 60)).toFixed(2)),
+      avgTimePerCompletedTaskHours: Number((avgTimePerCompletedTask / (1000 * 60 * 60)).toFixed(2)),
+      estimatedVsActual,
+      efficiencyScore: avgTimePerCompletedTask > 0 && completedTasks.length > 0
+        ? Math.min(100, Math.round((1 - (avgTimePerCompletedTask / (8 * 60 * 60 * 1000))) * 100))
+        : 0
+    };
+  });
+
+  return {
+    summary: {
+      totalUsers: memberIds.length,
+      avgCompletionRate: productivityMetrics.length > 0
+        ? Math.round(productivityMetrics.reduce((sum, m) => sum + m.completionRate, 0) / productivityMetrics.length)
+        : 0,
+      totalTasksAcrossUsers: productivityMetrics.reduce((sum, m) => sum + m.totalTasks, 0),
+      totalCompletedTasksAcrossUsers: productivityMetrics.reduce((sum, m) => sum + m.completedTasks, 0)
+    },
+    userMetrics: productivityMetrics.sort((a, b) => b.efficiencyScore - a.efficiencyScore)
+  };
+}
+
+// Task Time Tracking Report
+async function generateTaskTimeTrackingReport(
+  memberIds: string[],
+  dateFrom: Date,
+  dateTo: Date,
+  timezone: 'IST' | 'EST'
+) {
+  const taskSessions = await prisma.taskSession.findMany({
+    where: {
+      userId: { in: memberIds },
+      startedAt: { gte: dateFrom, lte: dateTo }
+    },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      task: {
+        include: {
+          project: { select: { id: true, name: true } }
+        }
+      }
+    },
+    orderBy: { startedAt: 'desc' }
+  });
+
+  // Group by user
+  const userTimeTracking = memberIds.map(userId => {
+    const userSessions = taskSessions.filter(s => s.userId === userId);
+    const totalTimeMs = userSessions.reduce((sum, s) => sum + Number(s.durationMs || 0), 0);
+    
+    // Group by task
+    const taskBreakdown = userSessions.reduce((acc, session) => {
+      const taskId = session.task.id;
+      if (!acc[taskId]) {
+        acc[taskId] = {
+          taskId,
+          taskTitle: session.task.title,
+          project: session.task.project?.name,
+          status: session.task.status,
+          priority: session.task.priority,
+          sessions: [],
+          totalTimeMs: 0
+        };
+      }
+      acc[taskId].sessions.push({
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+        durationMs: Number(session.durationMs || 0)
+      });
+      acc[taskId].totalTimeMs += Number(session.durationMs || 0);
+      return acc;
+    }, {} as Record<string, any>);
+
+    const user = userSessions[0]?.user;
+
+    return {
+      userId,
+      userName: user?.name || 'Unknown',
+      totalSessions: userSessions.length,
+      totalTimeHours: Number((totalTimeMs / (1000 * 60 * 60)).toFixed(2)),
+      uniqueTasks: Object.keys(taskBreakdown).length,
+      taskBreakdown: Object.values(taskBreakdown)
+        .sort((a: any, b: any) => b.totalTimeMs - a.totalTimeMs)
+        .map((t: any) => ({
+          ...t,
+          totalTimeHours: Number((t.totalTimeMs / (1000 * 60 * 60)).toFixed(2)),
+          sessionCount: t.sessions.length
+        }))
+    };
+  });
+
+  return {
+    summary: {
+      totalUsers: memberIds.length,
+      totalSessions: taskSessions.length,
+      totalTimeHours: Number(
+        (taskSessions.reduce((sum, s) => sum + Number(s.durationMs || 0), 0) / (1000 * 60 * 60)).toFixed(2)
+      ),
+      dateRange: { from: dateFrom.toISOString(), to: dateTo.toISOString() }
+    },
+    userTimeTracking: userTimeTracking.sort((a, b) => b.totalTimeHours - a.totalTimeHours)
   };
 }

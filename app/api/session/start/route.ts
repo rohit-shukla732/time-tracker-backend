@@ -26,6 +26,12 @@ export async function POST(request: NextRequest) {
     },
   });
 
+  // Clear the forceStart signal now that the session has actually started
+  await (prisma as any).deviceControl.updateMany({
+    where: { userId: auth.user.id, forceStart: true },
+    data: { forceStart: false },
+  });
+
     logger.info("POST /api/session/start - Session started", { sessionId, userId: auth.user.id });
     logger.response("POST", "/api/session/start", 200, Date.now() - startTime);
     return NextResponse.json({ success: true });

@@ -119,3 +119,139 @@ export interface TicketStats {
     [key: string]: number;
   };
 }
+
+// Asset Management Types
+export enum AssetType {
+  USER_SIDE = 'USER_SIDE',
+  IT_INFRASTRUCTURE = 'IT_INFRASTRUCTURE',
+}
+
+export enum AssetCategory {
+  // User Side Assets
+  LAPTOP = 'LAPTOP',
+  KEYBOARD = 'KEYBOARD',
+  MOUSE = 'MOUSE',
+  HEADSET = 'HEADSET',
+  MONITOR = 'MONITOR',
+  
+  // IT Infrastructure Assets
+  SWITCH = 'SWITCH',
+  FIREWALL = 'FIREWALL',
+  ACCESS_POINT = 'ACCESS_POINT',
+  BIOMETRIC = 'BIOMETRIC',
+  TELEPHONE_MATRIX = 'TELEPHONE_MATRIX',
+  TELEPHONE_HANDSET = 'TELEPHONE_HANDSET',
+  CCTV_CAMERA = 'CCTV_CAMERA',
+  NVR = 'NVR',
+  INTERNET_LINE = 'INTERNET_LINE',
+}
+
+export enum AssetStatus {
+  AVAILABLE = 'AVAILABLE',
+  ASSIGNED = 'ASSIGNED',
+  IN_MAINTENANCE = 'IN_MAINTENANCE',
+  RETIRED = 'RETIRED',
+  DAMAGED = 'DAMAGED',
+  LOST = 'LOST',
+}
+
+export enum AssignmentStatus {
+  ACTIVE = 'ACTIVE',
+  RETURNED = 'RETURNED',
+  OVERDUE = 'OVERDUE',
+}
+
+export enum AssetCondition {
+  EXCELLENT = 'EXCELLENT',
+  GOOD = 'GOOD',
+  FAIR = 'FAIR',
+  POOR = 'POOR',
+  DAMAGED = 'DAMAGED',
+}
+
+export enum MaintenanceType {
+  PREVENTIVE = 'PREVENTIVE',
+  CORRECTIVE = 'CORRECTIVE',
+  INSPECTION = 'INSPECTION',
+  UPGRADE = 'UPGRADE',
+}
+
+export enum MaintenanceStatus {
+  SCHEDULED = 'SCHEDULED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
+
+export interface Asset {
+  id: string;
+  assetType: AssetType;
+  category: AssetCategory;
+  name: string;
+  description?: string;
+  serialNumber?: string;
+  model?: string;
+  manufacturer?: string;
+  purchaseDate?: Date;
+  warrantyExpiry?: Date;
+  purchaseCost?: number;
+  currentValue?: number;
+  status: AssetStatus;
+  location?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  assignments?: AssetAssignment[];
+  maintenanceRecords?: AssetMaintenance[];
+}
+
+export interface AssetAssignment {
+  id: string;
+  assetId: string;
+  userId: string;
+  assignedBy: string;
+  assignedDate: Date;
+  returnedDate?: Date;
+  expectedReturnDate?: Date;
+  status: AssignmentStatus;
+  condition?: AssetCondition;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  asset?: Asset;
+  user?: User;
+  assignedByUser?: User;
+}
+
+export interface AssetMaintenance {
+  id: string;
+  assetId: string;
+  maintenanceType: MaintenanceType;
+  description: string;
+  scheduledDate: Date;
+  completedDate?: Date;
+  cost?: number;
+  performedBy?: string;
+  status: MaintenanceStatus;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  asset?: Asset;
+}
+
+export interface AssetStats {
+  overview: {
+    totalAssets: number;
+    availableAssets: number;
+    assignedAssets: number;
+    inMaintenanceAssets: number;
+    damagedAssets: number;
+    userSideAssets: number;
+    itInfrastructureAssets: number;
+    activeAssignments: number;
+    pendingMaintenance: number;
+  };
+  assetsByCategory: Array<{ category: AssetCategory; count: number }>;
+  recentAssignments: AssetAssignment[];
+  upcomingMaintenance: AssetMaintenance[];
+}

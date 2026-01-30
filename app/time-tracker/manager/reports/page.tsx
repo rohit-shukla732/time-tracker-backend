@@ -75,15 +75,27 @@ export default function ManagerReportsPage() {
         return;
       }
 
-      // Get user info to find team
+      // Fetch manager's department
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         const user = JSON.parse(storedUser);
-        if (user.teamId) {
-          await fetchTeamInfo(user.teamId);
-          await fetchTeamMembers(user.teamId);
-        } else {
-          setError('No team assigned');
+        try {
+          const teamsResponse = await authFetch('/api/teams', {}, '/time-tracker/manager/login') as any;
+          const managedDepartments = teamsResponse?.departments?.filter((dept: any) => 
+            dept.managerId === user.id
+          ) || [];
+          
+          if (managedDepartments.length > 0) {
+            const departmentId = managedDepartments[0].id;
+            await fetchTeamInfo(departmentId);
+            await fetchTeamMembers(departmentId);
+          } else {
+            setError('No department assigned');
+            setLoading(false);
+          }
+        } catch (err) {
+          console.error('Failed to fetch departments:', err);
+          setError('Failed to load department information');
           setLoading(false);
         }
       } else {
@@ -162,7 +174,7 @@ export default function ManagerReportsPage() {
             ...filters,
             timezone, // Add timezone to filters
           },
-          teamId: teamInfo?.id,
+          departmentId: teamInfo?.id,
         }),
       });
 
