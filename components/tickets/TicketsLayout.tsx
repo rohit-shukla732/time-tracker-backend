@@ -20,9 +20,10 @@ import {
   LogOut,
   ChevronDown,
   MessageSquare,
+  Download,
 } from 'lucide-react';
 
-interface User {
+interface AuthUser {
   id: string;
   name: string;
   email: string;
@@ -37,12 +38,13 @@ const navItems = [
   { href: '/ticketing/employee/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/ticketing/employee/new', label: 'New Ticket', icon: Plus },
   { href: '/ticketing/employee/my-tickets', label: 'My Tickets', icon: User },
+  { href: '/ticketing/employee/downloads', label: 'Downloads', icon: Download },
 ];
 
 export function TicketsLayout({ children }: TicketsLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {

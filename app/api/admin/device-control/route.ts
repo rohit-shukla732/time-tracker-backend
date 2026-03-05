@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      devices: deviceControls.map((dc) => ({
+      devices: deviceControls.map((dc: (typeof deviceControls)[number]) => ({
         id: dc.id,
         userId: dc.userId,
         userName: dc.user.name,

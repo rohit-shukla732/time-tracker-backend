@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { verifyAccessToken } from "./auth";
 import { prisma } from "./prisma";
 import type { Role } from "@prisma/client";
+import { rateLimit, RateLimitTier } from "./rateLimit";
 
 export interface AuthenticatedUser {
   id: string;
@@ -17,9 +18,19 @@ export interface AuthResult {
 }
 
 /**
- * Basic authentication - extracts user from JWT token
+ * Basic authentication - extracts user from JWT token.
+ * `tier` controls the rate-limit applied to this request:
+ *  - "default"    → 10 req / 60 s per IP per route  (everyone)
+ *  - "privileged" → 200 req / 60 s per IP per route (ADMIN / HR)
  */
-export async function requireAuth(req: Request): Promise<AuthResult> {
+export async function requireAuth(
+  req: Request,
+  tier: RateLimitTier = "default"
+): Promise<AuthResult> {
+  // Rate-limit by IP + route before touching the database
+  const rl = rateLimit(req, tier);
+  if (rl) return { user: null, error: "Too Many Requests" };
+
   const header = req.headers.get("Authorization");
   if (!header) {
     return { user: null, error: "Missing token" };
@@ -28,7 +39,7 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
   try {
     const token = header.replace("Bearer ", "");
     const payload = verifyAccessToken(token) as { userId: string };
-    
+
     // Get full user info including role and department from database
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
@@ -60,10 +71,15 @@ export async function requireAuth(req: Request): Promise<AuthResult> {
 }
 
 /**
- * Role-based authentication - requires specific roles
+ * Role-based authentication - requires specific roles.
+ * Automatically uses the "privileged" tier for ADMIN and HR.
  */
 export async function requireRoles(req: Request, allowedRoles: Role[]): Promise<AuthResult> {
-  const authResult = await requireAuth(req);
+  // ADMIN and HR get a higher rate-limit allowance
+  const tier: RateLimitTier =
+    allowedRoles.some((r) => r === "ADMIN" || r === "HR") ? "privileged" : "default";
+
+  const authResult = await requireAuth(req, tier);
   
   if (authResult.error || !authResult.user) {
     return authResult;
@@ -164,8 +180,10 @@ export async function getAccessibleUsers(currentUser: AuthenticatedUser): Promis
 }
 
 /**
- * Utility function to return JSON error response
+ * Utility function to return JSON error response.
+ * Automatically returns 429 when the message is "Too Many Requests".
  */
 export function unauthorizedResponse(message: string = "Unauthorized") {
-  return NextResponse.json({ error: message }, { status: 403 });
+  const status = message === "Too Many Requests" ? 429 : 403;
+  return NextResponse.json({ error: message }, { status });
 }

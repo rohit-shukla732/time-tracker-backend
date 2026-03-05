@@ -1,0 +1,101 @@
+[
+    {
+        "id": "adobepdf",
+        "name": "Adobe Acrobat Reader",
+        "description": "Open, view and print PDF documents.",
+        "category": "Productivity",
+        "filename": "Adobe_PDF.exe",
+        "version": "Latest",
+        "sizeLabel": "~87.5 MB"
+    },
+    {
+        "id": "adobepro",
+        "name": "Adobe Acrobat Pro",
+        "description": "Create, edit and manage PDF documents.",
+        "category": "Productivity",
+        "filename": "Adobe_Pro_DC.rar",
+        "version": "Latest",
+        "sizeLabel": "~564.5 MB"
+    },
+    {
+        "id": "chrome",
+        "name": "Google Chrome",
+        "description": "Web Browser",
+        "category": "Browser",
+        "filename": "Chrome.exe",
+        "version": "Latest",
+        "sizeLabel": "~10.5 MB"
+    },
+    {
+        "id": "goto",
+        "name": "Goto",
+        "description": "Client calling software",
+        "category": "Utilities",
+        "filename": "GoToSetup.exe",
+        "version": "latest",
+        "sizeLabel": "~0.7 MB"
+    },
+    {
+        "id": "hideme",
+        "name": "Hide.me VPN",
+        "description": "Secure and anonymous internet browsing.",
+        "category": "Utilities",
+        "filename": "Hide_VPN.exe",
+        "version": "latest",
+        "sizeLabel": "~18.5 MB"
+    },
+    {
+        "id": "nord",
+        "name": "NordVPN",
+        "description": "Secure and anonymous internet browsing.",
+        "category": "Utilities",
+        "filename": "NordLayerSetup.exe",
+        "version": "latest",
+        "sizeLabel": "~53.9 MB"
+    },
+    {
+        "id": "ocsinventory",
+        "name": "OCS Inventory",
+        "description": "Asset management software",
+        "category": "Utilities",
+        "filename": "OCS-Windows-Agent-Setup-x64.exe",
+        "version": "latest",
+        "sizeLabel": "~6 MB"
+    },
+    {
+        "id": "office",
+        "name": "Microsoft Office",
+        "description": "Suite of productivity applications.",
+        "category": "Productivity",
+        "filename": "OfficeSetup.exe",
+        "version": "Latest",
+        "sizeLabel": "~7.3 MB"
+    },
+    {
+        "id": "ringcentral",
+        "name": "RingCentral",
+        "description": "Cloud-based communication and collaboration platform.",
+        "category": "Communication",
+        "filename": "RingCentral.exe",
+        "version": "latest",
+        "sizeLabel": "~351.3 MB"
+    },
+    {
+        "id": "setup",
+        "name": "Setup",
+        "description": "Setup",
+        "category": "Utilities",
+        "filename": "setup.exe",
+        "version": "latest",
+        "sizeLabel": "~0.8 MB"
+    },
+    {
+        "id": "weconnect",
+        "name": "WeConnect",
+        "description": "Communication platform",
+        "category": "Communication",
+        "filename": "WeConnectInstaller.exe",
+        "version": "latest",
+        "sizeLabel": "~74 MB"
+    }
+]

@@ -1,0 +1,350 @@
+﻿2.11.0.1
+  * Update vcruntime140_1.dll 
+
+2.11.0.0
+  * Update library versions
+    - zlib 1.3.1
+    - openssl 1.1.1w
+    - curl 7.88.1
+  * Remove net-snmp library
+  * Fix logger work_dir
+  * Fix systray launcher after installation with packager
+  * Fix missing user permissions
+  * Fix saas plugin empty data error
+
+2.10.1.0
+  * Fix 15 character device name limit (Thanks to @CorbinIvon)
+  * Fix set ACL on programdata OCS Inventory folder
+
+2.10.0.0
+  * Add default DNS retrieving
+  * Add default gateway retrieving
+  * Add AzureAD informations retrieving
+  * Add uninstall parameter to remove programdata remanent files
+  * Remove classic user rights on programdata OCS Inventory folder
+
+2.9.2.0
+  * This release doesn't bring any feature / functionnality however it is the first fully signed revision using an EV code signing certificate
+    Starting now all our agent releases will be signed using that certificate.
+
+2.9.1.0
+  * Add configuration parameter WMI_FLAG_MODE
+  * Add configuration parameter DEFAULT_USER_DOMAIN
+  * Fix openssl vulnerability
+
+2.9.0.0
+  * Add italian support for SAAS script
+  * Remove DMI call
+  * Minor fix on subnet loop
+
+2.8.0.0
+  * Add new chassis type in Bios Inventory
+  * Add HBM memory support
+  * Add LPDDR memory support
+  * Add DDR4 memory support
+  * Minor fix on registry keys during install
+
+2.7.0.1
+  * Fix bug uninstallation previous version
+
+2.7.0.0
+  * Remove SNMP Feature (only on Linux agent, see documentation)
+  * Add countdown on dialog box when deployment is finished
+
+2.6.0.1
+  * Improvement of powershell loader to use the 64 bits of powershell
+
+2.6.0.0
+  * Refactoring agent in 64 bits
+  * Add deployement support for package greater than 4GB (ZipArchive library in commercial version) 
+  * Fix bug kill process OcsSystray.exe when upgrade or uninstall agent
+  * Fix bug last logon user
+  * Update libraries version
+  * Fix compilation error for External Dependencies
+
+2.4.0.0
+  * Add support IPV6 networks
+  * Fix device ID regeneration
+  * Fix some typos
+  * Update openssl version to 1.0.2o
+
+2.3.1.1
+  * Fix memory leak
+  * Add Network disconnected status on inventory
+  * Fix bug encoded translation WMI S/N Windows 7
+  * Update Network adapter's description to support unicode characters
+
+2.3.1.0
+  * Update deprecated functions
+  * Add PowerShell support for plugins
+  * Update projects debug configuration
+  * Fix Windows 8 and 10 product key inventory
+  * Fix quote directory Service path
+  
+2.3.0.0 
+  * Improve inventoried data 
+  * Fix crash in some cases on snmp scan
+  * Update openssl to be compliant with TLS 1.2 
+  * Update project to newer versions of visual studio 
+  * Add MTU data on network cards 
+  * Update icons / images to the new graphics chart 
+  * Simplify project to make contribution easier
+  * Polish SNMP code
+  * Clean code and version number
+  * Update agent design (icones / systray / bannner)
+  * Update librairies
+  * Update projects code for developpers (easier to make it work)
+  * vc++ dll are now fully based on vcredist 2013
+  * SNMP Support added and working
+  * Remove all deprecated dependencies (needed for Win XP)
+  * Remove all old VS Version support
+  * Solution now working on visual studio 2013 / 2015
+
+2.3.0.0 RC
+  * Improve inventoried data 
+  * Fix crash in some cases on snmp scan
+  * Update openssl to be compliant with TLS 1.2 
+  * Update project to newer versions of visual studio 
+  * Add MTU data on network cards 
+  * Update icons / images to the new graphics chart 
+  * Simplify project to make contribution easier
+
+2.2.0.0 Beta
+  * Polish SNMP code
+  * Clean code and version number
+  * Update agent design (icones / systray / bannner)
+  * Update librairies
+  * Update projects code for developpers (easier to make it work)
+  * vc++ dll are now fully based on vcredist 2013
+
+2.2.0.0 Alpha
+  * SNMP Support added and working
+  * Remove all deprecated dependencies (needed for Win XP)
+  * Remove all old VS Version support
+  * Solution now working on visual studio 2013 / 2015
+
+2.1.1.3
+  * Bug fixed
+  * Add better compat for newer windows versions
+  * Install pop now working as exepted
+
+2.1.1.1
+  * Fix bug #1300172 WMI GetLoggedOnUser blocking and CPU full on OCS 2.1.0.3. Agent may sometimes produce 100% CPU during many minutes, when retrieving logged on users from WMI. Install these patches from Microsoft solves the problem:
+		For Windows 2003 SP2: http://support.microsoft.com/kb/2257980/en
+		For Windows 2008 : http://support.microsoft.com/kb/2464876/en
+		For Windows 2008 R2: http://support.microsoft.com/kb/2465990/en
+	Anyway, I advise to run all this KB to fix WMI performance or errors: http://support.microsoft.com/kb/2591403
+  * Fix bug #1300172: Agent uses 100% CPU on TSC servers and DC
+  * Fix bug #1292465: Do not try to unregister from service manager if not installed
+  * Fix bug #1292020 Windows Agent 2.1.0.3 doesn't report User 
+2.1.0.4
+  * Get DMI data using OcsWmi DLL, instead of using own WMI code
+  * Fix bug #1062582 Windows agent leaks handles by initializing COM and COM Security into main executable, instead of DLL
+  * Enable more detailed debug logs, and fixes small issues
+2.1.0.3
+  * Fix XSLT for displaying CPU into "show computer information" command of systray applet
+  * Fix Processor S/N filled with CPU Status if no serial number exist
+  * Better handling of potentially not well formatted data, to avoid application crash
+2.1.0.2
+  * Add detection of Smartcard readers as input devices
+  * Update XSL to display CPU table into systray applet "show computer information"
+  * Fix bug #980740 : try to UTF-8 encode VBS output if XML loading fails, then try to reload XML
+  * Fix bug #820218: Truncate out of bound characters in adapter description
+  * Fix bug #1252671: Unhandled mismatch when OcsLogon.exe launcher looks for the installed OCS Agent through Active Directory GPO
+  * Add PTS EDID code
+  * Fix Bug #1217435: Packager tries to shutdown ocs service twice when upgrading from 1.X agent
+  * Fix bug displaying before installation user notification at the end of installation, instead of post installation notification text
+  * Add package command start date/time and timeout date/time to log
+  * Fix bug #1184426: Retrieve processor Serial Number
+  * Fix bug disabling ability to control command execution timeout from server
+  * Try to retrieve CPU S/N using WMI
+  * There is now DMI table type greater than 127, so remove type lower and upper bound check
+  * WMI memory bank type codes are not the same as DMI codes
+  * Add printer information (Print server name and share, resolution, comment, Is printer shared, Is printer on network)
+  * Update DtWinver to version 1.88 to support Windows Blue
+  * Fix bug ID #1178946: Get logged on user and domain from WMI first                              
+2.1.0.1
+  * Update icons ans banners for new graphical identity
+  * Add new EDID manufacturer codes
+  * Fix bug #1104071: use WMI to query memory bank if DMI fails
+  * Fix bug #1079151: unregister old agent 1.X service (instead of only stopping it) before installling new agent 2.X service.
+  * Add ability to run command after package execution, like REBOOT, SHUTDOWN...
+  * Add CPU Socket and CPU status information
+  * Add agent ability to force package reinstall, and support for package setup schedule
+  * Fix bug #1086324: download.exe crashes when NOTIFY_TIMEOUT is not set. So ensure value is provided
+  * Fix bug #1086972: Windows Agent 2.0.5.3 does not inventory any BIOS information - 2.0.5.2 does
+  * Include latest list of PNPID vendors, for EDID monitors (see http://www.vesa.org/vesa-standards/standards-faq/))
+  * Allow using HTML formatting for deployment notification, pre and post package execution
+  * Workaround bug #1048955: Restrict German language to German/Germany locale
+  * Fix bug #1034821: Also compute checksum for plugin output, to allow detecting changes when plugin update standard inventory information like software
+  * Try to utf-8 encode VBS or EXE plugin output if XML parsing fails, then try again to parse
+  * Fix bug #1049864: When agent load configuration, it now really uses authRequired and proxyauthRequired values, and not set them to FALSE by default
+  * Fix bug #1045784: Ensure timestamp exists before verify expiration
+  * Add download error to differentiate full download timeout ERR_TIMEOUT, execute error crashing agent and entering in loop (ERR_EXECUTE_TOO_MANY_TRY) or execute timeout (ERR_EXECUTE_TIMEOUT).
+  * Rename ERR_ALREADY_SETUP en SUCCESS_ALREADY_SETUP 
+  * Bug #1031935: Windows MAK or VLK activation key are not stored on computer, so unable to retrieve and set explicit message
+  * Fix bug #980740: As we only read process output each 200ms, we have to read output even after process exited, to capture last outputed data by process
+2.0.5.0
+  * Enhanced dynamic DLL plugin API
+  * Allow to start Systray applet in the finish page of installer, as it is no more automatically launched
+  * Prompt user for TAG using OcsNotifyUser tool and optimize User notification code
+  * Fix bug #104079: Try to check if part of memory is used by video, either less than 32 MB or less than 10%
+  * Fix bug in ACER display's serial number retrieval
+  * Do not launch OcsSystray at the end of setup, to avoid it running under system account when agent is upgraded using agent itself and package deployment
+  * Display user notification tool version into Systray status window
+  * Add NotifyUser debugging log support, and fix small typo generating error code 3 calling OcsNotifyUser tool
+  * As proposed by Heiko Helmle, fix German typo and disable dialog system menu into user notification 
+  * Bind to OcsNotifyUser tool to use the right VC libs 
+  * Fix bug #809417: Delegate action to display message to user to a separate OcsNotifyUser.exe tool under Vista and +. This tool is launched under the session of the active user.
+  * Fix bug described in blueprint "serialnumber": Wrong disk serial number is some case under Windows 7. if serial number length is greater than the max allowed size of 20, then assume serial is encoded in hexadecimal. So we have to decode string to store it.
+  * Fix bug #1008562: New network parameters not sent to server. This bug is related to bug #1015434. 
+  * Fix bug #820209: Add Windows firewall rules for OCS Inventory NG, only if firewall is enabled
+  * Fix bug #1021367: Set Max Error allowed to 5 consecutive errors instead of 30, and also uses this parameter into package execution. Package will return ERR_EXECUTE_PACK if execution fails more then MAX_ERROR_COUNT set to 5. Also uses a timeout into command execution (default 120 minutes)
+  * Fix big #1015434 : Try to also search for package ID file in installer parent directory
+  * Avoid sending ERR_ALREADY_SETUP after agent upgrade using deployment. This is done by moving agent's setup result code file to package directory
+  * Fix bug #1028353: Add EDID code FUJ, TOS, MS_, NVD, END, CPT, LGD et LEN for EDID monitor  
+  * Fix bug #948155: Validation message popup are not localized in English, German, Spanish and French
+  * Fix bug #929549: By default, server authentication not required unless user or proxy option specified, and proxy authentication not required unless proxy_user or proxy_pwd option specified
+  * Fix bug #943182: Copying History file from <$INSTDIR\download> to <$APPDATA\OCS Inventory NG\Agent>
+  * Fix bug #948172: Validation message popup comes up in foreground, but not activated
+  * Bug #966320: Disable redirection immediately prior to the native API function call if compiled for Windows XP or higher. However, agent 2.0 supports Windows 2000, and this fix only applies if compiled without Windows 2000 support, but only Windows XP or higher support.        
+  * Fix bug #1024077: Agent ensure package timestamp does not exist before creating it, and delete package directory if expired before launching package download and setup tool
+  * Fix bug #1021497: Stop downloading if 2/3 of fragment download fail, and wait for next agent launch
+  * Fix bug #1021357: Run download at each prolog freq if server ask for download in prolog response, instead to run it at each inventory launch.
+  * Fix bug #1015434: Add better package cleaning process, and check for OCS Agent setup package result before trying to compute other packages      
+  * Fix bug #923112: Event viewer support not repaired when upgrading version. Many Thanks ElNounch for this patch !
+  * Fix bug #911696: Add manufacturer code ACI "Asus Computer Inc"
+2.0.4.0
+  * Fix bogus CPU name with latest CPU, which may not show number of cores and architecture
+  * Bug #920044 fixed by same fix as bug #901270
+  * Bug #904162 fixed by same fix as bug #901270
+  * Bug #909161 fixed by same fix as bug #901270
+2.0.3.1
+  * Fix bug #911696: Add manufacturer code HSD "Hannspree Inc" and STN "Samtron"
+  * Fix bug #765893: Slow memory leak. Include ElNounch patch for DMI slow memory leak. Many Thanks ElNounch
+  * Fix bug #901270: Exit code 259. Rewrite wait for process ending function, in way like ElNounch proposed. Many Thanks ElNounch
+2.0.3, aka 2.0.3.0 
+  * Fix bug #765893: Use TinyXML 2.6.2 or newer, to prevent memory leak issue when using VBS plugin => agent ran into an infinite loop (refer http://sourceforge.net/tracker/index.php?func=detail&aid=3217501&group_id=13559&atid=313559) 
+  * Optimize ExecCommand code, to reduce Handle usage 
+  * Fix bug #860551 Migration process from old agent 4000 series fails when eventlog are in use, because ocsservice.dll is not deleted until the next reboot
+  * When agent encounters error downloading metadata, remove package directory to avoid error message in download tool
+  * Fix bug when deploying multiple package with user notification in the same download session
+  * Fix bug in NOTIFY mode, where data must be inserted into <CONTENT> XML node
+  * Fix Bug #860466: Fix incorrect permission propagation on $AppData\OCS Inventory NG\Agent in some cases
+2.0.2, aka 2.0.2.0
+  * Fix Bug #872768: Crash in Registry.cpp - "Run-Time Check Failure #2 - Stack around the variable 'lpstrData' was corrupted."
+  * Ensure all array and objects are correctly freed
+  * Fix Bug #859574: Switch to WMI to retrieve Bios info even if DMI access is successful, but serial or model is not valid
+  * Fix Bug #435068: Do not register multiple time a monitor with the same serial
+  * Fix Bug #860466: Propagate inherited permissions from $AppData\OCS Inventory NG\Agent to Download directory
+2.0.1, aka 2.0.1.0
+  * Fix Bug #815891: Add /NOSOFTWARE support in service and installer 
+2.0.0.24
+  * Fix Bug #805039: Installer creates incomplete ocsinventory.ini
+  * Fix Bug #802625: Agent does not store /TAG= on setup if used without /NOW
+  * Fix Bug #754410: "OcsInventory.exe Application Error" on some systems when using Server or Proxy credentials
+  * Fix Bug #800810: Load XML function in TestSysInfo throws exception, thanks to Tommy
+  * Setup ignore /NOW if /UPGRADE provided
+2.0.0.23
+  * Setup ignore /NOW if /UPGRADE provided
+  * Fix Bug #754410 "OcsInventory.exe Application Error" on some systems
+  * In service, run agent without grabbing stdout/stderr, to avoid dealing with unclosed handles
+  * Fix Bug ID 778335 empty values are shown as (null) in XML (produced by string conversion between unicode, ansi and UTF-8)
+  * Fix bug #797182 "2 directories was created in APPDATA when upgrade windows agent"
+  * When upgrading from agent 1.X, do not copy cacert.pem from INSTDIR to APPDATADIR if file exists into APPDATADIR, to allow changing cacert.pem using Packager
+  * Send setup result to server when deploying new OCS agent, without interfering with other package download
+  * Fix bug #783611  semicolon added to Type under Bios when using WMI
+  * When using WMI, get S/N from Win32_Bios, and if not available, try Win32_SystemEnclosure then Win32_Baseboard
+  * Fix memory leak in WMI Storage query
+  * Delete OCS agent setup done file if found, when cleaning a package
+  * Build libcurl using _BIND_TO_CURRENT_VCLIBS_VERSION preprocessor define to bind it to the installed CRT versions, and include libcurl manifest as resource into DLL
+  * Compute new TTO_WAIT only if agent wasn't launched in notify mode
+2.0 Final aka 2.0.0.20
+  * Fix memory leak into OCsWmi.dll
+  * Fix bogus network adapter description in some Cyrillic OS (perhaps other charset affected)
+2.0.0.18
+  * Uses MS CRT/MFC 9.00.21022.8 on Windows 2000 to fix compatibility problem of MS11-025 (http://blogs.msdn.com/b/vcblog/archive/2011/04/26/10158277.aspx)
+  * In NOTIFY mode, update only network inventory state, to avoid service launching agent every minute !
+  * In NOTIFY mode, do not launch Registry, Download or Ipdiscover capacity, neither VBS or executable plugins (only DLL plugins)
+  * Fix some other memory leaks
+2.0.0.17
+  * Fix crash when STORE package have a empty path to store
+  * Fix memory leak bug #765893 in service
+  * Delete Ocs_Contact.exe when upgrading from agent 1.x
+  * Do not start download when agent is launched in NOTIFY mode
+  * Do use link speed in network adapter hash computation, because with wireless, speed may changes, but not the other info.
+2.0 rc4 aka 2.0.0.16
+  * Fix bug when using agent 4061 to download and setup agent 2.0        
+  * Fix bug #742372 when writing XML produced by plugins to log. So, changes ExecCommand output grab to Ansi instead of Unicode, and disable printing XML
+  * Store accountinfo in XML, to fix UTF-8 encoding when sending to server accountinfo
+  * Fix bug #742513 Modify OcsLogon default action uninstall to install
+  * Fix bug #723111 "Unknown OS and little info on Windows 2000", due to bogus WMI conversion
+2.0 rc3 aka 2.0.0.15
+  * Add OcsLogon, tool to install/upgrade Agent through logon or GPO script
+  * Add local inventory mode to setup (to allow creating inventory of a computer not able to reach the server)
+  * Add hypervisor detection and get system UUID
+  * Fix registry query not updated on server even changes detected
+  * Get software even is there is no UnisntallString/QuietUninstallString/ModifyPath value under HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\SoftwareID
+  * Fix security issue in deployment feature
+  * Fix bug writing local .ocs file
+  * Also migrate current downloads when upgrading from 4000 series
+  * Use WMI OS Name instead of OS Caption to get OS Name
+  * Try to kill OcsSystray.exe until there is no more process to kill (in case there is multiple user session opened)
+  * Uses WMI to get processor information, except when WMI get bogus processor name "Intel Pentium III Xeon"
+  * Allow having more than 64 simultaneous registry queries or downloads
+  * Append log to existing log file instead of overriding, but rotate logs each time service start  
+  * Unzip only if there is downloaded fragment
+  * Fix bug with DWORD/QWORD values in registry    
+2.0 rc2 aka 2.0.0.13
+  * Remove old uninstall key when upgrading
+  * Fix setup not writing TAG value when provided  
+  * Fix crash when deployment ZIP contains too many sub directories => uncompress ZIP to system %TEMP%
+  * Bug #695843: deleting "&#x...;" encoded binary characters from XML
+  * In some cases, logging XML sent crash agent, so disable it while searching a workaround
+  * Replace N/A default value by empty string
+  * Allow CA Bundle using relative path to OCS data folder
+  * Upgrade libcurl to 7.21.3
+  * Bug #704043:Ensure setup only runs on Windows 2000 and higher, and use G�nter Knauf libcurl 7.21.3 binary distribution for Windows 2000 target only.  
+  * Fix setup bug when agent series 4000 installed, but never launched (no data file) 
+  * Fix encryption/decryption methods, not really working before :(
+  * Fix bug appending plugin XML to the inventory XML       
+2.0 rc1 aka 2.0.0.8
+  * Bug #438759 and #457595: silent windows installation and OcsService.dll upgrade
+	* On NT 6 and higher (Vista/2008/7/2008R2...), Microsoft Hotfixes are no more stored in the registry. so we have to query WMI to get Hotfixes
+	* Add code to display XML + XSL generated by service to local user
+	* Bug #435850 and #530881: There are changes to DeviceID if 1) Hostname has changed or 2) There is only one MAC, and it has changed or 3) There are 2 or more MACs, and at least 2 have changed
+	* Remove XML cleaning code, no more needed for UTF-8 encoding
+	* Add services and Scheduled job test
+	* Add Unicode to UTF-8 conversion methods
+	* Upgrade to use latest libraries openssl 1.0.0c and cURL 7.21.2
+	* Fix x64 processor detection
+	* Bug #481332: Add software language, install date, and guid
+	* Add Install Date and Memory Address Width (32 and 64 bits) to software inventory
+	* Bug #495460: Upgrade to PJ Naughter dtWinVer 1.82 to support Windows Vista / 7 / 2008 / 2008 R2
+	* Add 64 bits support for OS detection
+	* Add 64 bits software detection
+	* Migrate from old CMarkup XML lib to TinyXML library for UTF-8 support
+	* Use code from CMake to hide command window in deployment	
+	* Add notify mode to agent, to notify server of IP information changes when service detect them, even if inventory is not required
+	* Activate minimal log file ocsinventory.log by default into %PROGRAMDATA%\OCS Inventory NG\Agent
+	* Delay WMI first use until app start, to fix hang under Vista and higher. WMI cannot be used until WinMain starts
+	* Review WMI code, and use WMI to get Logical drives
+	* Add service description and dependencies to standards windows services RPCSS, EventLog, WMI and Tcpip
+	* Bug #568534 and #493609: Add 64 bits support for registry key
+	* Bug #563796: NOTIFY should send the IPGATEWAY	
+	* Bug #484115: Frequency of inventory for ip_discover computer 
+	* Bug #485265: IPdiscovery host with multiple interfaces show the same ip  	
+	* Use the correct key to get the last logged user on Vista
+	* Optimize AcerHack method to support Acer AL1916 and code clean up (Thanks Remi Collet)
+	* Add storage S/N and firmware revision, add Memoryslot S/N
+	* Store data and log files into %PROGRAMDATA%\OCS Inventory NG\Agent, instead of %PROGRAMFILES%\OCS Inventory Agent to be NT 6 and higher compliant
+	* Add systray applet to allow user starting agent
+	* Bug #424217: last_state file written despite server error	
+	* Bug #540789: Remove CAMEL classes for Wrong processor information	
+	* Bug #424219: download.exe segfaults on "max error count reached"	
+	* Bug #661407 and #537378: Complete rewrite of DMI code, to get system slot, port and memory slot 	
+	* Add dynamic plugin load through DLL founds in plugins directory
+	* Add HTTPS and proxy support by using cURL Library through Communication Provider ComHTTP.dll
+2.0 Branch	
+	* Complete rewrite of code in Unicode
+

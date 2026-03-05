@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { requireAuth } from "../../../lib/requireAuth";
 import { logger } from "../../../lib/logger";
+import { rateLimit } from "../../../lib/rateLimit";
+import { withQueue } from "../../../lib/requestQueue";
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 10 req/min per IP per route
+  const rl = rateLimit(req);
+  if (rl) return rl;
+
+  return withQueue(async () => {
   const auth = requireAuth(req);
 
   const ip =
@@ -40,6 +47,7 @@ export async function POST(req: NextRequest) {
   const claimedUserId =
     (auth.user as any).userId || (auth.user as any).id || (auth.user as any).sub;
   return await recordAppSwitch(req, String(claimedUserId), false);
+  }); // end withQueue
 }
 
 async function recordAppSwitch(req: NextRequest, resolvedUserId: string, fromExpiredToken: boolean) {

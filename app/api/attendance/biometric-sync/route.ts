@@ -42,40 +42,55 @@ export async function POST(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    // Use the date from the caller (display page) when provided.
+    // When not provided, fall back to the biometric SQL server's own GETDATE()
+    // so we never have a Node UTC vs local-timezone mismatch.
+    const dateParam = searchParams.get('date');
+    const date = dateParam || null;  // null = handled in SQL below
     const employeeId = searchParams.get('employeeId');
-    const sinceMinutes = parseInt(searchParams.get('sinceMinutes') || '10', 10);
+    // Default 0 = no time filter — sync ALL of today's latest events.
+    const sinceMinutes = parseInt(searchParams.get('sinceMinutes') || '0', 10);
 
-    logger.info('POST /api/attendance/biometric-sync - Syncing', { date, sinceMinutes, employeeId });
+    logger.info('POST /api/attendance/biometric-sync - Syncing', { date: date ?? 'GETDATE()', sinceMinutes, employeeId });
 
     // -----------------------------------------------------------------------
     // 1. Query biometric system for the latest event per user
+    //    Using ROW_NUMBER() to reliably get the last scan per employee.
+    //    When no date supplied, use CAST(GETDATE() AS DATE) on the SQL server
+    //    so we always use the biometric server's local clock — avoids UTC offset.
     // -----------------------------------------------------------------------
+    const dateFilter = date ? `CAST(IDateTime AS DATE) = @date` : `CAST(IDateTime AS DATE) = CAST(GETDATE() AS DATE)`;
+    const resolvedDate = date || 'GETDATE()';
+
     let query = `
-      SELECT
-        b.UserID,
-        b.IDateTime,
-        b.IOType,
-        CASE WHEN b.IOType = 0 THEN 'IN' WHEN b.IOType = 1 THEN 'OUT' ELSE 'UNKNOWN' END AS Status
-      FROM Mx_ACSEventTrn b
-      INNER JOIN (
-        SELECT UserID, MAX(IDateTime) AS LatestTime
+      WITH ranked AS (
+        SELECT
+          UserID,
+          IDateTime,
+          IOType,
+          CASE WHEN IOType = 0 THEN 'IN' WHEN IOType = 1 THEN 'OUT' ELSE 'UNKNOWN' END AS Status,
+          ROW_NUMBER() OVER (PARTITION BY UserID ORDER BY IDateTime DESC) AS rn
         FROM Mx_ACSEventTrn
-        WHERE CAST(IDateTime AS DATE) = @date
-        GROUP BY UserID
-      ) latest ON b.UserID = latest.UserID AND b.IDateTime = latest.LatestTime
-      WHERE CAST(b.IDateTime AS DATE) = @date
+        WHERE ${dateFilter}
     `;
 
-    const params: Record<string, any> = { date };
+    const params: Record<string, any> = {};
+    if (date) params.date = date;
 
     if (employeeId) {
-      query += ` AND b.UserID = @employeeId`;
+      query += `      AND UserID = @employeeId\n`;
       params.employeeId = employeeId.trim();
     }
 
+    query += `
+      )
+      SELECT UserID, IDateTime, IOType, Status
+      FROM ranked
+      WHERE rn = 1
+    `;
+
     if (sinceMinutes > 0) {
-      query += ` AND b.IDateTime >= DATEADD(MINUTE, -@sinceMinutes, GETDATE())`;
+      query += ` AND IDateTime >= DATEADD(MINUTE, -@sinceMinutes, GETDATE())`;
       params.sinceMinutes = sinceMinutes;
     }
 
@@ -87,21 +102,43 @@ export async function POST(request: NextRequest) {
       Status: string;
     }>;
 
-    logger.info('POST /api/attendance/biometric-sync - Biometric events fetched', { count: events.length });
+    // Diagnostic: if 0 events, check what dates actually have data
+    let diagnosticDates: string[] = [];
+    if (events.length === 0) {
+      try {
+        const diagResult = await queryBiometric(`
+          SELECT TOP 5 CAST(IDateTime AS DATE) AS d, COUNT(*) AS cnt
+          FROM Mx_ACSEventTrn
+          GROUP BY CAST(IDateTime AS DATE)
+          ORDER BY d DESC
+        `);
+        diagnosticDates = diagResult.recordset.map((r: any) => `${r.d} (${r.cnt} rows)`);
+      } catch { /* ignore */ }
+    }
+
+    logger.info('POST /api/attendance/biometric-sync - Biometric events fetched', {
+      count: events.length,
+      resolvedDate,
+      sinceMinutes,
+      diagnosticDates,
+      sampleIds: events.slice(0, 5).map((e) => e.UserID),
+    });
 
     if (events.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'No new biometric events to process',
+        message: 'No biometric events found for this date',
+        biometricFound: 0,
         processed: 0,
         skipped: 0,
-        date,
+        unmatchedIds: [],
+        diagnosticDates,
+        resolvedDate,
       });
     }
 
     // -----------------------------------------------------------------------
-    // 2. Map biometric UserID → app User.id  (they are the same value, e.g. "ACE001")
-    //    Verify the user exists in our DB before touching DeviceControl
+    // 2. Map biometric UserID → app User.id
     // -----------------------------------------------------------------------
     const biometricUserIds = [...new Set(events.map((e) => e.UserID))];
 
@@ -110,6 +147,7 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
     const validUserIds = new Set(appUsers.map((u) => u.id));
+    const unmatchedIds = biometricUserIds.filter((id) => !validUserIds.has(id));
 
     // -----------------------------------------------------------------------
     // 3. Upsert DeviceControl for each matched user
@@ -165,14 +203,16 @@ export async function POST(request: NextRequest) {
       processed++;
     }
 
-    logger.info('POST /api/attendance/biometric-sync - Done', { processed, skipped });
+    logger.info('POST /api/attendance/biometric-sync - Done', { processed, skipped, biometricFound: events.length, unmatchedIds });
     logger.response('POST', '/api/attendance/biometric-sync', 200, Date.now() - startTime);
 
     return NextResponse.json({
       success: true,
-      date,
+      resolvedDate,
+      biometricFound: events.length,
       processed,
       skipped,
+      unmatchedIds,
       details,
     });
   } catch (error: any) {

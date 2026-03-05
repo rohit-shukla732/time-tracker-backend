@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
+import { rateLimit } from '@/lib/rateLimit';
+import { withQueue } from '@/lib/requestQueue';
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
+
+  // Rate limit: 10 req/min per IP per route
+  const rl = rateLimit(req);
+  if (rl) return rl;
+
+  return withQueue(async () => {
   try {
     const body = await req.json();
     const { fromWebsite, toWebsite, durationMs, browser, timestamp, sessionId } = body;
@@ -81,4 +89,5 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+  }); // end withQueue
 }

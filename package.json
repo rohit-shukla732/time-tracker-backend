@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 4000 --turbopack",
+    "dev": "next dev --port 4001 --turbopack",
     "build": "node node_modules/next/dist/bin/next build",
-    "start": "node node_modules/next/dist/bin/next start",
+    "start": "node node_modules/next/dist/bin/next start --port 4000",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf .next",
@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "db:seed": "prisma db seed",
-    "check-late-arrivals": "ts-node scripts/check-late-arrivals.ts"
+    "check-late-arrivals": "ts-node scripts/check-late-arrivals.ts",
+    "stress-test": "node scripts/stress-test.mjs"
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",

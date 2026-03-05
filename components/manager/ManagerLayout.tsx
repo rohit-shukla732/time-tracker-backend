@@ -30,6 +30,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { makeAuthenticatedRequest } from '@/lib/adminAuth';
 import {
   LayoutDashboard,
   Users,
@@ -95,9 +96,7 @@ export default function ManagerLayout({ children }: ManagerLayoutProps) {
     // Load shift settings
     const loadShiftSettings = async () => {
       try {
-        const response = await fetch('/api/users/settings/shift', {
-          credentials: 'include',
-        });
+        const response = await makeAuthenticatedRequest('/api/users/settings/shift');
         if (response.ok) {
           const data = await response.json();
           setShiftStartTime(data.shiftStartTime || '09:00');
@@ -195,16 +194,10 @@ export default function ManagerLayout({ children }: ManagerLayoutProps) {
   const handleSaveShiftSettings = async () => {
     setSavingShiftSettings(true);
     try {
-      const response = await fetch('/api/users/settings/shift', {
+      const response = await makeAuthenticatedRequest('/api/users/settings/shift', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          shiftStartTime,
-          lateThresholdMins,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shiftStartTime, lateThresholdMins }),
       });
 
       if (response.ok) {

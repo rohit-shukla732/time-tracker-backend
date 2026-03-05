@@ -1,7 +1,12 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 10 OTP attempts/min per IP
+  const rl = rateLimit(req);
+  if (rl) return rl;
+
   try {
     const { token, otp } = await req.json();
 

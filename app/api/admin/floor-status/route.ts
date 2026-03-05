@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
 
     // Build session map by userId
     const sessionByUser = new Map<string, { sessionId: string; startedAt: Date }>();
-    activeSessions.forEach(session => {
+    activeSessions.forEach((session: any) => {
       if (session.userId) {
         sessionByUser.set(session.userId, {
           sessionId: session.sessionId,

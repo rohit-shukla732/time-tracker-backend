@@ -7,9 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle, XCircle, Database, Users, Clock, UserCheck, UserX, RefreshCw } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, Database, Users, Clock, UserCheck, UserX, RefreshCw, Zap, Bell, AlertTriangle } from 'lucide-react';
 import { makeAuthenticatedRequest } from '@/lib/adminAuth';
 import { toast } from 'sonner';
+
+// Use local timezone date (not UTC) so it matches the biometric machine's clock
+function getLocalDate() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 interface AttendanceRecord {
   UserID: string;
@@ -30,13 +36,33 @@ interface EmployeeStatus {
 export default function BiometricTestPage() {
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [connectionMessage, setConnectionMessage] = useState('');
-  const [testDate, setTestDate] = useState(new Date().toISOString().split('T')[0]);
+  const [testDate, setTestDate] = useState(getLocalDate());
   const [employeeId, setEmployeeId] = useState('');
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [employeeStatuses, setEmployeeStatuses] = useState<EmployeeStatus[]>([]);
   const [isLoadingRecords, setIsLoadingRecords] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [syncResult, setSyncResult] = useState<{ processed: number; skipped: number; biometricFound: number; unmatched: string[]; diagnosticDates?: string[]; resolvedDate?: string } | null>(null);
+
+  type DeptLateResult = {
+    managerId: string;
+    managerName: string;
+    departmentId: string;
+    departmentName: string;
+    shiftStartTime: string;
+    lateThresholdMins: number;
+    cutoffTime: string;
+    notYetPastCutoff: boolean;
+    totalMembers: number;
+    presentCount: number;
+    presentEmployees: { id: string; name: string; checkInTime: string; checkOutTime?: string }[];
+    lateEmployees: { id: string; name: string; email: string }[];
+    alreadyNotified: boolean;
+    message: string;
+  };
+  const [lateCheckResult, setLateCheckResult] = useState<DeptLateResult[] | null>(null);
+  const [isTestingLate, setIsTestingLate] = useState(false);
 
   const testConnection = async () => {
     setConnectionStatus('testing');
@@ -109,6 +135,7 @@ export default function BiometricTestPage() {
         params.append('employeeId', employeeId.trim());
       }
 
+      // 1. Fetch display data
       const response = await makeAuthenticatedRequest(
         `/api/hr/biometric/attendance?${params.toString()}`
       );
@@ -122,10 +149,80 @@ export default function BiometricTestPage() {
         const error = await response.json();
         toast.error(error.details || 'Failed to fetch attendance records');
       }
+
+      // 2. Only sync DeviceControl when viewing today — avoids replaying old data
+      const today = getLocalDate();
+      if (testDate === today) {
+        // Do NOT pass a date — let the biometric SQL server use CAST(GETDATE() AS DATE)
+        // so it always uses its own local clock, avoiding UTC vs local timezone mismatch.
+        const syncParams = new URLSearchParams();
+        if (employeeId.trim()) syncParams.append('employeeId', employeeId.trim());
+
+        const syncResp = await makeAuthenticatedRequest(
+          `/api/attendance/biometric-sync?${syncParams.toString()}`,
+          { method: 'POST' }
+        );
+        if (syncResp.ok) {
+          const syncData = await syncResp.json();
+          setSyncResult({
+            processed: syncData.processed ?? 0,
+            skipped: syncData.skipped ?? 0,
+            biometricFound: syncData.biometricFound ?? 0,
+            unmatched: syncData.unmatchedIds ?? [],
+            diagnosticDates: syncData.diagnosticDates,
+            resolvedDate: syncData.resolvedDate,
+          });
+        }
+
+        // 3. Late arrival check — same today guard; route deduplicates email/notification per day
+        const lateResp = await makeAuthenticatedRequest('/api/attendance/check-late', { method: 'POST' });
+        if (lateResp.ok) {
+          const lateData = await lateResp.json();
+          setLateCheckResult(lateData.departments ?? []);
+        }
+      } else {
+        // Viewing a past date — clear dept cards so stale today-data doesn't show
+        setLateCheckResult(null);
+      }
     } catch (error: any) {
       toast.error('Failed to fetch attendance records');
     } finally {
       setIsLoadingRecords(false);
+    }
+  };
+
+  const resetLateNotifications = async () => {
+    try {
+      const resp = await makeAuthenticatedRequest('/api/attendance/check-late/reset', { method: 'DELETE' });
+      const data = await resp.json();
+      if (resp.ok) {
+        toast.success(data.message);
+        setLateCheckResult(null);
+        fetchAttendance();
+      } else {
+        toast.error(data.error || 'Failed to reset');
+      }
+    } catch {
+      toast.error('Failed to reset notifications');
+    }
+  };
+
+  // Force-run the late check right now, ignoring cutoff time (for testing)
+  const runLateCheckNow = async () => {
+    setIsTestingLate(true);
+    try {
+      const resp = await makeAuthenticatedRequest('/api/attendance/check-late?force=true', { method: 'POST' });
+      const data = await resp.json();
+      if (resp.ok) {
+        setLateCheckResult(data.departments ?? []);
+        toast.success('Late check ran with cutoff override');
+      } else {
+        toast.error(data.error || 'Test failed');
+      }
+    } catch {
+      toast.error('Test failed');
+    } finally {
+      setIsTestingLate(false);
     }
   };
 
@@ -169,6 +266,29 @@ export default function BiometricTestPage() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               Last updated: {lastUpdate.toLocaleTimeString()}
+            </div>
+          )}
+          {syncResult !== null && (
+            <div className="flex flex-col gap-0.5 text-xs">
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-yellow-500" />
+                {syncResult.resolvedDate && (
+                  <span className="text-muted-foreground">SQL date: <strong>{syncResult.resolvedDate}</strong></span>
+                )}
+                <span>Biometric found: <strong>{syncResult.biometricFound}</strong></span>
+                <span className="text-green-600 font-medium">{syncResult.processed} synced to device control</span>
+                {syncResult.skipped > 0 && <span className="text-muted-foreground">{syncResult.skipped} skipped</span>}
+              </div>
+              {syncResult.unmatched.length > 0 && (
+                <div className="text-orange-500">
+                  ⚠ Biometric IDs not in app DB: {syncResult.unmatched.join(', ')}
+                </div>
+              )}
+              {syncResult.biometricFound === 0 && syncResult.diagnosticDates && syncResult.diagnosticDates.length > 0 && (
+                <div className="text-red-500">
+                  ⚠ No data for date &quot;{syncResult.resolvedDate}&quot;. DB has data on: {syncResult.diagnosticDates.join(' | ')}
+                </div>
+              )}
             </div>
           )}
           <Button
@@ -227,63 +347,162 @@ export default function BiometricTestPage() {
         </CardContent>
       </Card>
 
-      {/* Employee Status Grid */}
-      {employeeStatuses.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">
-              Employees ({employeeStatuses.length})
-            </h2>
-            <div className="flex gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4 text-green-500" />
-                <span>In Office: {employeeStatuses.filter(e => e.status === 'IN').length}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <UserX className="h-4 w-4 text-gray-400" />
-                <span>Out: {employeeStatuses.filter(e => e.status === 'OUT').length}</span>
-              </div>
-            </div>
-          </div>
+      {/* === Unified Department Attendance Section === */}
+      {(() => {
+        // Build a set of all employee IDs tracked inside dept cards
+        const deptTrackedIds = new Set(
+          (lateCheckResult ?? []).flatMap(d => [
+            ...d.presentEmployees.map(e => e.id),
+            ...d.lateEmployees.map(e => e.id),
+          ])
+        );
+        // Employees with biometric scans but not assigned to any managed dept
+        const otherEmployees = employeeStatuses.filter(e => !deptTrackedIds.has(e.userId));
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            {employeeStatuses.map((employee) => (
-              <Card key={employee.userId} className={`relative ${getStatusColor(employee.status)} overflow-hidden`}>
-                <CardContent className="p-6">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <h3 className="font-semibold truncate">{employee.userId}</h3>
-                      </div>
-                      <div className="space-y-1 text-sm text-muted-foreground">
-                        {employee.checkInTime && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-green-600">IN:</span>
-                            <span>{employee.checkInTime}</span>
-                          </div>
-                        )}
-                        {employee.checkOutTime && (
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-600">OUT:</span>
-                            <span>{employee.checkOutTime}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+        return (
+          <div className="space-y-4">
+            {/* Header row */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Department Attendance
+                {lateCheckResult && lateCheckResult.length > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    ({lateCheckResult.reduce((s, d) => s + d.totalMembers, 0)} employees · {lateCheckResult.reduce((s, d) => s + d.presentCount, 0)} in office)
+                  </span>
+                )}
+              </h2>
+              {lateCheckResult !== null && (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" className="text-xs" onClick={runLateCheckNow} disabled={isTestingLate}>
+                    {isTestingLate && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                    <Bell className="h-3 w-3 mr-1" />
+                    Test Late Check
+                  </Button>
+                  {lateCheckResult.some(d => d.alreadyNotified) && (
+                    <Button variant="outline" size="sm" className="text-xs" onClick={resetLateNotifications}>
+                      Reset Today&apos;s Notifications
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* No dept config yet */}
+            {lateCheckResult !== null && lateCheckResult.length === 0 && (
+              <Card>
+                <CardContent className="py-4 text-center text-sm text-muted-foreground">
+                  No managers have configured shift times yet. Managers can set their shift in their Settings menu.
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </div>
-      )}
+            )}
 
-      {/* Loading State */}
-      {isLoadingRecords && employeeStatuses.length === 0 && (
-        <Card>
-          <CardContent className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </CardContent>
-        </Card>
-      )}
+            {/* One card per department */}
+            {lateCheckResult !== null && lateCheckResult.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {lateCheckResult.map(dept => {
+                  const hasLate = dept.lateEmployees.length > 0;
+                  const notYet = dept.notYetPastCutoff;
+                  const borderColor = notYet ? 'border-muted' : hasLate ? 'border-orange-400' : 'border-green-400';
+                  return (
+                    <Card key={dept.departmentId} className={`border-2 ${borderColor}`}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-semibold flex items-center justify-between">
+                          <span>{dept.departmentName}</span>
+                          <div className="flex items-center gap-1">
+                            {dept.presentCount > 0 && (
+                              <Badge className="bg-green-500 text-white text-xs">{dept.presentCount} in</Badge>
+                            )}
+                            {!notYet && hasLate && (
+                              <Badge className="bg-orange-500 text-white text-xs">{dept.lateEmployees.length} late</Badge>
+                            )}
+                            {notYet && (
+                              <Badge variant="outline" className="text-muted-foreground text-xs">cutoff pending</Badge>
+                            )}
+                            {!notYet && !hasLate && dept.totalMembers > 0 && (
+                              <Badge className="bg-green-500 text-white text-xs">all present</Badge>
+                            )}
+                          </div>
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          {dept.managerName} · Shift {dept.shiftStartTime} +{dept.lateThresholdMins}min
+                          {' · Cutoff '}
+                          {new Date(dept.cutoffTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                          {dept.alreadyNotified && (
+                            <span className="text-orange-500"> · Notified</span>
+                          )}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="pt-0 space-y-1">
+                        {/* Present employees */}
+                        {dept.presentEmployees.map(emp => (
+                          <div key={emp.id} className="flex items-center justify-between py-1 px-2 rounded bg-green-50 dark:bg-green-950/20">
+                            <div className="flex items-center gap-1.5">
+                              <UserCheck className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                              <span className="text-sm font-medium truncate">{emp.name}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                              IN {emp.checkInTime}{emp.checkOutTime ? ` · OUT ${emp.checkOutTime}` : ''}
+                            </div>
+                          </div>
+                        ))}
+                        {/* Late employees (only after cutoff) */}
+                        {!notYet && dept.lateEmployees.map(emp => (
+                          <div key={emp.id} className="flex items-center justify-between py-1 px-2 rounded bg-orange-50 dark:bg-orange-950/20">
+                            <div className="flex items-center gap-1.5">
+                              <AlertTriangle className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+                              <span className="text-sm font-medium truncate">{emp.name}</span>
+                            </div>
+                            <span className="text-xs text-orange-500 whitespace-nowrap ml-2">Not arrived</span>
+                          </div>
+                        ))}
+                        {/* Not yet scanned, but cutoff not reached */}
+                        {notYet && dept.totalMembers - dept.presentCount > 0 && (
+                          <div className="text-xs text-muted-foreground px-2 pt-1">
+                            {dept.totalMembers - dept.presentCount} not yet scanned
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Other employees (biometric scans but no managed dept) */}
+            {otherEmployees.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <UserX className="h-4 w-4" />
+                  Other / Unassigned ({otherEmployees.length})
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-2">
+                  {otherEmployees.map(emp => (
+                    <Card key={emp.userId} className={`${getStatusColor(emp.status)}`}>
+                      <CardContent className="p-3">
+                        <p className="text-xs font-medium truncate">{emp.userId}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {emp.checkInTime && `IN ${emp.checkInTime}`}
+                          {emp.checkOutTime && ` OUT ${emp.checkOutTime}`}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Loading placeholder */}
+            {isLoadingRecords && (lateCheckResult === null || lateCheckResult.length === 0) && otherEmployees.length === 0 && (
+              <Card>
+                <CardContent className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Raw Data & Debug Section - Collapsible */}
       {attendanceRecords.length > 0 && (

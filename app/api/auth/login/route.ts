@@ -3,6 +3,7 @@ import { verifyPassword } from "../../../../lib/hash";
 import { signAccessToken, signRefreshToken } from "../../../../lib/auth";
 import { prisma } from "../../../../lib/prisma";
 import { logger } from "../../../../lib/logger";
+import { rateLimit } from "../../../../lib/rateLimit";
 
 /** Parse a duration string like "7d", "30d", "2h", "90m" into milliseconds. */
 function parseDurationMs(duration: string): number {
@@ -34,6 +35,11 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
+
+  // Rate limit: 10 login attempts/min per IP
+  const rl = rateLimit(req);
+  if (rl) return rl;
+
   try {
     const { email, password } = await req.json();
     logger.info("POST /api/auth/login - Login attempt", { email });

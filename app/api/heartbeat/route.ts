@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "../../../lib/requireAuth";
 import { logger } from "../../../lib/logger";
 import { prisma } from "../../../lib/prisma";
+import { rateLimit } from "../../../lib/rateLimit";
+import { withQueue } from "../../../lib/requestQueue";
 
 const HEARTBEAT_TIMEOUT_MS = 600_000; // consider app alive if heartbeat within last 60mins
 
@@ -26,6 +28,11 @@ function isAlive(lastSeenMs?: number) {
 
 // POST /api/heartbeat
 export async function POST(request: Request) {
+    // Rate limit: 10 req/min per IP per route
+    const rl = rateLimit(request);
+    if (rl) return rl;
+
+    return withQueue(async () => {
     const auth = requireAuth(request);
     if (!auth.user) {
         const ip =
@@ -109,6 +116,7 @@ export async function POST(request: Request) {
         logger.error("POST /api/heartbeat - Failed", error);
         return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
     }
+    }); // end withQueue
 }
 
 // GET /api/heartbeat

@@ -1,8 +1,13 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/hash";
+import { rateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 10 password-reset attempts/min per IP
+  const rl = rateLimit(req);
+  if (rl) return rl;
+
   try {
     const { token, otp, newPassword } = await req.json();
 

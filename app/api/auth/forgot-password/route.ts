@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { emailService } from "@/lib/emailService";
 import crypto from "crypto";
+import { rateLimit } from "@/lib/rateLimit";
 
 // Generate 6-digit OTP
 function generateOTP(): string {
@@ -14,6 +15,10 @@ function generateToken(): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 10 forgot-password requests/min per IP
+  const rl = rateLimit(req);
+  if (rl) return rl;
+
   try {
     const { email } = await req.json();
 
