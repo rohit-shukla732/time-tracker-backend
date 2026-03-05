@@ -84,3 +84,5 @@ packages/*/dist/
 .eslintcache
 
 /lib/generated/prisma
+
+public/downloads/
