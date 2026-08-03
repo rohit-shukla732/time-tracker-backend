@@ -22,12 +22,6 @@ export async function GET(
     const employee = await prisma.user.findUnique({
       where: { id },
       include: {
-        personalInfo: true,
-        familyInfo: true,
-        contactInfo: true,
-        addressInfo: true,
-        bankDetails: true,
-        governmentID: true,
         employmentInfo: {
           include: {
             department: {
@@ -345,12 +339,6 @@ export async function DELETE(
 
     // Delete all related records in a transaction
     await prisma.$transaction([
-      prisma.personalInfo.deleteMany({ where: { userId: id } }),
-      prisma.contactInfo.deleteMany({ where: { userId: id } }),
-      prisma.addressInfo.deleteMany({ where: { userId: id } }),
-      prisma.bankDetails.deleteMany({ where: { userId: id } }),
-      prisma.governmentID.deleteMany({ where: { userId: id } }),
-      prisma.familyInfo.deleteMany({ where: { userId: id } }),
       prisma.employmentInfo.deleteMany({ where: { userId: id } }),
       prisma.user.delete({ where: { id } }),
     ]);

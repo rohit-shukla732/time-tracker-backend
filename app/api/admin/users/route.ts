@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, unauthorizedResponse } from "../../../../lib/roleAuth";
+import { requireRoles, unauthorizedResponse } from "../../../../lib/roleAuth";
 import { prisma } from "../../../../lib/prisma";
 
-// GET /api/admin/users - Get all users with details (Admin only)
+// GET /api/admin/users - Get all users with details (Admin/HR only)
 export async function GET(req: NextRequest) {
-  const authResult = await requireAdmin(req);
+  const authResult = await requireRoles(req, ["ADMIN", "HR"]);
 
   if (authResult.error || !authResult.user) {
     return unauthorizedResponse(authResult.error);
@@ -17,9 +17,8 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || '';
     const departmentId = searchParams.get('departmentId') || '';
-
+    const clientProjectId = searchParams.get('clientProjectId') || '';
     const skip = (page - 1) * limit;
-
     // Build where clause
     const where: any = {};
     
@@ -37,10 +36,16 @@ export async function GET(req: NextRequest) {
     
     if (departmentId) {
       where.employmentInfo = {
-        departmentId: departmentId
-      };
-    }
+          ...(where.employmentInfo || {}),
+          departmentId: departmentId
+        };
+      }
 
+      if (clientProjectId) {
+        where.employmentInfo = {
+          ...(where.employmentInfo || {}),
+          clientProjectId: clientProjectId          };
+        }
     const [users, totalCount] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -51,7 +56,11 @@ export async function GET(req: NextRequest) {
           employmentInfo: {
             select: { 
               departmentId: true,
+              clientProjectId: true,
               department: {
+                select: { id: true, name: true }
+              },
+              clientProject: {
                 select: { id: true, name: true }
               }
             },
@@ -104,9 +113,10 @@ export async function GET(req: NextRequest) {
         name: u.name,
         email: u.email,
         role: u.role,
+        isArchived: u.isArchived,
         departmentId: u.employmentInfo?.departmentId || null,
-        departmentName: u.employmentInfo?.department?.name || null,
-        createdAt: u.createdAt,
+        departmentName: u.employmentInfo?.department?.name || null,          clientProjectId: u.employmentInfo?.clientProjectId || null,
+          clientProjectName: u.employmentInfo?.clientProject?.name || null,        createdAt: u.createdAt,
         updatedAt: u.updatedAt,
         totalSessions: u._count.sessions,
         totalEvents: u._count.events,
@@ -127,3 +137,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+

@@ -1,12 +1,7 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+"use client"; 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -14,595 +9,445 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { toast } from "sonner";
+import { Loader2, Save, Search, ArrowUpDown, Settings } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { toast } from "sonner";
-import {
-  Calendar,
-  Plus,
-  CheckCircle,
-  XCircle,
-  Clock,
-  User,
-  FileText,
-} from "lucide-react";
+import { Label } from "@/components/ui/label";
 
-interface LeaveRequest {
-  id: string;
-  type: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-  days: number;
-  reason: string;
-  attachment?: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    employmentInfo?: Array<{
-      department: {
-        id: string;
-        name: string;
-      };
-    }>;
-  };
-  approvedBy?: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  approvedAt?: string;
-  rejectedAt?: string;
-  rejectionReason?: string;
-  createdAt: string;
-}
+export default function LeavesPage() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>(null);
 
-interface LeaveBalance {
-  sick: { total: number; used: number; remaining: number };
-  casual: { total: number; used: number; remaining: number };
-  annual: { total: number; used: number; remaining: number };
-  maternity: { total: number; used: number; remaining: number };
-  paternity: { total: number; used: number; remaining: number };
-  compensatory: { total: number; used: number; remaining: number };
-  year: number;
-}
-
-export default function LeaveManagementPage() {
-  const router = useRouter();
-  const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
-  const [balance, setBalance] = useState<LeaveBalance | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [selectedLeave, setSelectedLeave] = useState<string | null>(null);
-  const [rejectionReason, setRejectionReason] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [filterType, setFilterType] = useState<string>("all");
-
-  const [newLeave, setNewLeave] = useState({
-    type: "SICK",
-    startDate: "",
-    endDate: "",
-    days: "",
-    reason: "",
+  const [searchQuery, setSearchQuery] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("ALL");
+  const [sortConfig, setSortConfig] = useState({
+    key: "name",
+    direction: "asc",
   });
 
-  useEffect(() => {
-    fetchLeaves();
-    fetchBalance();
-  }, [filterStatus, filterType]);
+  const [currentDate, setCurrentDate] = useState(new Date());
 
-  const fetchLeaves = async () => {
+  const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({});
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [tempSettings, setTempSettings] = useState<any>({});
+
+  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    setPendingChanges({});
     try {
-      const accessToken = localStorage.getItem("accessToken");
-      const params = new URLSearchParams();
-      if (filterStatus !== "all") params.append("status", filterStatus);
-      if (filterType !== "all") params.append("type", filterType);
-
-      const response = await fetch(`/api/leaves?${params.toString()}`, {
+      const month = currentDate.getMonth() + 1;
+      const year = currentDate.getFullYear();
+      
+      const res = await fetch(`/api/hr/leaves?month=${month}&year=${year}`, {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         },
       });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          router.push("/hr/login");
-          return;
-        }
-        throw new Error("Failed to fetch leaves");
-      }
-
-      const data = await response.json();
-      setLeaves(Array.isArray(data.leaves) ? data.leaves : []);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching leaves:", error);
-      setLeaves([]);
-      setLoading(false);
-      toast.error("Failed to fetch leave requests");
-    }
-  };
-
-  const fetchBalance = async () => {
-    try {
-      const accessToken = localStorage.getItem("accessToken");
-      const response = await fetch("/api/leaves/balance", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          router.push("/hr/login");
-          return;
-        }
-      }
-
-      if (response.ok) {
-        const data = await response.json();
-        setBalance(data.balance);
-      }
-    } catch (error) {
-      console.error("Error fetching balance:", error);
-    }
-  };
-
-  const calculateDays = () => {
-    if (newLeave.startDate && newLeave.endDate) {
-      const start = new Date(newLeave.startDate);
-      const end = new Date(newLeave.endDate);
-      const diffTime = Math.abs(end.getTime() - start.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      setNewLeave({ ...newLeave, days: diffDays.toString() });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to fetch data");
+      setEmployees(json.employees || []);
+      setSettings(json.settings || {});
+      setTempSettings(json.settings || {});
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    calculateDays();
-  }, [newLeave.startDate, newLeave.endDate]);
+    fetchData();
+  }, [currentDate.getMonth(), currentDate.getFullYear()]);
 
-  const handleCreateLeave = async () => {
-    try {
-      const accessToken = localStorage.getItem("accessToken");
-      const response = await fetch("/api/leaves", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          ...newLeave,
-          days: parseFloat(newLeave.days),
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          router.push("/hr/login");
-          return;
-        }
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create leave request");
-      }
-
-      toast.success("Leave request created successfully");
-      setIsCreateDialogOpen(false);
-      setNewLeave({
-        type: "SICK",
-        startDate: "",
-        endDate: "",
-        days: "",
-        reason: "",
-      });
-      fetchLeaves();
-      fetchBalance();
-    } catch (error: any) {
-      console.error("Error creating leave:", error);
-      toast.error(error.message || "Failed to create leave request");
-    }
+  const handleAmountChange = (userId: string, field: string, value: string) => {
+    const amount = value === "" ? "" : parseFloat(value);
+    setPendingChanges((prev) => ({
+      ...prev,
+      [userId]: { ...prev[userId], [field]: amount },
+    }));
   };
 
-  const handleApprove = async (leaveId: string) => {
-    try {
-      const accessToken = localStorage.getItem("accessToken");
-      const response = await fetch(`/api/leaves/${leaveId}/approve`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          router.push("/hr/login");
-          return;
-        }
-        throw new Error("Failed to approve leave");
-      }
-
-      toast.success("Leave approved");
-      fetchLeaves();
-    } catch (error) {
-      console.error("Error approving leave:", error);
-      toast.error("Failed to approve leave");
-    }
-  };
-
-  const handleReject = async () => {
-    if (!selectedLeave) return;
-
-    try {
-      const accessToken = localStorage.getItem("accessToken");
-      const response = await fetch(`/api/leaves/${selectedLeave}/reject`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ reason: rejectionReason }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          router.push("/hr/login");
-          return;
-        }
-        throw new Error("Failed to reject leave");
-      }
-
-      toast.success("Leave rejected");
-      setIsRejectDialogOpen(false);
-      setSelectedLeave(null);
-      setRejectionReason("");
-      fetchLeaves();
-    } catch (error) {
-      console.error("Error rejecting leave:", error);
-      toast.error("Failed to reject leave");
-    }
-  };
-
-  const handleCancel = async (leaveId: string) => {
-    if (!confirm("Are you sure you want to cancel this leave request?")) {
+  const handleSaveBalances = async () => {
+    if (Object.keys(pendingChanges).length === 0) {
+      toast.info("No changes to save.");
       return;
     }
-
+    setIsSaving(true);
     try {
-      const accessToken = localStorage.getItem("accessToken");
-      const response = await fetch(`/api/leaves/${leaveId}`, {
-        method: "DELETE",
+      const updates = Object.entries(pendingChanges).map(
+        ([userId, fields]) => ({
+          userId,
+          ...fields,
+        }),
+      );
+
+      const res = await fetch("/api/hr/leaves", {
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
         },
+        body: JSON.stringify({
+          updates,
+          month: currentDate.getMonth() + 1,
+          year: currentDate.getFullYear()
+        }),
       });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          router.push("/hr/login");
-          return;
-        }
-        throw new Error("Failed to cancel leave");
-      }
-
-      toast.success("Leave cancelled");
-      fetchLeaves();
-      fetchBalance();
-    } catch (error) {
-      console.error("Error cancelling leave:", error);
-      toast.error("Failed to cancel leave");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to save balances");
+      toast.success("Leave balances updated successfully!");
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "PENDING":
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">Pending</Badge>;
-      case "APPROVED":
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">Approved</Badge>;
-      case "REJECTED":
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">Rejected</Badge>;
-      case "CANCELLED":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-300">Cancelled</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  const handleSaveSettings = async () => {
+    try {
+      const res = await fetch("/api/hr/settings", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+        body: JSON.stringify(tempSettings),
+      });
+      const json = await res.json();
+      if (!res.ok)
+        throw new Error(json.error || "Failed to update global leaves limit");
+      toast.success("Global leave settings updated!");
+      setIsSettingsOpen(false);
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.message);
     }
   };
 
-  const getTypeBadge = (type: string) => {
-    const colors: Record<string, string> = {
-      SICK: "bg-blue-50 text-blue-700 border-blue-300",
-      CASUAL: "bg-purple-50 text-purple-700 border-purple-300",
-      ANNUAL: "bg-green-50 text-green-700 border-green-300",
-      MATERNITY: "bg-pink-50 text-pink-700 border-pink-300",
-      PATERNITY: "bg-indigo-50 text-indigo-700 border-indigo-300",
-      COMPENSATORY: "bg-orange-50 text-orange-700 border-orange-300",
-      UNPAID: "bg-gray-50 text-gray-700 border-gray-300",
-    };
+  const uniqueDepartments = Array.from(
+    new Set(
+      employees.map((e) => e.employmentInfo?.department?.name).filter(Boolean),
+    ),
+  ) as string[];
 
-    return (
-      <Badge variant="outline" className={colors[type] || ""}>
-        {type.charAt(0) + type.slice(1).toLowerCase()}
-      </Badge>
-    );
+  const filteredEmployees = employees
+    .filter((emp) => {
+      const matchesSearch =
+        emp.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.id?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesDept =
+        departmentFilter === "ALL" ||
+        emp.employmentInfo?.department?.name === departmentFilter;
+      return matchesSearch && matchesDept;
+    })
+    .sort((a, b) => {
+      const aVal = a[sortConfig.key] || "";
+      const bVal = b[sortConfig.key] || "";
+      if (aVal < bVal) return sortConfig.direction === "asc" ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+  const getBalance = (emp: any, field: string) => {
+    if (field in (pendingChanges[emp.id] || {})) {
+      return pendingChanges[emp.id][field];
+    }
+    const hasMonthly = emp.monthlyLeaveBalances && emp.monthlyLeaveBalances.length > 0;
+    if (hasMonthly) {
+       return emp.monthlyLeaveBalances[0][field] || 0;
+    }
+    
+    // Fallback logic
+    if (field === "previousLeaves") {
+       return emp.leaveBalance?.annualLeave ? emp.leaveBalance.annualLeave - (emp.leaveBalance?.annualUsed || 0) : 0;
+    }
+    if (field === "currentMonthLeaves") {
+       return settings?.monthlyAnnualLeave || 0;
+    }
+    if (field === "compensatoryOff") {
+       return emp.leaveBalance?.compensatoryOff ? emp.leaveBalance.compensatoryOff - (emp.leaveBalance?.compensatoryUsed || 0) : 0;
+    }
+
+    return 0;
   };
+  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+  const renderPagination = () => (
+    <div className="flex justify-center items-center py-4">
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            />
+          </PaginationItem>
+          <PaginationItem>
+            <span className="text-sm text-muted-foreground px-4">
+              Page {currentPage} of {totalPages}
+            </span>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationNext 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              className={currentPage === totalPages || totalPages === 0 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    </div>
+  );
 
-  if (loading) {
-    return <div className="p-8">Loading...</div>;
-  }
 
   return (
-    <div className="p-8 space-y-6">
-      {/* Leave Balance Cards */}
-      {balance && (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {Object.entries(balance).filter(([key]) => key !== 'year').map(([type, data]: [string, any]) => (
-            <Card key={type}>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium capitalize">{type} Leave</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-1">
-                  <div className="text-2xl font-bold">{data.remaining}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {data.used} used / {data.total} total
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+    <div className="space-y-6">
+      <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Monthly Leave Allowances
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            View or edit per-user balances for previous carried leaves, the current month additions, and comp offs.
+          </p>
         </div>
-      )}
 
-      {/* Leave Requests Table */}
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Leave Requests</CardTitle>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Request Leave
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* Filters */}
-          <div className="flex gap-4 mb-6">
-            <div className="flex-1">
-              <Label>Status</Label>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="APPROVED">Approved</SelectItem>
-                  <SelectItem value="REJECTED">Rejected</SelectItem>
-                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex-1">
-              <Label>Type</Label>
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="SICK">Sick</SelectItem>
-                  <SelectItem value="CASUAL">Casual</SelectItem>
-                  <SelectItem value="ANNUAL">Annual</SelectItem>
-                  <SelectItem value="MATERNITY">Maternity</SelectItem>
-                  <SelectItem value="PATERNITY">Paternity</SelectItem>
-                  <SelectItem value="COMPENSATORY">Compensatory</SelectItem>
-                  <SelectItem value="UNPAID">Unpaid</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+          <div className="relative w-full sm:w-[220px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search employee..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Days</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Department" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Depts</SelectItem>
+              {uniqueDepartments.map((dept) => (
+                <SelectItem key={dept} value={dept}>
+                  {dept}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* DATE SELECTORS  */}
+          <Select
+            value={currentDate.getMonth().toString()}
+            onValueChange={(v) => {
+              const d = new Date(currentDate);
+              d.setMonth(parseInt(v));
+              setCurrentDate(d);
+            }}
+          >
+            <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {months.map((m, i) => (
+                <SelectItem key={m} value={i.toString()}>{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={currentDate.getFullYear().toString()}
+            onValueChange={(v) => {
+              const d = new Date(currentDate);
+              d.setFullYear(parseInt(v));
+              setCurrentDate(d);
+            }}
+          >
+            <SelectTrigger className="w-[90px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Settings className="h-4 w-4 mr-2" /> Global Defaults
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Monthly Base Settings</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                  <Label>Monthly Leaves Added</Label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={tempSettings.monthlyAnnualLeave || 0}
+                    onChange={(e) =>
+                      setTempSettings({
+                        ...tempSettings,
+                        monthlyAnnualLeave: parseFloat(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleSaveSettings}>Save Month Config</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Button
+            onClick={handleSaveBalances}
+            disabled={isSaving || Object.keys(pendingChanges).length === 0}
+            className="w-full sm:w-auto relative"
+          >
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
+            Save Changes
+            {Object.keys(pendingChanges).length > 0 && (
+              <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center animate-bounce">
+                {Object.keys(pendingChanges).length}
+              </span>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      
+  {renderPagination()}
+      <Table containerClassName="max-h-[calc(100vh-280px)] w-full border rounded-md" className="text-[13px] border-collapse min-w-max">
+        <TableHeader className="sticky top-0 bg-white dark:bg-gray-950 z-20 shadow-sm border-b">
+          <TableRow>
+                <TableHead className="sticky left-0 bg-white dark:bg-zinc-950 z-[30] border-r w-[250px] sticky top-0 bg-white dark:bg-gray-950 z-[20] shadow-sm border-b">
+                  Employee Details
+                </TableHead>
+                <TableHead className="text-center border-r font-bold bg-blue-500/10 text-indigo-600 dark:text-indigo-400 min-w-[120px] sticky top-0 bg-white dark:bg-gray-950 z-[20] shadow-sm border-b">
+                  Total Allowed
+                </TableHead>
+                <TableHead className="text-center bg-zinc-100/50 dark:bg-zinc-800/50 min-w-[120px] sticky top-0 bg-white dark:bg-gray-950 z-[20] shadow-sm border-b">
+                  Prev Leaves Left
+                </TableHead>
+                <TableHead className="text-center bg-zinc-100/50 dark:bg-zinc-800/50 min-w-[120px] sticky top-0 bg-white dark:bg-gray-950 z-[20] shadow-sm border-b">
+                  Current Mo. Added
+                </TableHead>
+                <TableHead className="text-center bg-zinc-100/50 dark:bg-zinc-800/50 min-w-[120px] sticky top-0 bg-white dark:bg-gray-950 z-[20] shadow-sm border-b">
+                  Comp. Off
+                </TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
-              {leaves.length === 0 ? (
+              {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    No leave requests found
+                  <TableCell colSpan={5} className="h-48 text-center">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+              ) : filteredEmployees.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="h-48 text-center text-muted-foreground"
+                  >
+                    No employees found.
                   </TableCell>
                 </TableRow>
               ) : (
-                leaves.map((leave) => (
-                  <TableRow key={leave.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{leave.user.name}</div>
-                        {leave.user.employmentInfo?.[0]?.department && (
-                          <div className="text-xs text-muted-foreground">
-                            {leave.user.employmentInfo[0].department.name}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{getTypeBadge(leave.type)}</TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
-                      </div>
-                    </TableCell>
-                    <TableCell>{leave.days} day{leave.days !== 1 ? 's' : ''}</TableCell>
-                    <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
-                    <TableCell>{getStatusBadge(leave.status)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex gap-1 justify-end">
-                        {leave.status === "PENDING" && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleApprove(leave.id)}
-                              title="Approve"
-                            >
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setSelectedLeave(leave.id);
-                                setIsRejectDialogOpen(true);
-                              }}
-                              title="Reject"
-                            >
-                              <XCircle className="h-4 w-4 text-red-600" />
-                            </Button>
-                          </>
-                        )}
-                        {(leave.status === "PENDING" || leave.status === "APPROVED") && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleCancel(leave.id)}
-                            title="Cancel"
+                filteredEmployees.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((emp) => {
+                  const prev = getBalance(emp, "previousLeaves");
+                  const curr = getBalance(emp, "currentMonthLeaves");
+                  const comp = getBalance(emp, "compensatoryOff");
+
+                  const totalNetLeft = prev + curr + comp;
+
+                  return (
+                    <TableRow
+                      key={emp.id}
+                      className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                    >
+                      <TableCell className="sticky left-0 bg-white dark:bg-zinc-950 border-r px-4 py-3 z-[10] w-[250px]">
+                        <div className="font-medium text-foreground">
+                          {emp.name}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {emp.employmentInfo?.department?.name || "No Dept"} /{" "}
+                          {emp.id}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-center font-bold border-r bg-blue-50/10 text-indigo-700">
+                        {totalNetLeft > 0 ? totalNetLeft : 0}
+                      </TableCell>
+
+                      {["previousLeaves", "currentMonthLeaves", "compensatoryOff"].map((field) => {
+                        const isPending = field in (pendingChanges[emp.id] || {});
+                        const val = getBalance(emp, field);
+
+                        return (
+                          <TableCell
+                            key={field}
+                            className="p-1 border-r relative focus-within:ring-1 focus-within:ring-primary focus-within:z-[10] group-hover:bg-zinc-50/30"
                           >
-                            <XCircle className="h-4 w-4 text-gray-600" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              className={`w-full h-full text-center py-2 px-1 text-sm bg-transparent outline-none transition-all ${isPending ? "font-semibold text-green-600 dark:text-green-400 bg-green-50/30" : ""}`}
+                              value={val ?? ""}
+                              onChange={(e) => handleAmountChange(emp.id, field, e.target.value)}
+                            />
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
-
-      {/* Create Leave Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Request Leave</DialogTitle>
-            <DialogDescription>Submit a new leave request</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="type">Leave Type</Label>
-              <Select
-                value={newLeave.type}
-                onValueChange={(value) => setNewLeave({ ...newLeave, type: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SICK">Sick Leave</SelectItem>
-                  <SelectItem value="CASUAL">Casual Leave</SelectItem>
-                  <SelectItem value="ANNUAL">Annual Leave</SelectItem>
-                  <SelectItem value="MATERNITY">Maternity Leave</SelectItem>
-                  <SelectItem value="PATERNITY">Paternity Leave</SelectItem>
-                  <SelectItem value="COMPENSATORY">Compensatory Off</SelectItem>
-                  <SelectItem value="UNPAID">Unpaid Leave</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="startDate">Start Date</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={newLeave.startDate}
-                  onChange={(e) => setNewLeave({ ...newLeave, startDate: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label htmlFor="endDate">End Date</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={newLeave.endDate}
-                  onChange={(e) => setNewLeave({ ...newLeave, endDate: e.target.value })}
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="days">Number of Days</Label>
-              <Input
-                id="days"
-                type="number"
-                step="0.5"
-                value={newLeave.days}
-                onChange={(e) => setNewLeave({ ...newLeave, days: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="reason">Reason</Label>
-              <Textarea
-                id="reason"
-                value={newLeave.reason}
-                onChange={(e) => setNewLeave({ ...newLeave, reason: e.target.value })}
-                placeholder="Provide a reason for your leave"
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateLeave}>Submit Request</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject Leave Dialog */}
-      <Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Leave Request</DialogTitle>
-            <DialogDescription>Provide a reason for rejection</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="rejectionReason">Rejection Reason</Label>
-            <Textarea
-              id="rejectionReason"
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="Why is this leave being rejected?"
-              rows={3}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleReject}>
-              Reject Leave
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {renderPagination()}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin, requireAuth, unauthorizedResponse } from "../../../../../lib/roleAuth";
+import { requireRoles, requireAuth, unauthorizedResponse } from "../../../../../lib/roleAuth";
 import { prisma } from "../../../../../lib/prisma";
 import { logger } from "../../../../../lib/logger";
 
@@ -10,12 +10,12 @@ if (!g[GLOBAL_SESSION_STATE_KEY]) g[GLOBAL_SESSION_STATE_KEY] = new Map<string, 
 const sessionStateStore: Map<string, any> = g[GLOBAL_SESSION_STATE_KEY];
 const SESSION_STATE_TIMEOUT_MS = 120_000; // 2 minutes
 
-// POST /api/teams/[id]/members - Add member to team (Admin only)
+// POST /api/teams/[id]/members - Add member to team (Admin/HR only)
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const startTime = Date.now();
   const resolvedParams = await params;
-  const authResult = await requireAdmin(req);
-  
+  const authResult = await requireRoles(req, ["ADMIN", "HR"]);
+
   if (authResult.error || !authResult.user) {
     logger.warn("POST /api/teams/[id]/members - Unauthorized");
     return unauthorizedResponse(authResult.error);
@@ -81,11 +81,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 }
 
-// DELETE /api/teams/[id]/members - Remove member from team (Admin only)
+// DELETE /api/teams/[id]/members - Remove member from team (Admin/HR only)
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const startTime = Date.now();
   const resolvedParams = await params;
-  const authResult = await requireAdmin(req);
+  const authResult = await requireRoles(req, ["ADMIN", "HR"]);
   
   if (authResult.error || !authResult.user) {
     logger.warn("DELETE /api/teams/[id]/members - Unauthorized");
@@ -174,6 +174,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         logger.warn("GET /api/teams/[id]/members - Access denied for manager", { departmentId, by: authResult.user.id });
         return unauthorizedResponse('Access denied. Not manager of this department');
       }
+    } else if (authResult.user.role === 'SENIOR_MANAGER') {
+      if (!authResult.user.managedDepartmentIds?.includes(departmentId)) {
+        logger.warn("GET /api/teams/[id]/members - Access denied for senior manager", { departmentId, by: authResult.user.id });
+        return unauthorizedResponse('Access denied. Department not assigned to you');
+      }
     } else if (authResult.user.role !== 'ADMIN' && authResult.user.role !== 'HR') {
       // Employees cannot list department members
       logger.warn("GET /api/teams/[id]/members - Access denied for non-privileged user", { departmentId, by: authResult.user.id });
@@ -181,7 +186,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const employmentInfos = await prisma.employmentInfo.findMany({
-      where: { departmentId },
+      where: { 
+        departmentId,
+        user: { isArchived: false }
+      },
       include: {
         user: {
           select: { id: true, name: true, email: true, role: true, createdAt: true, updatedAt: true }
@@ -219,6 +227,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         lastActive: a._max.createdAt ? new Date(a._max.createdAt).toISOString() : null,
       });
     });
+
+    // Backfill sessionStateStore from DB for cluster-safe reads
+    const membersDeviceControls = await prisma.deviceControl.findMany({
+      where: { userId: { in: memberIds } },
+      select: { userId: true, sessionState: true },
+    });
+    for (const dc of membersDeviceControls) {
+      if (dc.sessionState && !sessionStateStore.has(`user:${dc.userId}`)) {
+        sessionStateStore.set(`user:${dc.userId}`, dc.sessionState);
+      }
+    }
 
     // Determine realtime status per user from sessionStateStore
     const membersWithStats = members.map((m) => {

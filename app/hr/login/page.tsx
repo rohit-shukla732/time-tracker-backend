@@ -1,30 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock } from "lucide-react";
-import Link from "next/link";
-export default function HRLoginPage() {
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Clock, AlertCircle, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+
+export default function HRLogin() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError('');
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
       });
@@ -32,105 +30,170 @@ export default function HRLoginPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Login failed");
+        setError(data.error || 'Login failed');
         setLoading(false);
         return;
       }
 
-      // Check if user has HR, ADMIN, or MANAGER role
-      const role = data.user?.role;
-      if (role !== "HR" && role !== "ADMIN" && role !== "MANAGER") {
-        setError("Access denied. HR portal is only accessible to HR, Admin, and Manager roles.");
+// Check if user is HR or ADMIN
+      if (data.user.role !== 'HR' && data.user.role !== 'ADMIN') {
+        setError('Access denied. HR privileges required.');
         setLoading(false);
         return;
       }
 
-      // Store token
-      if (data.accessToken) {
-        localStorage.setItem("accessToken", data.accessToken);
-      }
-      if (data.refreshToken) {
-        localStorage.setItem("refreshToken", data.refreshToken);
-      }
-      if (data.user?.name) {
-        localStorage.setItem("userName", data.user.name);
-      }
-      if (data.user?.role) {
-        localStorage.setItem("userRole", data.user.role);
-      }
+      // Store tokens and user info
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('userRole', data.user.role);
+      
+      // Dispatch custom event to update UI immediately
+      window.dispatchEvent(new Event('userUpdated'));
 
-      // Redirect to HR dashboard
-      router.push("/hr");
+      // Redirect to hr dashboard
+      router.push('/hr');
     } catch (err) {
-      setError("An error occurred during login");
+      setError('Failed to connect to server');
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-            <div className="flex justify-center mb-4">
-            <div className="rounded-full bg-primary/10 p-3">
-              <Clock className="h-8 w-8 text-primary" />
-            </div>
+    <div className="min-h-screen flex bg-zinc-50 dark:bg-zinc-950 font-sans selection:bg-zinc-200 dark:selection:bg-zinc-800">
+      {/* Left Pane - Branding & Visuals */}
+      <div className="hidden lg:flex flex-col justify-between w-[45%] max-w-[700px] bg-zinc-950 dark:bg-zinc-900 p-12 text-zinc-100 selection:bg-white/30 relative overflow-hidden">
+        {/* Subtle mesh/glow effect in the background */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+          <div className="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] rounded-full bg-primary/20 blur-[120px]" />
+          <div className="absolute bottom-[10%] right-[10%] w-[50%] h-[50%] rounded-full bg-blue-500/10 blur-[100px]" />
+        </div>
+
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="bg-white/10 p-2.5 rounded-[14px] backdrop-blur-md border border-white/10 shadow-sm">
+            <Clock className="w-5 h-5 text-zinc-100" strokeWidth={2} />
           </div>
-          <CardTitle className="text-2xl font-bold text-center">HR Portal Login</CardTitle>
-          <CardDescription className="text-center">
-            Sign in to access the HR management system
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="hr@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link 
-                  href="/auth/forgot-password" 
-                  className="text-xs text-primary hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
+          <span className="font-semibold text-[13px] tracking-[0.15em] uppercase text-zinc-300">
+            Internal Operations
+          </span>
+        </div>
+
+        <div className="relative z-10">
+          <div className="w-30 h-30 rounded-3xl bg-white/10 backdrop-blur-xl flex items-center justify-center border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+                      <Image src="/assets/email_dp.jpg" alt="ACE Logo" width={64} height={64} className="h-full w-full object-cover rounded-3xl" />
+                    </div>
+          <h1 className="text-[56px] font-medium tracking-tight leading-[1.05] mb-6 text-white">
+            ACE-HR <br />
+            <span className="text-zinc-500">HR</span>
+          </h1>
+          <p className="text-zinc-400 text-[19px] leading-relaxed max-w-[420px] font-light">
+            Oversee the employee production, manage time tracking, and orchestrate workforce efficiency seamlessly.
+          </p>
+        </div>
+
+        <div className="relative z-10 flex items-center justify-between text-[13px] font-medium text-zinc-500">
+          <span>@ {new Date().getFullYear()} ACE Healthcare Solutions</span>
+          <span>Octaract</span>
+        </div>
+      </div>
+
+      {/* Right Pane - Interaction & Form */}
+      <div className="flex-1 flex flex-col justify-center relative bg-white dark:bg-zinc-950 px-6 sm:px-12 lg:px-24 py-12">
+        <div className="w-full max-w-[400px] mx-auto space-y-10">
+          
+          <div className="space-y-3">
+            <h2 className="text-[32px] font-semibold tracking-[-0.03em] text-zinc-900 dark:text-white">
+              Welcome back
+            </h2>
+            <p className="text-[16px] text-zinc-500 dark:text-zinc-400 font-light">
+              Sign in with your hr credentials to continue.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm ">
-                {error}
+              <div className="flex items-center gap-3 p-4 rounded-[20px] bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 animate-in fade-in slide-in-from-top-2">
+                <AlertCircle className="h-5 w-5 shrink-0" strokeWidth={2} />
+                <p className="text-[14px] font-medium">{error}</p>
               </div>
             )}
-            <Button type="submit" className="w-full mt-10" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
-            </Button>
-          </form>
-        </CardContent>
-        <CardFooter>
-            <div className="text-center w-full text-sm text-muted-foreground">
-              <p >Authorized for HR, Admin, and Manager roles only</p>
+
+            <div className="space-y-5">
+              <div className="space-y-2 relative">
+                <label htmlFor="email" className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 ml-1">
+                  Email address
+                </label>
+                <div className="relative">
+                  <input
+                    id="email"
+                    type="email"
+                    placeholder="hr@company.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="w-full h-[56px] px-5 rounded-[20px] bg-zinc-100/50 dark:bg-zinc-900/50 border border-black/[0.04] dark:border-white/[0.04] text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/10 focus:border-zinc-300 dark:focus:border-zinc-700 transition-all disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between ml-1">
+                  <label htmlFor="password" className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
+                    Password
+                  </label>
+                  <Link 
+                    href="/auth/forgot-password" 
+                    className="text-[13px] font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="w-full h-[56px] px-5 rounded-[20px] bg-zinc-100/50 dark:bg-zinc-900/50 border border-black/[0.04] dark:border-white/[0.04] text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 outline-none focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/10 focus:border-zinc-300 dark:focus:border-zinc-700 transition-all font-mono disabled:opacity-50"
+                  />
+                </div>
+              </div>
             </div>
-        </CardFooter>
-      </Card>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full h-[56px] mt-2 flex items-center justify-center gap-2 rounded-[20px] bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[16px] font-medium hover:bg-zinc-800 dark:hover:bg-zinc-100 active:scale-[0.98] transition-all disabled:opacity-70 disabled:active:scale-100 overflow-hidden"
+            >
+              <span className="relative z-10 flex items-center gap-2">
+                {loading ? 'Authenticating...' : 'Sign in as HR'}
+                {!loading && (
+                  <ArrowRight className="w-4 h-4 opacity-70 group-hover:translate-x-1 group-hover:opacity-100 transition-all" strokeWidth={2} />
+                )}
+              </span>
+              {loading && (
+                <div className="absolute inset-0 bg-white/20 dark:bg-black/10 animate-pulse" />
+              )}
+            </button>
+          </form>
+
+          {/* Footer links */}
+          <div className="text-center pt-8 border-t border-black/[0.04] dark:border-white/[0.04]">
+            <p className="text-[14px] text-zinc-500 dark:text-zinc-400 font-light">
+              Are you an employee?{' '}
+              <Link href="/time-tracker/login" className="font-medium text-zinc-900 dark:text-white hover:underline underline-offset-4">
+                Sign in here
+              </Link>
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
+
+

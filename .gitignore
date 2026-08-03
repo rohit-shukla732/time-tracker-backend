@@ -85,4 +85,4 @@ packages/*/dist/
 
 /lib/generated/prisma
 
-public/downloads/
+public/downloads/public/**/*.exe

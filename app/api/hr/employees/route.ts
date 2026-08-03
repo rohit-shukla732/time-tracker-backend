@@ -20,7 +20,10 @@ export async function GET(req: NextRequest) {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1; // 1-12
 
+    const includeArchived = authResult.user.role === "ADMIN";
+
     const employees = await prisma.user.findMany({
+      where: includeArchived ? {} : { isArchived: false },
       include: {
         employmentInfo: {
           include: {
@@ -37,12 +40,6 @@ export async function GET(req: NextRequest) {
             },
           },
         },
-        personalInfo: true,
-        familyInfo: true,
-        contactInfo: true,
-        addressInfo: true,
-        governmentID: true,
-        bankDetails: true,
         leaveBalance: true,
         lateComingRecords: {
           where: {
@@ -275,11 +272,6 @@ export async function POST(req: NextRequest) {
     const completeUser = await prisma.user.findUnique({
       where: { id: user.id },
       include: {
-        personalInfo: true,
-        familyInfo: true,
-        contactInfo: true,
-        addressInfo: true,
-        governmentID: true,
         employmentInfo: {
           include: {
             department: true,
@@ -288,7 +280,6 @@ export async function POST(req: NextRequest) {
             branch: true,
           },
         },
-        bankDetails: true,
         leaveBalance: true,
       },
     });

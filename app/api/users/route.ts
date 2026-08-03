@@ -23,30 +23,50 @@ export async function GET(req: NextRequest) {
       if (role) {
         whereCondition.role = role;
       }
-    } else if (authResult.user.role === 'MANAGER') {
-      // Managers can only see their department members
-      const managerEmployment = await prisma.employmentInfo.findUnique({
-        where: { userId: authResult.user.id },
-        select: { departmentId: true }
-      });
-      
-      if (managerEmployment?.departmentId) {
-        // Find users in the same department
-        const departmentUsers = await prisma.employmentInfo.findMany({
-          where: { departmentId: managerEmployment.departmentId },
-          select: { userId: true }
+    } else {
+      // Non-admins shouldn't see archived users
+      whereCondition.isArchived = false;
+
+      if (authResult.user.role === 'MANAGER') {
+        // Managers can only see their department members
+        const managerEmployment = await prisma.employmentInfo.findUnique({
+          where: { userId: authResult.user.id },
+          select: { departmentId: true }
         });
-        whereCondition.id = { in: departmentUsers.map(emp => emp.userId) };
-        if (role) {
-          whereCondition.role = role;
+        
+        if (managerEmployment?.departmentId) {
+          // Find users in the same department
+          const departmentUsers = await prisma.employmentInfo.findMany({
+            where: { departmentId: managerEmployment.departmentId },
+            select: { userId: true }
+          });
+          whereCondition.id = { in: departmentUsers.map(emp => emp.userId) };
+          if (role) {
+            whereCondition.role = role;
+          }
+        } else {
+          // Manager without a department can only see themselves
+          whereCondition.id = authResult.user.id;
+        }
+      } else if (authResult.user.role === 'SENIOR_MANAGER') {
+        // Senior managers see members across all their assigned departments
+        const departmentIds = authResult.user.managedDepartmentIds || [];
+        if (departmentIds.length > 0) {
+          const departmentUsers = await prisma.employmentInfo.findMany({
+            where: { departmentId: { in: departmentIds } },
+            select: { userId: true }
+          });
+          whereCondition.id = { in: departmentUsers.map((emp: { userId: string }) => emp.userId) };
+          if (role) {
+            whereCondition.role = role;
+          }
+        } else {
+          whereCondition.id = authResult.user.id;
         }
       } else {
-        // Manager without a department can only see themselves
+        // Employees can only see themselves
         whereCondition.id = authResult.user.id;
       }
-    } else {
-      // Employees can only see themselves
-      whereCondition.id = authResult.user.id;
     }
 
     const users = await prisma.user.findMany({
@@ -56,6 +76,7 @@ export async function GET(req: NextRequest) {
         name: true,
         email: true,
         role: true,
+        isArchived: true,
         createdAt: true,
         updatedAt: true,
         employmentInfo: includeTeam ? {
@@ -90,6 +111,7 @@ export async function GET(req: NextRequest) {
         name: user.name,
         email: user.email,
         role: user.role,
+        isArchived: user.isArchived,
         departmentId: user.employmentInfo?.departmentId || null,
         department: user.employmentInfo?.department || undefined,
         managedDepartment: user.managedDepartment || undefined,

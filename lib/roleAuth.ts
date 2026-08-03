@@ -10,6 +10,7 @@ export interface AuthenticatedUser {
   name?: string;
   role: Role;
   departmentId?: string;
+  managedDepartmentIds?: string[]; // for SENIOR_MANAGER
 }
 
 export interface AuthResult {
@@ -48,6 +49,9 @@ export async function requireAuth(
           include: {
             department: true
           }
+        },
+        seniorManagerOf: {
+          select: { departmentId: true }
         }
       }
     });
@@ -62,7 +66,10 @@ export async function requireAuth(
         email: user.email,
         name: user.name || undefined,
         role: user.role as Role,
-        departmentId: user.employmentInfo?.departmentId || undefined
+        departmentId: user.employmentInfo?.departmentId || undefined,
+        managedDepartmentIds: user.role === 'SENIOR_MANAGER'
+          ? user.seniorManagerOf.map((s: { departmentId: string }) => s.departmentId)
+          : undefined
       }
     };
   } catch {
@@ -106,7 +113,7 @@ export async function requireAdmin(req: Request): Promise<AuthResult> {
  * Manager or Admin authentication
  */
 export async function requireManager(req: Request): Promise<AuthResult> {
-  return requireRoles(req, ['ADMIN', 'MANAGER']);
+  return requireRoles(req, ['ADMIN', 'MANAGER', 'SENIOR_MANAGER']);
 }
 
 /**
@@ -150,6 +157,18 @@ export async function canAccessUserData(
     }
   }
 
+  // Senior managers can access members across all their assigned departments
+  if (currentUser.role === 'SENIOR_MANAGER' && currentUser.managedDepartmentIds?.length) {
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId },
+      include: { employmentInfo: true }
+    });
+    if (targetUser?.employmentInfo?.departmentId &&
+        currentUser.managedDepartmentIds.includes(targetUser.employmentInfo.departmentId)) {
+      return true;
+    }
+  }
+
   // Employees can only access their own data
   return false;
 }
@@ -170,6 +189,15 @@ export async function getAccessibleUsers(currentUser: AuthenticatedUser): Promis
   if (currentUser.role === 'MANAGER' && currentUser.departmentId) {
     const deptMembers = await prisma.employmentInfo.findMany({
       where: { departmentId: currentUser.departmentId },
+      select: { userId: true }
+    });
+    return deptMembers.map((e: { userId: string }) => e.userId);
+  }
+
+  // Senior managers can access members across all their assigned departments
+  if (currentUser.role === 'SENIOR_MANAGER' && currentUser.managedDepartmentIds?.length) {
+    const deptMembers = await prisma.employmentInfo.findMany({
+      where: { departmentId: { in: currentUser.managedDepartmentIds } },
       select: { userId: true }
     });
     return deptMembers.map((e: { userId: string }) => e.userId);

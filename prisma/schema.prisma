@@ -17,70 +17,9 @@ model Company {
   employmentInfo EmploymentInfo[]
 }
 
-model PersonalInfo {
-  id          String    @id @default(uuid())
-  userId      String    @unique
-  firstName   String
-  middleName  String?
-  lastName    String
-  pronoun     Pronoun?
-  gender      Gender?
-  dateOfBirth DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model ContactInfo {
-  id                   String   @id @default(uuid())
-  userId               String   @unique
-  email                String   @unique
-  alternateEmail       String?
-  phoneNumber          String?
-  alternatePhoneNumber String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([email])
-}
-
-model AddressInfo {
-  id                 String   @id @default(uuid())
-  userId             String   @unique
-  residentialAddress String?
-  permanentAddress   String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model FamilyInfo {
-  id            String         @id @default(uuid())
-  userId        String         @unique
-  maritalStatus MaritalStatus?
-  fatherName    String?
-  spouseName    String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model GovernmentID {
-  id               String   @id @default(uuid())
-  userId           String   @unique
-  panCardNumber    String?  @unique
-  aadharCardNumber String?  @unique
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([panCardNumber])
-  @@index([aadharCardNumber])
-}
-
 model EmploymentInfo {
   id                String         @id @default(uuid())
+  ctc               Float?         @default(0)
   userId            String         @unique
   companyId         String?
   branchId          String?
@@ -99,6 +38,8 @@ model EmploymentInfo {
   updatedAt         DateTime       @updatedAt
   branch            Branch?        @relation(fields: [branchId], references: [id])
   company           Company?       @relation(fields: [companyId], references: [id])
+  clientProject     ClientProject? @relation(fields: [clientProjectId], references: [id])
+  clientProjectId   String?
   department        Department?    @relation(fields: [departmentId], references: [id])
   designation       Designation?   @relation(fields: [designationId], references: [id])
   user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -108,25 +49,6 @@ model EmploymentInfo {
   @@index([departmentId])
   @@index([designationId])
   @@index([status])
-}
-
-model BankDetails {
-  id              String        @id @default(uuid())
-  userId          String        @unique
-  bankName        String
-  accountNumber   String        @unique
-  accountType     AccountType?
-  accountBase     AccountBase?
-  transferType    TransferType?
-  beneficiaryName String
-  ifscCode        String
-  branchName      String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([accountNumber])
-  @@index([ifscCode])
 }
 
 model Branch {
@@ -147,18 +69,56 @@ model Branch {
   @@unique([companyId, name])
 }
 
-model Department {
+model ClientProject {
   id             String           @id @default(uuid())
   name           String           @unique
-  code           String?          @unique
   description    String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
-  managerId      String?          @unique
-  manager        User?            @relation("DepartmentManager", fields: [managerId], references: [id])
+  employmentInfo EmploymentInfo[]
+  calendarEvents ProjectCalendarEvent[]
+}
+
+model ProjectCalendarEvent {
+  id              String        @id @default(uuid())
+  clientProjectId String
+  date            DateTime      @db.Date
+  type            String        // 'HOLIDAY' or 'DOUBLE_PAY'
+  description     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  clientProject   ClientProject @relation(fields: [clientProjectId], references: [id], onDelete: Cascade)
+
+  @@index([clientProjectId, date])
+}
+
+model Department {
+  id             String                    @id @default(uuid())
+  name           String                    @unique
+  code           String?                   @unique
+  description    String?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  managerId      String?                   @unique
+  manager        User?                     @relation("DepartmentManager", fields: [managerId], references: [id])
   employmentInfo EmploymentInfo[]
   projects       Project[]
   tasks          Task[]
+  seniorManagers SeniorManagerDepartment[]
+}
+
+model SeniorManagerDepartment {
+  id           String     @id @default(uuid())
+  userId       String
+  departmentId String
+  createdAt    DateTime   @default(now())
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
+  @@index([userId])
+  @@index([departmentId])
 }
 
 model Designation {
@@ -172,47 +132,48 @@ model Designation {
 }
 
 model User {
-  id                 String                @id
-  name               String
-  email              String                @unique
-  passwordHash       String
-  role               Role                  @default(EMPLOYEE)
-  createdAt          DateTime              @default(now())
-  updatedAt          DateTime              @updatedAt
-  lateThresholdMins  Int?                  @default(15)
-  shiftStartTime     String?
-  addressInfo        AddressInfo?
-  appSwitchEvents    AppSwitchEvent[]
-  assignedAssetsBy   AssetAssignment[]     @relation("AssetAssigner")
-  assignedAssets     AssetAssignment[]     @relation("AssetAssignee")
-  bankDetails        BankDetails?
-  contactInfo        ContactInfo?
-  managedDepartments Department?           @relation("DepartmentManager")
+  id                String            @id
+  name              String
+  email             String            @unique
+  passwordHash      String
+  role              Role              @default(EMPLOYEE)
+  isArchived        Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  lateThresholdMins Int?              @default(15)
+  shiftStartTime    String?
+  appSwitchEvents   AppSwitchEvent[]
+  assignedAssetsBy  AssetAssignment[] @relation("AssetAssigner")
+  assignedAssets    AssetAssignment[] @relation("AssetAssignee")
+
+  managedDepartments Department?               @relation("DepartmentManager")
+  seniorManagerOf    SeniorManagerDepartment[]
   deviceControl      DeviceControl?
   employmentInfo     EmploymentInfo?
   events             Event[]
-  familyInfo         FamilyInfo?
-  governmentID       GovernmentID?
   leaveBalance       LeaveBalance?
-  approvedLeaves     LeaveRequest[]        @relation("LeaveApprover")
-  leaveRequests      LeaveRequest[]        @relation("LeaveRequestor")
+  approvedLeaves     LeaveRequest[]            @relation("LeaveApprover")
+  leaveRequests      LeaveRequest[]            @relation("LeaveRequestor")
   notifications      Notification[]
-  personalInfo       PersonalInfo?
-  createdProjects    Project[]             @relation("ProjectCreator")
-  refreshTokens      RefreshToken[]
-  sessions           Session[]
-  appUsage           SessionAppUsage[]
-  sessionSummaries   SessionSummary[]
-  websiteUsage       SessionWebsiteUsage[]
-  approvedTasks      Task[]                @relation("TaskApprover")
-  assignedTasks      Task[]                @relation("TaskAssignee")
-  createdTasks       Task[]                @relation("TaskCreator")
-  taskSessions       TaskSession[]
-  assignedTickets    Ticket[]              @relation("TicketAssignee")
-  createdTickets     Ticket[]              @relation("TicketCreator")
-  ticketComments     TicketComment[]
-  websiteVisits      WebsiteVisit[]
-  lateComingRecords  LateComingRecord[]
+
+  createdProjects   Project[]             @relation("ProjectCreator")
+  refreshTokens     RefreshToken[]
+  sessions          Session[]
+  appUsage          SessionAppUsage[]
+  sessionSummaries  SessionSummary[]
+  websiteUsage      SessionWebsiteUsage[]
+  monthlyLeaveBalances MonthlyLeaveBalance[]
+  approvedTasks     Task[]                @relation("TaskApprover")
+  assignedTasks     Task[]                @relation("TaskAssignee")
+  createdTasks      Task[]                @relation("TaskCreator")
+  taskSessions      TaskSession[]
+  assignedTickets   Ticket[]              @relation("TicketAssignee")
+  createdTickets    Ticket[]              @relation("TicketCreator")
+  ticketComments    TicketComment[]
+  websiteVisits     WebsiteVisit[]
+  lateComingRecords LateComingRecord[]
+  attendanceRecords AttendanceRecord[]
+  employeeSalaries  EmployeeSalary[]
 
   @@index([email])
   @@index([role])
@@ -241,24 +202,25 @@ model PasswordResetToken {
 }
 
 model Session {
-  id            String                @id @default(uuid())
-  sessionId     String                @unique
-  userId        String?
-  startedAt     DateTime
-  endedAt       DateTime?
-  autoClockOut  Boolean               @default(false)
-  autoReason    String?
-  rawStartEvent Json?
-  rawEndEvent   Json?
-  createdAt     DateTime              @default(now())
-  appSwitch     AppSwitchEvent[]
-  events        Event[]
-  user          User?                 @relation(fields: [userId], references: [id])
-  appUsage      SessionAppUsage[]
-  summary       SessionSummary?
-  websiteUsage  SessionWebsiteUsage[]
-  taskSessions  TaskSession[]
-  websiteVisits WebsiteVisit[]
+  id              String                @id @default(uuid())
+  sessionId       String                @unique
+  userId          String?
+  startedAt       DateTime
+  endedAt         DateTime?
+  autoClockOut    Boolean               @default(false)
+  autoReason      String?
+  rawStartEvent   Json?
+  rawEndEvent     Json?
+  lastHeartbeatAt DateTime?
+  createdAt       DateTime              @default(now())
+  appSwitch       AppSwitchEvent[]
+  events          Event[]
+  user            User?                 @relation(fields: [userId], references: [id])
+  appUsage        SessionAppUsage[]
+  summary         SessionSummary?
+  websiteUsage    SessionWebsiteUsage[]
+  taskSessions    TaskSession[]
+  websiteVisits   WebsiteVisit[]
 }
 
 model SessionSummary {
@@ -352,18 +314,23 @@ model SessionWebsiteUsage {
 }
 
 model DeviceControl {
-  id          String    @id @default(uuid())
-  userId      String    @unique
-  forceStop   Boolean   @default(false)
-  forceStart  Boolean   @default(false)
-  reason      String?
-  stoppedBy   String?
-  stoppedAt   DateTime?
-  startedBy   String?
-  startedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  user        User      @relation(fields: [userId], references: [id])
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  forceStop       Boolean   @default(false)
+  forceStart      Boolean   @default(false)
+  forceBreakStart Boolean   @default(false)
+  forceBreakEnd   Boolean   @default(false)
+  reason          String?
+  stoppedBy       String?
+  stoppedAt       DateTime?
+  startedBy       String?
+  startedAt       DateTime?
+  // Cluster-safe real-time state (shared across all PM2 instances via DB)
+  lastHeartbeatAt DateTime? // updated on every heartbeat from the client app
+  sessionState    Json? // mirrors /api/session/summary currentState + metrics
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id])
 }
 
 model Ticket {
@@ -540,6 +507,23 @@ model LeaveBalance {
   @@index([year])
 }
 
+model MonthlyLeaveBalance {
+  id                 String   @id @default(uuid())
+  userId             String
+  year               Int
+  month              Int
+  previousLeaves     Float    @default(0)
+  currentMonthLeaves Float    @default(0)
+  compensatoryOff    Float    @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, year, month])
+  @@index([userId])
+  @@index([year, month])
+}
+
 model LeaveSettings {
   id                   String   @id @default(uuid())
   monthlySickLeave     Float    @default(0)
@@ -683,6 +667,7 @@ model Notification {
 
 enum Role {
   ADMIN
+  SENIOR_MANAGER
   MANAGER
   HR
   EMPLOYEE
@@ -881,3 +866,53 @@ enum NotificationType {
   LEAVE_REJECTED
   GENERAL
 }
+
+model AttendanceRecord {
+  id        String    @id @default(uuid())
+  userId    String
+  date      DateTime  @db.Date
+  status    String    @default("PRESENT") // e.g., PRESENT, ABSENT, HALF_DAY, LEAVE, HOLIDAY, WEEKEND
+  punchIn   DateTime?
+  punchOut  DateTime?
+  remarks   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
+
+enum SalaryComponentType {
+  EARNING
+  DEDUCTION
+}
+
+model SalaryComponent {
+  id               String           @id @default(uuid())
+  defaultType      String           @default("FIXED") // "FIXED" or "PERCENT"
+  defaultValue     Float            @default(0)
+  name             String           @unique // e.g. "Basic", "HRA", "PF", "TDS"
+  type             SalaryComponentType
+  isDefault        Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  employeeSalaries EmployeeSalary[]
+}
+
+model EmployeeSalary {
+  id              String          @id @default(uuid())
+  userId          String
+  componentId     String
+  amount          Float           @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  component       SalaryComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, componentId])
+}
+
+

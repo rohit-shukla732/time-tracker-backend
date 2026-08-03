@@ -57,6 +57,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (user.isArchived) {
+      return NextResponse.json(
+        { error: "Account disabled. Please contact your administrator." },
+        {
+          status: 403,
+          headers: {
+            'Access-Control-Allow-Origin': 'http://localhost:3001',
+            'Access-Control-Allow-Credentials': 'true',
+          },
+        }
+      );
+    }
+
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
       return NextResponse.json(

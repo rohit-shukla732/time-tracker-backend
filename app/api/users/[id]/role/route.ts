@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Role is required' }, { status: 400 });
     }
 
-    const validRoles: Role[] = ['ADMIN', 'MANAGER', 'HR', 'EMPLOYEE'];
+    const validRoles: Role[] = ['ADMIN', 'SENIOR_MANAGER', 'MANAGER', 'HR', 'EMPLOYEE'];
     if (!validRoles.includes(role)) {
       return NextResponse.json({ 
         error: `Invalid role. Must be one of: ${validRoles.join(', ')}` 

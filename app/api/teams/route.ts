@@ -5,17 +5,20 @@ import { logger } from "../../../lib/logger";
 
 // GET /api/teams - List all departments (Admin/HR see all, Manager sees their own)
 export async function GET(req: NextRequest) {
-  const authResult = await requireRoles(req, ['ADMIN', 'HR', 'MANAGER']);
+  const authResult = await requireRoles(req, ['ADMIN', 'HR', 'MANAGER', 'SENIOR_MANAGER']);
   
   if (authResult.error || !authResult.user) {
     return unauthorizedResponse(authResult.error);
   }
 
   try {
-    // Managers can only see departments they manage
-    const whereClause = authResult.user.role === 'MANAGER' 
-      ? { managerId: authResult.user.id }
-      : {};
+    // Admins/HR see all; Managers see their own dept; Senior Managers see all their assigned depts
+    let whereClause: any = {};
+    if (authResult.user.role === 'MANAGER') {
+      whereClause = { managerId: authResult.user.id };
+    } else if (authResult.user.role === 'SENIOR_MANAGER') {
+      whereClause = { seniorManagers: { some: { userId: authResult.user.id } } };
+    }
 
     const departments = await prisma.department.findMany({
       where: whereClause,
@@ -28,20 +31,28 @@ export async function GET(req: NextRequest) {
           }
         },
         employmentInfo: {
+          where: {
+            user: { isArchived: false }
+          },
           select: {
             user: {
               select: {
                 id: true,
                 name: true,
                 email: true,
-                role: true
+                role: true,
+                isArchived: true
               }
             }
           }
         },
         _count: {
           select: {
-            employmentInfo: true
+            employmentInfo: {
+              where: {
+                user: { isArchived: false }
+              }
+            }
           }
         }
       },

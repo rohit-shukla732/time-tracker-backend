@@ -196,6 +196,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       )
     }));
 
+    // Backfill sessionStateStore from DB for cluster-safe reads
+    if (!sessionStateStore.has(`user:${userId}`)) {
+      const userDc = await prisma.deviceControl.findUnique({
+        where: { userId },
+        select: { sessionState: true },
+      });
+      if (userDc?.sessionState) {
+        sessionStateStore.set(`user:${userId}`, userDc.sessionState);
+      }
+    }
+
     // realtime status
     let status = 'Offline';
     const key = `user:${userId}`;
