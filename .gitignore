@@ -88,3 +88,4 @@ packages/*/dist/
 public/downloads/**/*.exe
 public/downloads/**/*.rar
 public/downloads/**/*.zip
+public/downloads/**/*.msi
