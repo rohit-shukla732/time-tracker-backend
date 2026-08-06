@@ -51,19 +51,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: { role },
-      include: {
-        employmentInfo: {
-          select: {
-            departmentId: true,
-            department: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          }
-        }
-      }
     });
 
     logger.info("PATCH /api/users/[id]/role - Role updated", { userId, newRole: role });
@@ -75,7 +62,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         name: updatedUser.name,
         email: updatedUser.email,
         role: updatedUser.role,
-        department: updatedUser.employmentInfo?.department || null,
         createdAt: updatedUser.createdAt,
         updatedAt: updatedUser.updatedAt
       }

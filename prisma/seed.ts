@@ -8,12 +8,6 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-const departments = [
-  { name: 'IT', description: 'Information Technology Team' },
-  { name: 'Payment Posting', description: 'Payment Posting Team' },
-  { name: 'HR', description: 'Human Resources Team' },
-];
-
 const users = [
   { id: 'ACE012', name: 'Mantu Madhheshiya', email: 'mmaddheshiya@acehcs.com', Role: Role.ADMIN},
   { id: 'ACE004', name: 'Gautam Chakravarty', email: 'gchakravarty@acehcs.com' },
@@ -162,24 +156,8 @@ async function main() {
   await prisma.sessionSummary.deleteMany({});
   await prisma.session.deleteMany({});
   await prisma.refreshToken.deleteMany({});
-  await prisma.employmentInfo.deleteMany({});
   await prisma.user.deleteMany({});
-  await prisma.department.deleteMany({});
   console.log('Cleared existing data');
-
-  // Create departments
-  console.log('\nCreating departments...');
-  const createdDepartments: Record<string, any> = {};
-  for (const deptData of departments) {
-    const department = await prisma.department.create({
-      data: {
-        name: deptData.name,
-        description: deptData.description,
-      },
-    });
-    createdDepartments[department.name] = department;
-    console.log(`Created department: ${department.name}`);
-  }
 
   // Seed all users
   console.log('\nCreating users...');
@@ -201,7 +179,6 @@ async function main() {
 }
   console.log(`\n✅ Seeding completed!`);
   console.log(`Created ${users.length} users`);
-  console.log(`Created ${departments.length} departments`);
   console.log('\nDefault password for each user is their User ID (e.g., ACE012)');
 }
 

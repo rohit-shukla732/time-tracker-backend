@@ -56,15 +56,6 @@ export async function DELETE(
     // Now sessions are safe to delete
     await prisma.session.deleteMany({ where: { userId } });
 
-    // Null out department manager if this user manages one
-    await prisma.department.updateMany({ where: { managerId: userId }, data: { managerId: null } });
-
-    // HR records — null approvedById on leave requests first
-    await prisma.leaveRequest.updateMany({ where: { approvedById: userId }, data: { approvedById: null, approvedAt: null } });
-    await prisma.leaveRequest.deleteMany({ where: { userId } });
-    await prisma.leaveBalance.deleteMany({ where: { userId } });
-    await prisma.lateComingRecord.deleteMany({ where: { userId } });
-
     // Ticket comments by this user on OTHER people's tickets (no cascade from user side)
     await prisma.ticketComment.deleteMany({ where: { userId } });
     // Null assignedTo, then delete tickets created by user (cascade deletes their comments/screenshots)
@@ -103,13 +94,8 @@ export async function DELETE(
     await prisma.notification.deleteMany({ where: { userId } });
     await prisma.refreshToken.deleteMany({ where: { userId } });
     await prisma.passwordResetToken.deleteMany({ where: { email: user.email } });
-    // Senior manager dept assignments
-    await prisma.seniorManagerDepartment.deleteMany({ where: { userId } });
     // Device control
     await prisma.deviceControl.deleteMany({ where: { userId } });
-
-    // Basic tables to clean up when deleting a user
-    await prisma.employmentInfo.deleteMany({ where: { userId } });
 
     // Finally delete the user
     await prisma.user.delete({ where: { id: userId } });

@@ -9,8 +9,6 @@ export interface AuthenticatedUser {
   email: string;
   name?: string;
   role: Role;
-  departmentId?: string;
-  managedDepartmentIds?: string[]; // for SENIOR_MANAGER
 }
 
 export interface AuthResult {
@@ -41,19 +39,9 @@ export async function requireAuth(
     const token = header.replace("Bearer ", "");
     const payload = verifyAccessToken(token) as { userId: string };
 
-    // Get full user info including role and department from database
+    // Get full user info including role from database
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
-      include: {
-        employmentInfo: {
-          include: {
-            department: true
-          }
-        },
-        seniorManagerOf: {
-          select: { departmentId: true }
-        }
-      }
     });
 
     if (!user) {
@@ -66,10 +54,6 @@ export async function requireAuth(
         email: user.email,
         name: user.name || undefined,
         role: user.role as Role,
-        departmentId: user.employmentInfo?.departmentId || undefined,
-        managedDepartmentIds: user.role === 'SENIOR_MANAGER'
-          ? user.seniorManagerOf.map((s: { departmentId: string }) => s.departmentId)
-          : undefined
       }
     };
   } catch {
@@ -127,9 +111,8 @@ export async function requireHR(req: Request): Promise<AuthResult> {
  * Check if user can access another user's data
  * Rules:
  * - ADMIN: Can access any user's data
- * - MANAGER: Can access their team members' data
  * - HR: Can access any user's data
- * - EMPLOYEE: Can only access their own data
+ * - All other roles: Can only access their own data
  */
 export async function canAccessUserData(
   currentUser: AuthenticatedUser, 
@@ -145,36 +128,17 @@ export async function canAccessUserData(
     return true;
   }
 
-  // Managers can access their department members' data
-  if (currentUser.role === 'MANAGER' && currentUser.departmentId) {
-    const targetUser = await prisma.user.findUnique({
-      where: { id: targetUserId },
-      include: { employmentInfo: true }
-    });
-    
-    if (targetUser?.employmentInfo?.departmentId === currentUser.departmentId) {
-      return true;
-    }
+  // Admin and HR can access any user's data
+  if (currentUser.role === 'ADMIN' || currentUser.role === 'HR') {
+    return true;
   }
 
-  // Senior managers can access members across all their assigned departments
-  if (currentUser.role === 'SENIOR_MANAGER' && currentUser.managedDepartmentIds?.length) {
-    const targetUser = await prisma.user.findUnique({
-      where: { id: targetUserId },
-      include: { employmentInfo: true }
-    });
-    if (targetUser?.employmentInfo?.departmentId &&
-        currentUser.managedDepartmentIds.includes(targetUser.employmentInfo.departmentId)) {
-      return true;
-    }
-  }
-
-  // Employees can only access their own data
+  // All other roles can only access their own data
   return false;
 }
 
 /**
- * Get users that the current user can access based on their role and department
+ * Get users that the current user can access based on their role
  */
 export async function getAccessibleUsers(currentUser: AuthenticatedUser): Promise<string[]> {
   // Admin and HR can access all users
@@ -185,25 +149,7 @@ export async function getAccessibleUsers(currentUser: AuthenticatedUser): Promis
     return allUsers.map((u: { id: string }) => u.id);
   }
 
-  // Managers can access their department members
-  if (currentUser.role === 'MANAGER' && currentUser.departmentId) {
-    const deptMembers = await prisma.employmentInfo.findMany({
-      where: { departmentId: currentUser.departmentId },
-      select: { userId: true }
-    });
-    return deptMembers.map((e: { userId: string }) => e.userId);
-  }
-
-  // Senior managers can access members across all their assigned departments
-  if (currentUser.role === 'SENIOR_MANAGER' && currentUser.managedDepartmentIds?.length) {
-    const deptMembers = await prisma.employmentInfo.findMany({
-      where: { departmentId: { in: currentUser.managedDepartmentIds } },
-      select: { userId: true }
-    });
-    return deptMembers.map((e: { userId: string }) => e.userId);
-  }
-
-  // Employees can only access their own data
+  // All other roles can only access their own data
   return [currentUser.id];
 }
 

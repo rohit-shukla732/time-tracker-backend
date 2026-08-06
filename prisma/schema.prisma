@@ -7,130 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Company {
-  id             String           @id @default(uuid())
-  name           String
-  code           String?          @unique
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  branches       Branch[]
-  employmentInfo EmploymentInfo[]
-}
-
-model EmploymentInfo {
-  id                String         @id @default(uuid())
-  ctc               Float?         @default(0)
-  userId            String         @unique
-  companyId         String?
-  branchId          String?
-  departmentId      String?
-  designationId     String?
-  jobType           JobType?
-  status            EmployeeStatus @default(ACTIVE)
-  joiningDate       DateTime?
-  confirmationDate  DateTime?
-  probationEndDate  DateTime?
-  lastIncrementDate DateTime?
-  resignationDate   DateTime?
-  lastWorkingDate   DateTime?
-  retiringDate      DateTime?
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  branch            Branch?        @relation(fields: [branchId], references: [id])
-  company           Company?       @relation(fields: [companyId], references: [id])
-  clientProject     ClientProject? @relation(fields: [clientProjectId], references: [id])
-  clientProjectId   String?
-  department        Department?    @relation(fields: [departmentId], references: [id])
-  designation       Designation?   @relation(fields: [designationId], references: [id])
-  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([companyId])
-  @@index([branchId])
-  @@index([departmentId])
-  @@index([designationId])
-  @@index([status])
-}
-
-model Branch {
-  id             String           @id @default(uuid())
-  name           String
-  code           String?          @unique
-  address        String?
-  city           String?
-  state          String?
-  country        String?
-  pincode        String?
-  companyId      String
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  company        Company          @relation(fields: [companyId], references: [id])
-  employmentInfo EmploymentInfo[]
-
-  @@unique([companyId, name])
-}
-
-model ClientProject {
-  id             String           @id @default(uuid())
-  name           String           @unique
-  description    String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  employmentInfo EmploymentInfo[]
-  calendarEvents ProjectCalendarEvent[]
-}
-
-model ProjectCalendarEvent {
-  id              String        @id @default(uuid())
-  clientProjectId String
-  date            DateTime      @db.Date
-  type            String        // 'HOLIDAY' or 'DOUBLE_PAY'
-  description     String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-
-  clientProject   ClientProject @relation(fields: [clientProjectId], references: [id], onDelete: Cascade)
-
-  @@index([clientProjectId, date])
-}
-
-model Department {
-  id             String                    @id @default(uuid())
-  name           String                    @unique
-  code           String?                   @unique
-  description    String?
-  createdAt      DateTime                  @default(now())
-  updatedAt      DateTime                  @updatedAt
-  managerId      String?                   @unique
-  manager        User?                     @relation("DepartmentManager", fields: [managerId], references: [id])
-  employmentInfo EmploymentInfo[]
-  projects       Project[]
-  tasks          Task[]
-  seniorManagers SeniorManagerDepartment[]
-}
-
-model SeniorManagerDepartment {
-  id           String     @id @default(uuid())
-  userId       String
-  departmentId String
-  createdAt    DateTime   @default(now())
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, departmentId])
-  @@index([userId])
-  @@index([departmentId])
-}
-
-model Designation {
-  id             String           @id @default(uuid())
-  title          String           @unique
-  code           String?          @unique
-  level          Int?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  employmentInfo EmploymentInfo[]
-}
-
 model User {
   id                String            @id
   name              String
@@ -146,14 +22,8 @@ model User {
   assignedAssetsBy  AssetAssignment[] @relation("AssetAssigner")
   assignedAssets    AssetAssignment[] @relation("AssetAssignee")
 
-  managedDepartments Department?               @relation("DepartmentManager")
-  seniorManagerOf    SeniorManagerDepartment[]
   deviceControl      DeviceControl?
-  employmentInfo     EmploymentInfo?
   events             Event[]
-  leaveBalance       LeaveBalance?
-  approvedLeaves     LeaveRequest[]            @relation("LeaveApprover")
-  leaveRequests      LeaveRequest[]            @relation("LeaveRequestor")
   notifications      Notification[]
 
   createdProjects   Project[]             @relation("ProjectCreator")
@@ -162,7 +32,6 @@ model User {
   appUsage          SessionAppUsage[]
   sessionSummaries  SessionSummary[]
   websiteUsage      SessionWebsiteUsage[]
-  monthlyLeaveBalances MonthlyLeaveBalance[]
   approvedTasks     Task[]                @relation("TaskApprover")
   assignedTasks     Task[]                @relation("TaskAssignee")
   createdTasks      Task[]                @relation("TaskCreator")
@@ -171,9 +40,6 @@ model User {
   createdTickets    Ticket[]              @relation("TicketCreator")
   ticketComments    TicketComment[]
   websiteVisits     WebsiteVisit[]
-  lateComingRecords LateComingRecord[]
-  attendanceRecords AttendanceRecord[]
-  employeeSalaries  EmployeeSalary[]
 
   @@index([email])
   @@index([role])
@@ -398,12 +264,9 @@ model Project {
   isActive     Boolean    @default(true)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-  departmentId String
   createdBy    User       @relation("ProjectCreator", fields: [createdById], references: [id])
-  department   Department @relation(fields: [departmentId], references: [id])
   tasks        Task[]
 
-  @@index([departmentId])
   @@index([createdById])
 }
 
@@ -424,16 +287,13 @@ model Task {
   completedAt    DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  departmentId   String?
   approvedBy     User?         @relation("TaskApprover", fields: [approvedById], references: [id])
   assignee       User?         @relation("TaskAssignee", fields: [assignedTo], references: [id])
   createdBy      User          @relation("TaskCreator", fields: [createdById], references: [id])
-  department     Department?   @relation(fields: [departmentId], references: [id])
   project        Project?      @relation(fields: [projectId], references: [id])
   taskSessions   TaskSession[]
 
   @@index([projectId])
-  @@index([departmentId])
   @@index([assignedTo])
   @@index([createdById])
   @@index([status])
@@ -455,124 +315,6 @@ model TaskSession {
   @@index([taskId])
   @@index([sessionId])
   @@index([userId])
-}
-
-model LeaveRequest {
-  id              String      @id @default(uuid())
-  userId          String
-  type            LeaveType
-  status          LeaveStatus @default(PENDING)
-  startDate       DateTime
-  endDate         DateTime
-  days            Float
-  reason          String
-  attachment      String?
-  approvedById    String?
-  approvedAt      DateTime?
-  rejectedAt      DateTime?
-  rejectionReason String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  approvedBy      User?       @relation("LeaveApprover", fields: [approvedById], references: [id])
-  user            User        @relation("LeaveRequestor", fields: [userId], references: [id])
-
-  @@index([userId])
-  @@index([status])
-  @@index([startDate])
-  @@index([endDate])
-}
-
-model LeaveBalance {
-  id               String   @id @default(uuid())
-  userId           String   @unique
-  sickLeave        Float    @default(0)
-  casualLeave      Float    @default(0)
-  annualLeave      Float    @default(0)
-  maternityLeave   Float    @default(0)
-  paternityLeave   Float    @default(0)
-  compensatoryOff  Float    @default(0)
-  sickUsed         Float    @default(0)
-  casualUsed       Float    @default(0)
-  annualUsed       Float    @default(0)
-  maternityUsed    Float    @default(0)
-  paternityUsed    Float    @default(0)
-  compensatoryUsed Float    @default(0)
-  year             Int
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  user             User     @relation(fields: [userId], references: [id])
-
-  @@unique([userId, year])
-  @@index([userId])
-  @@index([year])
-}
-
-model MonthlyLeaveBalance {
-  id                 String   @id @default(uuid())
-  userId             String
-  year               Int
-  month              Int
-  previousLeaves     Float    @default(0)
-  currentMonthLeaves Float    @default(0)
-  compensatoryOff    Float    @default(0)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  user               User     @relation(fields: [userId], references: [id])
-
-  @@unique([userId, year, month])
-  @@index([userId])
-  @@index([year, month])
-}
-
-model LeaveSettings {
-  id                   String   @id @default(uuid())
-  monthlySickLeave     Float    @default(0)
-  monthlyCasualLeave   Float    @default(0)
-  monthlyAnnualLeave   Float    @default(0)
-  allowMonthlyRollover Boolean  @default(false)
-  allowYearlyRollover  Boolean  @default(false)
-  maxMonthlyRollover   Float?
-  maxYearlyRollover    Float?
-  annualSickLeave      Float    @default(0)
-  annualCasualLeave    Float    @default(0)
-  annualAnnualLeave    Float    @default(0)
-  annualMaternityLeave Float    @default(0)
-  annualPaternityLeave Float    @default(0)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  lateComingCredits    Int      @default(0)
-  lateThresholdMinutes Int      @default(15)
-
-  @@map("leave_settings")
-}
-
-model LateComingRecord {
-  id          String   @id @default(uuid())
-  userId      String
-  year        Int
-  month       Int
-  creditsUsed Int      @default(0)
-  lateCount   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id])
-
-  @@unique([userId, year, month])
-  @@index([userId])
-  @@index([year, month])
-  @@map("late_coming_records")
-}
-
-model HRSettings {
-  id               String   @id @default(uuid())
-  maxServiceMonths Int      @default(720)
-  retirementAge    Int?
-  probationMonths  Int      @default(6)
-  noticePeriodDays Int      @default(30)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@map("hr_settings")
 }
 
 model Asset {
@@ -673,68 +415,6 @@ enum Role {
   EMPLOYEE
 }
 
-enum Pronoun {
-  MR
-  MS
-  MRS
-  MISS
-  DR
-  PROF
-  MX
-}
-
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
-  PREFER_NOT_TO_SAY
-}
-
-enum MaritalStatus {
-  SINGLE
-  MARRIED
-  DIVORCED
-  WIDOWED
-  SEPARATED
-}
-
-enum JobType {
-  FULL_TIME
-  CONTRACTUAL
-  PART_TIME
-  INTERN
-}
-
-enum EmployeeStatus {
-  ACTIVE
-  PROBATION
-  NOTICE_PERIOD
-  RESIGNED
-  TERMINATED
-  RETIRED
-  ABSCONDED
-}
-
-enum AccountType {
-  SAVINGS
-  CURRENT
-  SALARY
-  NRE
-  NRO
-}
-
-enum TransferType {
-  NEFT
-  RTGS
-  IMPS
-  UPI
-}
-
-enum AccountBase {
-  Primary
-  Secondary
-}
-
 enum TicketPriority {
   LOW
   MEDIUM
@@ -778,23 +458,6 @@ enum TaskPriority {
   MEDIUM
   HIGH
   URGENT
-}
-
-enum LeaveType {
-  SICK
-  CASUAL
-  ANNUAL
-  MATERNITY
-  PATERNITY
-  UNPAID
-  COMPENSATORY
-}
-
-enum LeaveStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
 }
 
 enum AssetType {
@@ -866,53 +529,3 @@ enum NotificationType {
   LEAVE_REJECTED
   GENERAL
 }
-
-model AttendanceRecord {
-  id        String    @id @default(uuid())
-  userId    String
-  date      DateTime  @db.Date
-  status    String    @default("PRESENT") // e.g., PRESENT, ABSENT, HALF_DAY, LEAVE, HOLIDAY, WEEKEND
-  punchIn   DateTime?
-  punchOut  DateTime?
-  remarks   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, date])
-  @@index([date])
-}
-
-
-enum SalaryComponentType {
-  EARNING
-  DEDUCTION
-}
-
-model SalaryComponent {
-  id               String           @id @default(uuid())
-  defaultType      String           @default("FIXED") // "FIXED" or "PERCENT"
-  defaultValue     Float            @default(0)
-  name             String           @unique // e.g. "Basic", "HRA", "PF", "TDS"
-  type             SalaryComponentType
-  isDefault        Boolean          @default(true)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  employeeSalaries EmployeeSalary[]
-}
-
-model EmployeeSalary {
-  id              String          @id @default(uuid())
-  userId          String
-  componentId     String
-  amount          Float           @default(0)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  component       SalaryComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, componentId])
-}
-
-

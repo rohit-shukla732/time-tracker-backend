@@ -15,28 +15,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const authResult = await requireAuth(req);
   if (authResult.error || !authResult.user) return unauthorizedResponse(authResult.error);
 
-  // Authorization: admin/hr can view any; manager can view members; users can view own
-  if (authResult.user.role === 'MANAGER') {
-    // Get manager's department
-    const managerEmployment = await prisma.employmentInfo.findUnique({
-      where: { userId: authResult.user.id },
-      select: { departmentId: true }
-    });
-    
-    if (managerEmployment?.departmentId) {
-      // manager can access users in their department
-      const targetEmployment = await prisma.employmentInfo.findUnique({ 
-        where: { userId }, 
-        select: { departmentId: true } 
-      });
-      if (!targetEmployment || targetEmployment.departmentId !== managerEmployment.departmentId) {
-        return unauthorizedResponse('Access denied');
-      }
-    } else if (authResult.user.id !== userId) {
-      return unauthorizedResponse('Access denied');
-    }
-  } else if (authResult.user.role !== 'ADMIN' && authResult.user.role !== 'HR') {
-    // employees can only view themselves
+  // Authorization: admin/hr can view any user; all other roles can only view themselves
+  if (authResult.user.role !== 'ADMIN' && authResult.user.role !== 'HR') {
     if (authResult.user.id !== userId) return unauthorizedResponse('Access denied');
   }
 

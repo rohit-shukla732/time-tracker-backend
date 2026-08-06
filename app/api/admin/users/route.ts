@@ -16,8 +16,6 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
     const role = searchParams.get('role') || '';
-    const departmentId = searchParams.get('departmentId') || '';
-    const clientProjectId = searchParams.get('clientProjectId') || '';
     const skip = (page - 1) * limit;
     // Build where clause
     const where: any = {};
@@ -34,18 +32,6 @@ export async function GET(req: NextRequest) {
       where.role = role;
     }
     
-    if (departmentId) {
-      where.employmentInfo = {
-          ...(where.employmentInfo || {}),
-          departmentId: departmentId
-        };
-      }
-
-      if (clientProjectId) {
-        where.employmentInfo = {
-          ...(where.employmentInfo || {}),
-          clientProjectId: clientProjectId          };
-        }
     const [users, totalCount] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -53,18 +39,6 @@ export async function GET(req: NextRequest) {
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
-          employmentInfo: {
-            select: { 
-              departmentId: true,
-              clientProjectId: true,
-              department: {
-                select: { id: true, name: true }
-              },
-              clientProject: {
-                select: { id: true, name: true }
-              }
-            },
-          },
           _count: {
             select: {
               sessions: true,
@@ -114,9 +88,7 @@ export async function GET(req: NextRequest) {
         email: u.email,
         role: u.role,
         isArchived: u.isArchived,
-        departmentId: u.employmentInfo?.departmentId || null,
-        departmentName: u.employmentInfo?.department?.name || null,          clientProjectId: u.employmentInfo?.clientProjectId || null,
-          clientProjectName: u.employmentInfo?.clientProject?.name || null,        createdAt: u.createdAt,
+        createdAt: u.createdAt,
         updatedAt: u.updatedAt,
         totalSessions: u._count.sessions,
         totalEvents: u._count.events,
