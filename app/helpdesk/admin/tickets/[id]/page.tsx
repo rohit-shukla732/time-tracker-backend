@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Ticket, TicketComment, TicketStatus, TicketPriority, TicketCategory, Role, ITSupportSubcategory } from '@/types';
+import { Ticket, TicketComment, TicketStatus, TicketPriority, Role, TicketCategory, TicketSubcategory } from '@/types';
 import { 
   ArrowLeft, 
   Clock, 
@@ -297,19 +297,8 @@ export default function AdminTicketDetailsPage() {
     return name?.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
   };
 
-  const getSubcategoryLabel = (subcategory?: ITSupportSubcategory) => {
-    if (!subcategory) return 'Not specified';
-    const labels: Record<ITSupportSubcategory, string> = {
-      [ITSupportSubcategory.HARDWARE]: 'Hardware',
-      [ITSupportSubcategory.SOFTWARE]: 'Software',
-      [ITSupportSubcategory.NETWORK]: 'Network',
-      [ITSupportSubcategory.EMAIL]: 'Email',
-      [ITSupportSubcategory.ACCESS]: 'Access & Permissions',
-      [ITSupportSubcategory.PRINTER]: 'Printer & Scanner',
-      [ITSupportSubcategory.PHONE]: 'Phone & Communication',
-      [ITSupportSubcategory.OTHER]: 'Other',
-    };
-    return labels[subcategory];
+  const getSubcategoryLabel = (subcategory?: TicketSubcategory | null) => {
+    return subcategory?.name || 'Not specified';
   };
 
   const getPriorityStyle = (priority: TicketPriority) => {
@@ -402,7 +391,7 @@ export default function AdminTicketDetailsPage() {
                       {ticket.status.replace(/_/g, ' ')}
                     </span>
                     <span className="inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-medium tracking-wide border border-black/[0.06] dark:border-white/[0.06] bg-black/5 dark:bg-white/5 text-zinc-700 dark:text-zinc-300">
-                      {ticket.category}
+                      {ticket.category?.name}
                     </span>
                   </div>
                 </div>
@@ -683,7 +672,7 @@ export default function AdminTicketDetailsPage() {
               <div className="space-y-4 text-[14px]">
                 <div className="flex justify-between items-center">
                   <span className="text-zinc-500">App Area</span>
-                  <span className="font-medium text-zinc-900 dark:text-zinc-100">{ticket.category}</span>
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">{ticket.category?.name || '—'}</span>
                 </div>
                 <div className="h-px w-full bg-black/[0.04] dark:bg-white/[0.04]" />
                 <div className="flex justify-between items-center">

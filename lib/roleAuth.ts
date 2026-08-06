@@ -128,11 +128,6 @@ export async function canAccessUserData(
     return true;
   }
 
-  // Admin and HR can access any user's data
-  if (currentUser.role === 'ADMIN' || currentUser.role === 'HR') {
-    return true;
-  }
-
   // All other roles can only access their own data
   return false;
 }

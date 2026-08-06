@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     const workbook = XLSX.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    
+
     // Convert to JSON
     const data: ExcelRow[] = XLSX.utils.sheet_to_json(worksheet);
 
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       ).toString().trim();
 
       const name = (row.name || '').toString().trim();
-      const email = (row.email || '').toString().trim();
+      const email = (row.email || '').toString().trim().toLowerCase();
 
       // Validate required fields
       if (!empCode) {
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
           where: {
             OR: [
               { id: empCode },
-              { email: email },
+              { email },
             ],
           },
         });
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
           results.errors.push({
             row: rowNumber,
             empCode,
-            error: existingUser.id === empCode 
+            error: existingUser.id === empCode
               ? 'Employee code already exists'
               : 'Email already exists',
           });

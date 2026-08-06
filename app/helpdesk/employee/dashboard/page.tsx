@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TicketsLayout } from '@/components/tickets/TicketsLayout';
-import { Ticket, TicketPriority, TicketStatus, ITSupportSubcategory } from '@/types';
+import { Ticket, TicketPriority, TicketStatus } from '@/types';
 import { Plus, Clock, AlertCircle, CheckCircle2, FileText, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -95,20 +95,8 @@ export default function EmployeeDashboardPage() {
     }
   };
 
-  const getSubcategoryLabel = (subcategory?: ITSupportSubcategory) => {
-    if (!subcategory) return 'Not specified';
-    const labels: Record<ITSupportSubcategory, string> = {
-      [ITSupportSubcategory.HARDWARE]: 'Hardware',
-      [ITSupportSubcategory.SOFTWARE]: 'Software',
-      [ITSupportSubcategory.NETWORK]: 'Network',
-      [ITSupportSubcategory.EMAIL]: 'Email',
-      [ITSupportSubcategory.ACCESS]: 'Access & Permissions',
-      [ITSupportSubcategory.PRINTER]: 'Printer & Scanner',
-      [ITSupportSubcategory.PHONE]: 'Phone & Communication',
-      [ITSupportSubcategory.OTHER]: 'Other',
-    };
-    return labels[subcategory];
-  };
+  const getSubcategoryLabel = (subcategory?: { name?: string } | null) =>
+    subcategory?.name ?? 'Not specified';
 
   return (
     <TicketsLayout>

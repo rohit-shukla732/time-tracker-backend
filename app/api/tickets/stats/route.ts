@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       byPriority,
       byCategory,
       bySubcategory,
+      categories,
     ] = await Promise.all([
       prisma.ticket.count(),
       prisma.ticket.count({ where: { status: 'OPEN' } }),
@@ -38,12 +39,15 @@ export async function GET(req: NextRequest) {
         _count: true,
       }),
       prisma.ticket.groupBy({
-        by: ['category'],
+        by: ['categoryId'],
         _count: true,
       }),
       prisma.ticket.groupBy({
-        by: ['subcategory'],
+        by: ['subcategoryId'],
         _count: true,
+      }),
+      prisma.ticketCategory.findMany({
+        include: { subcategories: true },
       }),
     ]);
 
@@ -52,14 +56,19 @@ export async function GET(req: NextRequest) {
       return acc;
     }, {});
 
+    const categoryMap = new Map(categories.map((c: any) => [c.id, c.name]));
+    const subcategoryMap = new Map(
+      categories.flatMap((c: any) => c.subcategories.map((s: any) => [s.id, s.name]))
+    );
+
     const categoryStats = byCategory.reduce((acc: any, item: any) => {
-      acc[item.category] = item._count;
+      acc[categoryMap.get(item.categoryId) || item.categoryId] = item._count;
       return acc;
     }, {});
 
     const subcategoryStats = bySubcategory.reduce((acc: any, item: any) => {
-      if (item.subcategory) {
-        acc[item.subcategory] = item._count;
+      if (item.subcategoryId) {
+        acc[subcategoryMap.get(item.subcategoryId) || item.subcategoryId] = item._count;
       }
       return acc;
     }, {});

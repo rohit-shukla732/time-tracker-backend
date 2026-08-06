@@ -11,7 +11,7 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  teamId: string | null;
+  isArchived: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,19 +32,20 @@ export enum TicketStatus {
   CLOSED = 'CLOSED',
 }
 
-export enum TicketCategory {
-  IT_SUPPORT = 'IT_SUPPORT',
+export interface TicketCategory {
+  id: string;
+  name: string;
+  active: boolean;
+  sortOrder: number;
+  subcategories?: TicketSubcategory[];
 }
 
-export enum ITSupportSubcategory {
-  HARDWARE = 'HARDWARE',
-  SOFTWARE = 'SOFTWARE',
-  NETWORK = 'NETWORK',
-  EMAIL = 'EMAIL',
-  ACCESS = 'ACCESS',
-  PRINTER = 'PRINTER',
-  PHONE = 'PHONE',
-  OTHER = 'OTHER',
+export interface TicketSubcategory {
+  id: string;
+  categoryId: string;
+  name: string;
+  active: boolean;
+  sortOrder: number;
 }
 
 export interface Ticket {
@@ -54,8 +55,8 @@ export interface Ticket {
   description: string;
   priority: TicketPriority;
   status: TicketStatus;
-  category: TicketCategory;
-  subcategory?: ITSupportSubcategory;
+  categoryId: string | null;
+  subcategoryId: string | null;
   createdBy: string;
   assignedTo: string | null;
   createdAt: Date;
@@ -63,6 +64,8 @@ export interface Ticket {
   resolvedAt: Date | null;
   creator?: User;
   assignee?: User;
+  category?: TicketCategory | null;
+  subcategory?: TicketSubcategory | null;
   comments?: TicketComment[];
   screenshots?: TicketScreenshot[];
 }

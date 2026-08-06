@@ -128,7 +128,7 @@ export default function AdminDashboard() {
           t.ticketNumber,
           `"${(t.title ?? '').replace(/"/g,'""')}"`,
           `"${(t.description ?? '').replace(/"/g,'""')}"`,
-          t.status, t.priority, t.category, t.subcategory || '',
+          t.status, t.priority, t.category?.name || '', t.subcategory?.name || '',
           t.createdBy,
           `"${t.creator?.name || ''}"`, t.creator?.email || '',
           t.assignedTo || '', `"${t.assignee?.name || ''}"`, t.assignee?.email || '',

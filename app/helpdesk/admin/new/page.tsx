@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AdminTicketLayout } from "@/components/tickets/AdminTicketLayout";
 import { Input } from "@/components/ui/input";
@@ -20,25 +20,57 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TicketPriority, TicketCategory, ITSupportSubcategory } from "@/types";
+import { TicketPriority, TicketCategory, TicketSubcategory } from "@/types";
 import { toast } from "sonner";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
 import FullTrainScene from "@/components/animated/Loader";
 
 export default function NewTicketPage() {
   const router = useRouter();
+  const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
     priority: TicketPriority.MEDIUM,
-    category: TicketCategory.IT_SUPPORT,
-    subcategory: ITSupportSubcategory.OTHER,
+    categoryId: "",
+    subcategoryId: "",
   });
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [showQueueDialog, setShowQueueDialog] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+    fetch("/api/tickets/categories", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: TicketCategory[]) => {
+        setCategories(data);
+        if (data.length > 0) {
+          setFormData((prev) => ({
+            ...prev,
+            categoryId: prev.categoryId || data[0].id,
+          }));
+        }
+      })
+      .catch(() => console.error("Failed to load ticket categories"));
+  }, []);
+
+  const activeSubcategories = categories.find(
+    (c) => c.id === formData.categoryId
+  )?.subcategories || [];
+
+  const handleCategoryChange = (categoryId: string) => {
+    setFormData({
+      ...formData,
+      categoryId,
+      subcategoryId: "",
+    });
+  };
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
@@ -149,8 +181,8 @@ export default function NewTicketPage() {
           title: formData.title,
           description: formData.description,
           priority: formData.priority,
-          category: formData.category,
-          subcategory: formData.subcategory,
+          categoryId: formData.categoryId || null,
+          subcategoryId: formData.subcategoryId || null,
         }),
       });
 
@@ -315,68 +347,49 @@ export default function NewTicketPage() {
                   </div>
 
                   <div className="space-y-2.5">
+                    <Label htmlFor="category" className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 ml-1">Category *</Label>
+                    <Select
+                      value={formData.categoryId}
+                      onValueChange={handleCategoryChange}
+                      disabled={categories.length <= 1}
+                    >
+                      <SelectTrigger id="category" className="h-14 px-4 bg-white/50 dark:bg-zinc-900/50 border-black/5 dark:border-white/5 rounded-2xl text-[16px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-2 focus-visible:ring-primary/20 transition-all">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-black/5 dark:border-white/5 shadow-xl">
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id} className="rounded-xl">
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2.5">
                     <Label htmlFor="subcategory" className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 ml-1">Issue Type *</Label>
                     <Select
-                      value={formData.subcategory}
+                      value={formData.subcategoryId}
                       onValueChange={(value) =>
-                        setFormData({
-                          ...formData,
-                          subcategory: value as ITSupportSubcategory,
-                        })
+                        setFormData({ ...formData, subcategoryId: value })
                       }
                     >
                       <SelectTrigger id="subcategory" className="h-14 px-4 bg-white/50 dark:bg-zinc-900/50 border-black/5 dark:border-white/5 rounded-2xl text-[16px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-2 focus-visible:ring-primary/20 transition-all">
-                        <SelectValue />
+                        <SelectValue placeholder="Select issue type" />
                       </SelectTrigger>
                       <SelectContent className="rounded-2xl border-black/5 dark:border-white/5 shadow-xl">
-                        <SelectItem value={ITSupportSubcategory.HARDWARE} className="rounded-xl">
-                          <div className="flex flex-col items-start py-1">
-                            <span className="font-medium">Hardware</span>
-                            <span className="text-[11px] text-muted-foreground">Computer, monitor, keyboard</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.SOFTWARE} className="rounded-xl">
-                          <div className="flex flex-col items-start py-1">
-                            <span className="font-medium">Software</span>
-                            <span className="text-[11px] text-muted-foreground">App issues, licensing</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.NETWORK} className="rounded-xl">
-                          <div className="flex flex-col items-start py-1">
-                            <span className="font-medium">Network</span>
-                            <span className="text-[11px] text-muted-foreground">Internet, WiFi, VPN</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.EMAIL} className="rounded-xl">
-                          <div className="flex flex-col items-start py-1">
-                            <span className="font-medium">Email</span>
-                            <span className="text-[11px] text-muted-foreground">Exchange, Outlook</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.ACCESS} className="rounded-xl">
-                          <div className="flex flex-col items-start py-1">
-                            <span className="font-medium">Access & Permissions</span>
-                            <span className="text-[11px] text-muted-foreground">Login, password reset</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.PRINTER} className="rounded-xl">
-                          <div className="flex flex-col items-start py-1">
-                            <span className="font-medium">Printer</span>
-                            <span className="text-[11px] text-muted-foreground">Printing issues</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.PHONE} className="rounded-xl">
-                          <div className="flex flex-col items-start py-1">
-                            <span className="font-medium">Phone & Communication</span>
-                            <span className="text-[11px] text-muted-foreground">Mobile, Teams</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value={ITSupportSubcategory.OTHER} className="rounded-xl">
-                          <div className="flex flex-col items-start py-1">
-                            <span className="font-medium">Other</span>
-                            <span className="text-[11px] text-muted-foreground">Other IT-related issues</span>
-                          </div>
-                        </SelectItem>
+                        {activeSubcategories.length === 0 && (
+                          <SelectItem value="none" disabled className="rounded-xl">
+                            No issue types available
+                          </SelectItem>
+                        )}
+                        {activeSubcategories.map((subcategory) => (
+                          <SelectItem key={subcategory.id} value={subcategory.id} className="rounded-xl">
+                            <div className="flex flex-col items-start py-1">
+                              <span className="font-medium">{subcategory.name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

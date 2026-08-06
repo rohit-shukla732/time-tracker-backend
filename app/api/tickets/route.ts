@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/roleAuth';
-import { TicketPriority, TicketStatus, TicketCategory, ITSupportSubcategory } from '@/types';
+import { TicketPriority, TicketStatus } from '@/types';
 
 // GET /api/tickets - Get all tickets (filtered by user role)
 export async function GET(req: NextRequest) {
@@ -51,6 +51,21 @@ export async function GET(req: NextRequest) {
             role: true,
           },
         },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            active: true,
+          },
+        },
+        subcategory: {
+          select: {
+            id: true,
+            categoryId: true,
+            name: true,
+            active: true,
+          },
+        },
         comments: {
           include: {
             user: {
@@ -97,13 +112,36 @@ export async function POST(req: NextRequest) {
     const user = authResult.user;
     const body = await req.json();
 
-    const { title, description, priority, category, subcategory } = body;
+    const { title, description, priority, categoryId, subcategoryId } = body;
 
     if (!title || !description) {
       return NextResponse.json(
         { error: 'Title and description are required' },
         { status: 400 }
       );
+    }
+
+    // Resolve the category: explicit id, or the first active category
+    let resolvedCategoryId = categoryId ?? null;
+    if (!resolvedCategoryId) {
+      const defaultCategory = await prisma.ticketCategory.findFirst({
+        where: { active: true },
+        orderBy: { sortOrder: 'asc' },
+        select: { id: true },
+      });
+      resolvedCategoryId = defaultCategory?.id ?? null;
+    }
+
+    // Subcategory must belong to the resolved category
+    let resolvedSubcategoryId = subcategoryId ?? null;
+    if (resolvedSubcategoryId && resolvedCategoryId) {
+      const sub = await prisma.ticketSubcategory.findFirst({
+        where: { id: resolvedSubcategoryId, categoryId: resolvedCategoryId },
+        select: { id: true },
+      });
+      if (!sub) resolvedSubcategoryId = null;
+    } else {
+      resolvedSubcategoryId = null;
     }
 
     // Get the next ticket number
@@ -123,8 +161,8 @@ export async function POST(req: NextRequest) {
         title,
         description,
         priority: priority || TicketPriority.MEDIUM,
-        category: category || TicketCategory.IT_SUPPORT,
-        subcategory: subcategory || null,
+        categoryId: resolvedCategoryId,
+        subcategoryId: resolvedSubcategoryId,
         createdBy: user.id,
         ticketNumber: nextTicketNumber,
       },
@@ -143,6 +181,18 @@ export async function POST(req: NextRequest) {
             name: true,
             email: true,
             role: true,
+          },
+        },
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        subcategory: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },

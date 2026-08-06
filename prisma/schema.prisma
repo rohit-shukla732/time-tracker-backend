@@ -8,38 +8,19 @@ datasource db {
 }
 
 model User {
-  id                String            @id
-  name              String
-  email             String            @unique
-  passwordHash      String
-  role              Role              @default(EMPLOYEE)
-  isArchived        Boolean           @default(false)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  lateThresholdMins Int?              @default(15)
-  shiftStartTime    String?
-  appSwitchEvents   AppSwitchEvent[]
-  assignedAssetsBy  AssetAssignment[] @relation("AssetAssigner")
-  assignedAssets    AssetAssignment[] @relation("AssetAssignee")
+  id           String   @id
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(EMPLOYEE)
+  isArchived   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  deviceControl      DeviceControl?
-  events             Event[]
-  notifications      Notification[]
-
-  createdProjects   Project[]             @relation("ProjectCreator")
-  refreshTokens     RefreshToken[]
-  sessions          Session[]
-  appUsage          SessionAppUsage[]
-  sessionSummaries  SessionSummary[]
-  websiteUsage      SessionWebsiteUsage[]
-  approvedTasks     Task[]                @relation("TaskApprover")
-  assignedTasks     Task[]                @relation("TaskAssignee")
-  createdTasks      Task[]                @relation("TaskCreator")
-  taskSessions      TaskSession[]
-  assignedTickets   Ticket[]              @relation("TicketAssignee")
-  createdTickets    Ticket[]              @relation("TicketCreator")
-  ticketComments    TicketComment[]
-  websiteVisits     WebsiteVisit[]
+  assignedTickets Ticket[] @relation("TicketAssignee")
+  createdTickets  Ticket[] @relation("TicketCreator")
+  ticketComments  TicketComment[]
+  refreshTokens   RefreshToken[]
 
   @@index([email])
   @@index([role])
@@ -67,154 +48,24 @@ model PasswordResetToken {
   @@index([token])
 }
 
-model Session {
-  id              String                @id @default(uuid())
-  sessionId       String                @unique
-  userId          String?
-  startedAt       DateTime
-  endedAt         DateTime?
-  autoClockOut    Boolean               @default(false)
-  autoReason      String?
-  rawStartEvent   Json?
-  rawEndEvent     Json?
-  lastHeartbeatAt DateTime?
-  createdAt       DateTime              @default(now())
-  appSwitch       AppSwitchEvent[]
-  events          Event[]
-  user            User?                 @relation(fields: [userId], references: [id])
-  appUsage        SessionAppUsage[]
-  summary         SessionSummary?
-  websiteUsage    SessionWebsiteUsage[]
-  taskSessions    TaskSession[]
-  websiteVisits   WebsiteVisit[]
-}
-
-model SessionSummary {
-  id                String   @id @default(uuid())
-  sessionId         String   @unique
-  userId            String?
-  sessionDurationMs BigInt
-  totalBreakMs      BigInt
-  totalIdleMs       BigInt
-  workTimeMs        BigInt
-  createdAt         DateTime @default(now())
-  session           Session  @relation(fields: [sessionId], references: [sessionId])
-  user              User?    @relation(fields: [userId], references: [id])
-}
-
-model SessionAppUsage {
-  id        String   @id @default(uuid())
-  sessionId String
-  userId    String?
-  appName   String
-  timeMs    BigInt
-  createdAt DateTime @default(now())
-  session   Session  @relation(fields: [sessionId], references: [sessionId])
-  user      User?    @relation(fields: [userId], references: [id])
-}
-
-model Event {
-  id         String   @id @default(uuid())
-  sessionId  String
-  userId     String?
-  type       String
-  reason     String?
-  durationMs BigInt?
-  timestamp  DateTime
-  epochMs    BigInt
-  payload    Json
-  createdAt  DateTime @default(now())
-  session    Session  @relation(fields: [sessionId], references: [sessionId])
-  user       User?    @relation(fields: [userId], references: [id])
-}
-
-model AppSwitchEvent {
-  id         String   @id @default(uuid())
-  sessionId  String
-  userId     String?
-  fromApp    String?
-  toApp      String?
-  durationMs BigInt?
-  timestamp  DateTime
-  epochMs    BigInt
-  payload    Json
-  createdAt  DateTime @default(now())
-  session    Session  @relation(fields: [sessionId], references: [sessionId])
-  user       User?    @relation(fields: [userId], references: [id])
-}
-
-model WebsiteVisit {
-  id          String   @id @default(uuid())
-  sessionId   String
-  userId      String?
-  fromWebsite String?
-  toWebsite   String?
-  durationMs  BigInt?
-  browser     String?
-  timestamp   DateTime
-  epochMs     BigInt?
-  payload     Json?
-  createdAt   DateTime @default(now())
-  session     Session  @relation(fields: [sessionId], references: [sessionId])
-  user        User?    @relation(fields: [userId], references: [id])
-
-  @@index([sessionId])
-  @@index([userId])
-  @@index([toWebsite])
-  @@index([browser])
-}
-
-model SessionWebsiteUsage {
-  id        String   @id @default(uuid())
-  sessionId String
-  userId    String?
-  website   String
-  browser   String?
-  timeMs    BigInt
-  createdAt DateTime @default(now())
-  session   Session  @relation(fields: [sessionId], references: [sessionId])
-  user      User?    @relation(fields: [userId], references: [id])
-
-  @@index([sessionId])
-  @@index([userId])
-}
-
-model DeviceControl {
-  id              String    @id @default(uuid())
-  userId          String    @unique
-  forceStop       Boolean   @default(false)
-  forceStart      Boolean   @default(false)
-  forceBreakStart Boolean   @default(false)
-  forceBreakEnd   Boolean   @default(false)
-  reason          String?
-  stoppedBy       String?
-  stoppedAt       DateTime?
-  startedBy       String?
-  startedAt       DateTime?
-  // Cluster-safe real-time state (shared across all PM2 instances via DB)
-  lastHeartbeatAt DateTime? // updated on every heartbeat from the client app
-  sessionState    Json? // mirrors /api/session/summary currentState + metrics
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  user            User      @relation(fields: [userId], references: [id])
-}
-
 model Ticket {
-  id           String                @id @default(uuid())
+  id           String            @id @default(uuid())
   title        String
   description  String
-  priority     TicketPriority        @default(MEDIUM)
-  status       TicketStatus          @default(OPEN)
-  category     TicketCategory        @default(IT_SUPPORT)
-  subcategory  ITSupportSubcategory?
+  priority     TicketPriority    @default(MEDIUM)
+  status       TicketStatus      @default(OPEN)
+  categoryId   String?
+  subcategoryId String?
   createdBy    String
   assignedTo   String?
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
   resolvedAt   DateTime?
-  ticketNumber Int                   @unique @default(autoincrement())
-  assignee     User?                 @relation("TicketAssignee", fields: [assignedTo], references: [id])
-  creator      User                  @relation("TicketCreator", fields: [createdBy], references: [id])
+  ticketNumber Int               @unique @default(autoincrement())
+  assignee     User?             @relation("TicketAssignee", fields: [assignedTo], references: [id])
+  creator      User              @relation("TicketCreator", fields: [createdBy], references: [id])
+  category     TicketCategory?   @relation(fields: [categoryId], references: [id])
+  subcategory  TicketSubcategory? @relation(fields: [subcategoryId], references: [id])
   comments     TicketComment[]
   screenshots  TicketScreenshot[]
 
@@ -222,8 +73,34 @@ model Ticket {
   @@index([assignedTo])
   @@index([status])
   @@index([priority])
-  @@index([category])
+  @@index([categoryId])
+  @@index([subcategoryId])
   @@index([ticketNumber])
+}
+
+model TicketCategory {
+  id            String             @id @default(uuid())
+  name          String             @unique
+  active        Boolean            @default(true)
+  sortOrder     Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  tickets       Ticket[]
+  subcategories TicketSubcategory[]
+}
+
+model TicketSubcategory {
+  id         String         @id @default(uuid())
+  categoryId String
+  name       String         @unique
+  active     Boolean        @default(true)
+  sortOrder  Int            @default(0)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  category   TicketCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  tickets    Ticket[]
+
+  @@index([categoryId])
 }
 
 model TicketComment {
@@ -254,159 +131,6 @@ model TicketScreenshot {
   @@index([ticketId])
 }
 
-model Project {
-  id           String     @id @default(uuid())
-  name         String
-  description  String?
-  createdById  String
-  startDate    DateTime?
-  endDate      DateTime?
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  createdBy    User       @relation("ProjectCreator", fields: [createdById], references: [id])
-  tasks        Task[]
-
-  @@index([createdById])
-}
-
-model Task {
-  id             String        @id @default(uuid())
-  title          String
-  description    String?
-  projectId      String?
-  assignedTo     String?
-  createdById    String
-  approvedById   String?
-  approvedAt     DateTime?
-  status         TaskStatus    @default(PENDING_APPROVAL)
-  priority       TaskPriority  @default(MEDIUM)
-  estimatedHours Float?
-  dueDate        DateTime?
-  startedAt      DateTime?
-  completedAt    DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  approvedBy     User?         @relation("TaskApprover", fields: [approvedById], references: [id])
-  assignee       User?         @relation("TaskAssignee", fields: [assignedTo], references: [id])
-  createdBy      User          @relation("TaskCreator", fields: [createdById], references: [id])
-  project        Project?      @relation(fields: [projectId], references: [id])
-  taskSessions   TaskSession[]
-
-  @@index([projectId])
-  @@index([assignedTo])
-  @@index([createdById])
-  @@index([status])
-}
-
-model TaskSession {
-  id         String    @id @default(uuid())
-  taskId     String
-  sessionId  String
-  userId     String
-  startedAt  DateTime
-  endedAt    DateTime?
-  durationMs BigInt?
-  createdAt  DateTime  @default(now())
-  session    Session   @relation(fields: [sessionId], references: [sessionId])
-  task       Task      @relation(fields: [taskId], references: [id])
-  user       User      @relation(fields: [userId], references: [id])
-
-  @@index([taskId])
-  @@index([sessionId])
-  @@index([userId])
-}
-
-model Asset {
-  id                 String             @id @default(uuid())
-  assetType          AssetType
-  category           AssetCategory
-  name               String
-  description        String?
-  serialNumber       String?            @unique
-  model              String?
-  manufacturer       String?
-  purchaseDate       DateTime?
-  warrantyExpiry     DateTime?
-  purchaseCost       Float?
-  currentValue       Float?
-  status             AssetStatus        @default(AVAILABLE)
-  location           String?
-  notes              String?
-  // Laptop peripherals
-  monitorName        String?
-  monitorCount       Int?
-  keyboardName       String?
-  mouseName          String?
-  headphoneName      String?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  assignments        AssetAssignment[]
-  maintenanceRecords AssetMaintenance[]
-
-  @@index([assetType])
-  @@index([category])
-  @@index([status])
-  @@index([serialNumber])
-}
-
-model AssetAssignment {
-  id                 String           @id @default(uuid())
-  assetId            String
-  userId             String
-  assignedBy         String
-  assignedDate       DateTime         @default(now())
-  returnedDate       DateTime?
-  expectedReturnDate DateTime?
-  status             AssignmentStatus @default(ACTIVE)
-  condition          AssetCondition?
-  notes              String?
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  asset              Asset            @relation(fields: [assetId], references: [id])
-  assignedByUser     User             @relation("AssetAssigner", fields: [assignedBy], references: [id])
-  user               User             @relation("AssetAssignee", fields: [userId], references: [id])
-
-  @@index([assetId])
-  @@index([userId])
-  @@index([status])
-}
-
-model AssetMaintenance {
-  id              String            @id @default(uuid())
-  assetId         String
-  maintenanceType MaintenanceType
-  description     String
-  scheduledDate   DateTime
-  completedDate   DateTime?
-  cost            Float?
-  performedBy     String?
-  status          MaintenanceStatus @default(SCHEDULED)
-  notes           String?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  asset           Asset             @relation(fields: [assetId], references: [id])
-
-  @@index([assetId])
-  @@index([status])
-  @@index([scheduledDate])
-}
-
-model Notification {
-  id        String           @id @default(uuid())
-  userId    String
-  type      NotificationType
-  title     String
-  message   String
-  data      Json?
-  read      Boolean          @default(false)
-  createdAt DateTime         @default(now())
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, read])
-  @@index([createdAt])
-}
-
 enum Role {
   ADMIN
   SENIOR_MANAGER
@@ -428,104 +152,4 @@ enum TicketStatus {
   PENDING
   RESOLVED
   CLOSED
-}
-
-enum TicketCategory {
-  IT_SUPPORT
-}
-
-enum ITSupportSubcategory {
-  HARDWARE
-  SOFTWARE
-  NETWORK
-  EMAIL
-  ACCESS
-  PRINTER
-  PHONE
-  OTHER
-}
-
-enum TaskStatus {
-  PENDING_APPROVAL
-  ACTIVE
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-enum TaskPriority {
-  LOW
-  MEDIUM
-  HIGH
-  URGENT
-}
-
-enum AssetType {
-  USER_SIDE
-  IT_INFRASTRUCTURE
-}
-
-enum AssetCategory {
-  LAPTOP
-  KEYBOARD
-  MOUSE
-  HEADSET
-  MONITOR
-  SWITCH
-  FIREWALL
-  ACCESS_POINT
-  BIOMETRIC
-  TELEPHONE_MATRIX
-  TELEPHONE_HANDSET
-  CCTV_CAMERA
-  NVR
-  INTERNET_LINE
-}
-
-enum AssetStatus {
-  AVAILABLE
-  ASSIGNED
-  IN_MAINTENANCE
-  RETIRED
-  DAMAGED
-  LOST
-}
-
-enum AssignmentStatus {
-  ACTIVE
-  RETURNED
-  OVERDUE
-}
-
-enum AssetCondition {
-  EXCELLENT
-  GOOD
-  FAIR
-  POOR
-  DAMAGED
-}
-
-enum MaintenanceType {
-  PREVENTIVE
-  CORRECTIVE
-  INSPECTION
-  UPGRADE
-}
-
-enum MaintenanceStatus {
-  SCHEDULED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-enum NotificationType {
-  LATE_ARRIVAL
-  TASK_ASSIGNED
-  TASK_COMPLETED
-  TICKET_ASSIGNED
-  TICKET_UPDATED
-  LEAVE_APPROVED
-  LEAVE_REJECTED
-  GENERAL
 }

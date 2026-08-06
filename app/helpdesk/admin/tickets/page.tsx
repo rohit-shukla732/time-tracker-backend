@@ -30,7 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { TicketStatus, TicketPriority, ITSupportSubcategory } from '@/types';
+import { TicketStatus, TicketPriority, TicketCategory } from '@/types';
 import {
   Search,
   Trash2,
@@ -72,6 +72,7 @@ export default function AdminTicketsPage() {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [itTeamMembers, setItTeamMembers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
+  const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [ticketToDelete, setTicketToDelete] = useState<string | null>(null);
   const [assigningNumbers, setAssigningNumbers] = useState(false);
@@ -83,10 +84,22 @@ export default function AdminTicketsPage() {
   useEffect(() => {
     fetchTickets();
     fetchItTeam();
+    fetchCategories();
     const cleanup = setupAutoRefresh();
     return () => cleanup();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
+      const response = await fetch('/api/tickets/categories', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) setCategories(await response.json());
+    } catch { /* silent */ }
+  };
 
   const fetchItTeam = async () => {
     try {
@@ -122,7 +135,7 @@ export default function AdminTicketsPage() {
     }
     if (statusFilter !== 'all') r = r.filter((t: Ticket) => t.status === statusFilter);
     if (priorityFilter !== 'all') r = r.filter((t: Ticket) => t.priority === priorityFilter);
-    if (categoryFilter !== 'all') r = r.filter((t: Ticket) => t.subcategory === categoryFilter);
+    if (categoryFilter !== 'all') r = r.filter((t: Ticket) => (t.category?.id ?? t.category?.name) === categoryFilter);
     return r;
   }, [tickets, searchQuery, statusFilter, priorityFilter, categoryFilter]);
 
@@ -133,7 +146,7 @@ export default function AdminTicketsPage() {
         case 'ticketNumber': cmp = (a.ticketNumber ?? 0) - (b.ticketNumber ?? 0); break;
         case 'title': cmp = a.title.localeCompare(b.title); break;
         case 'creatorName': cmp = (a.creator?.name ?? '').localeCompare(b.creator?.name ?? ''); break;
-        case 'subcategory': cmp = (a.subcategory ?? '').localeCompare(b.subcategory ?? ''); break;
+        case 'subcategory': cmp = (a.subcategory?.name ?? '').localeCompare(b.subcategory?.name ?? ''); break;
         case 'priority': cmp = (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9); break;
         case 'status': cmp = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9); break;
         case 'assigneeName': cmp = (a.assignee?.name ?? '').localeCompare(b.assignee?.name ?? ''); break;
@@ -278,12 +291,7 @@ export default function AdminTicketsPage() {
 
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
-  const SUBCATEGORY_LABELS: Record<string, string> = {
-    HARDWARE: 'Hardware', SOFTWARE: 'Software', NETWORK: 'Network',
-    EMAIL: 'Email', ACCESS: 'Access & Permissions', PRINTER: 'Printer & Scanner',
-    PHONE: 'Phone & Comms', OTHER: 'Other',
-  };
-  const getSubLabel = (s?: string) => s ? (SUBCATEGORY_LABELS[s] ?? s) : 'Not specified';
+  const getSubLabel = (s?: { name: string } | null) => s?.name ?? 'Not specified';
 
   const hasFilters = searchQuery || statusFilter !== 'all' || priorityFilter !== 'all' || categoryFilter !== 'all';
   const resetFilters = () => { setSearchQuery(''); setStatusFilter('all'); setPriorityFilter('all'); setCategoryFilter('all'); };
@@ -341,10 +349,12 @@ export default function AdminTicketsPage() {
             </Select>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-[175px] h-11 rounded-2xl border-black/[0.06] dark:border-white/[0.06] bg-white/50 dark:bg-zinc-900/50 text-[14px] shadow-sm"><SelectValue placeholder="Category" /></SelectTrigger>
-              <SelectContent className="rounded-2xl">
+              <SelectContent className="rounded-2xl max-h-72 overflow-y-auto">
                 <SelectItem value="all">All Categories</SelectItem>
-                {Object.values(ITSupportSubcategory).map(s => (
-                  <SelectItem key={s} value={s}>{SUBCATEGORY_LABELS[s] ?? s}</SelectItem>
+                {categories.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id} className="text-[13px] font-medium">
+                    {cat.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

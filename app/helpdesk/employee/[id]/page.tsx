@@ -228,7 +228,7 @@ export default function TicketDetailsPage() {
                       {ticket.status.replace(/_/g, ' ')}
                     </span>
                     <span className="inline-flex items-center px-3 py-1.5 rounded-full text-[12px] font-medium tracking-wide border border-black/[0.06] dark:border-white/[0.06] bg-black/5 dark:bg-white/5 text-zinc-700 dark:text-zinc-300">
-                      {ticket.category}
+                      {ticket.category?.name}
                     </span>
                   </div>
                 </div>

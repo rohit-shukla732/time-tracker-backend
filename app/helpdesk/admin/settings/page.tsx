@@ -1,0 +1,504 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { AdminTicketLayout } from '@/components/tickets/AdminTicketLayout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { TicketCategory } from '@/types';
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  FolderOpen,
+  Layers,
+  ChevronUp,
+  ChevronDown,
+} from 'lucide-react';
+import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
+import { toast } from 'sonner';
+
+interface CategoryWithSubs extends TicketCategory {}
+
+interface SubcategoryItem {
+  id: string;
+  categoryId: string;
+  name: string;
+  active: boolean;
+  sortOrder: number;
+}
+
+export default function AdminSettingsPage() {
+  const router = useRouter();
+  const [categories, setCategories] = useState<CategoryWithSubs[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+  const [categoryName, setCategoryName] = useState('');
+
+  const [editCategory, setEditCategory] = useState<CategoryWithSubs | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState('');
+
+  const [deleteCategory, setDeleteCategory] = useState<CategoryWithSubs | null>(null);
+
+  const [addSubOpen, setAddSubOpen] = useState(false);
+  const [subCategoryId, setSubCategoryId] = useState('');
+  const [subName, setSubName] = useState('');
+
+  const [editSub, setEditSub] = useState<SubcategoryItem | null>(null);
+  const [editSubName, setEditSubName] = useState('');
+
+  const [deleteSub, setDeleteSub] = useState<SubcategoryItem | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const fetchCategories = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) { router.push('/helpdesk/admin/login'); return; }
+      const response = await makeAuthenticatedRequest('/api/admin/categories');
+      if (response.status === 401) {
+        ['accessToken','refreshToken','user'].forEach(k => localStorage.removeItem(k));
+        router.push('/helpdesk/admin/login'); return;
+      }
+      if (!response.ok) throw new Error();
+      setCategories(await response.json());
+    } catch { toast.error('Failed to load categories'); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+    const cleanup = setupAutoRefresh();
+    return () => cleanup();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAddCategory = async () => {
+    if (!categoryName.trim()) { toast.error('Category name is required'); return; }
+    setSaving(true);
+    try {
+      const response = await makeAuthenticatedRequest('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: categoryName.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) { toast.error(data.error || 'Failed to create category'); return; }
+      toast.success('Category created');
+      setAddCategoryOpen(false);
+      setCategoryName('');
+      fetchCategories();
+    } catch { toast.error('Failed to create category'); }
+    finally { setSaving(false); }
+  };
+
+  const handleEditCategory = async () => {
+    if (!editCategory) return;
+    if (!editCategoryName.trim()) { toast.error('Category name is required'); return; }
+    setSaving(true);
+    try {
+      const response = await makeAuthenticatedRequest(`/api/admin/categories/${editCategory.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editCategoryName.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) { toast.error(data.error || 'Failed to update category'); return; }
+      toast.success('Category updated');
+      setEditCategory(null);
+      fetchCategories();
+    } catch { toast.error('Failed to update category'); }
+    finally { setSaving(false); }
+  };
+
+  const handleToggleCategory = async (cat: CategoryWithSubs) => {
+    try {
+      const response = await makeAuthenticatedRequest(`/api/admin/categories/${cat.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !cat.active }),
+      });
+      const data = await response.json();
+      if (!response.ok) { toast.error(data.error || 'Failed to update category'); return; }
+      toast.success(cat.active ? 'Category disabled' : 'Category enabled');
+      fetchCategories();
+    } catch { toast.error('Failed to update category'); }
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!deleteCategory) return;
+    setSaving(true);
+    try {
+      const response = await makeAuthenticatedRequest(`/api/admin/categories/${deleteCategory.id}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (!response.ok) { toast.error(data.error || 'Failed to delete category'); return; }
+      toast.success('Category deleted');
+      setDeleteCategory(null);
+      fetchCategories();
+    } catch { toast.error('Failed to delete category'); }
+    finally { setSaving(false); }
+  };
+
+  const handleAddSub = async () => {
+    if (!subName.trim()) { toast.error('Subcategory name is required'); return; }
+    if (!subCategoryId) { toast.error('Choose a category'); return; }
+    setSaving(true);
+    try {
+      const response = await makeAuthenticatedRequest('/api/admin/subcategories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: subName.trim(), categoryId: subCategoryId }),
+      });
+      const data = await response.json();
+      if (!response.ok) { toast.error(data.error || 'Failed to create subcategory'); return; }
+      toast.success('Subcategory created');
+      setAddSubOpen(false);
+      setSubName('');
+      setSubCategoryId('');
+      fetchCategories();
+    } catch { toast.error('Failed to create subcategory'); }
+    finally { setSaving(false); }
+  };
+
+  const handleEditSub = async () => {
+    if (!editSub) return;
+    if (!editSubName.trim()) { toast.error('Subcategory name is required'); return; }
+    setSaving(true);
+    try {
+      const response = await makeAuthenticatedRequest(`/api/admin/subcategories/${editSub.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editSubName.trim() }),
+      });
+      const data = await response.json();
+      if (!response.ok) { toast.error(data.error || 'Failed to update subcategory'); return; }
+      toast.success('Subcategory updated');
+      setEditSub(null);
+      fetchCategories();
+    } catch { toast.error('Failed to update subcategory'); }
+    finally { setSaving(false); }
+  };
+
+  const handleToggleSub = async (sub: SubcategoryItem) => {
+    try {
+      const response = await makeAuthenticatedRequest(`/api/admin/subcategories/${sub.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !sub.active }),
+      });
+      const data = await response.json();
+      if (!response.ok) { toast.error(data.error || 'Failed to update subcategory'); return; }
+      toast.success(sub.active ? 'Subcategory disabled' : 'Subcategory enabled');
+      fetchCategories();
+    } catch { toast.error('Failed to update subcategory'); }
+  };
+
+  const handleDeleteSub = async () => {
+    if (!deleteSub) return;
+    setSaving(true);
+    try {
+      const response = await makeAuthenticatedRequest(`/api/admin/subcategories/${deleteSub.id}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (!response.ok) { toast.error(data.error || 'Failed to delete subcategory'); return; }
+      toast.success('Subcategory deleted');
+      setDeleteSub(null);
+      fetchCategories();
+    } catch { toast.error('Failed to delete subcategory'); }
+    finally { setSaving(false); }
+  };
+
+  const moveCategory = async (index: number, dir: -1 | 1) => {
+    const j = index + dir;
+    if (j < 0 || j >= categories.length) return;
+    const a = categories[index];
+    const b = categories[j];
+    try {
+      await makeAuthenticatedRequest(`/api/admin/categories/${a.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sortOrder: b.sortOrder }),
+      });
+      await makeAuthenticatedRequest(`/api/admin/categories/${b.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sortOrder: a.sortOrder }),
+      });
+      fetchCategories();
+    } catch { toast.error('Failed to reorder'); }
+  };
+
+  const moveSub = async (catIndex: number, subIndex: number, dir: -1 | 1) => {
+    const cat = categories[catIndex];
+    const subs = cat.subcategories ?? [];
+    const j = subIndex + dir;
+    if (j < 0 || j >= subs.length) return;
+    const a = subs[subIndex];
+    const b = subs[j];
+    try {
+      await makeAuthenticatedRequest(`/api/admin/subcategories/${a.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sortOrder: b.sortOrder }),
+      });
+      await makeAuthenticatedRequest(`/api/admin/subcategories/${b.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sortOrder: a.sortOrder }),
+      });
+      fetchCategories();
+    } catch { toast.error('Failed to reorder'); }
+  };
+
+  return (
+    <AdminTicketLayout>
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10 font-sans space-y-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-2">
+            <h1 className="text-[40px] leading-[1.1] font-semibold tracking-[-0.03em] text-zinc-900 dark:text-zinc-100">
+              Settings
+            </h1>
+            <p className="text-[17px] text-zinc-500 dark:text-zinc-400 font-light">
+              Manage ticket categories and subcategories. Disabled items are hidden from new ticket forms.
+            </p>
+          </div>
+          <Button
+            onClick={() => setAddCategoryOpen(true)}
+            className="flex items-center justify-center h-12 px-6 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[14px] font-medium transition-transform hover:shadow-md active:scale-[0.98]"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Category
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center min-h-[300px] gap-4">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-900 dark:border-white border-t-transparent" />
+            <span className="text-[15px] text-zinc-500 font-light">Loading categories…</span>
+          </div>
+        ) : categories.length === 0 ? (
+          <div className="flex flex-col items-center justify-center min-h-[300px] gap-3 rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04]">
+            <FolderOpen className="h-10 w-10 text-zinc-300 dark:text-zinc-600" />
+            <span className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">No categories yet</span>
+            <span className="text-[14px] text-zinc-500 font-light">Create your first ticket category to get started</span>
+            <Button onClick={() => setAddCategoryOpen(true)} className="mt-2 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
+              <Plus className="h-4 w-4 mr-2" />Add Category
+            </Button>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-6">
+            {categories.map((cat, ci) => (
+              <div key={cat.id} className="rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+                <div className="flex items-center gap-3 py-4 px-6 border-b border-black/[0.04] dark:border-white/[0.04]">
+                  <div className="h-9 w-9 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <Layers className="h-4.5 w-4.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[16px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 truncate">{cat.name}</h3>
+                      {!cat.active && (
+                        <Badge variant="outline" className="text-[11px] border-0 bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">Disabled</Badge>
+                      )}
+                    </div>
+                    <p className="text-[12px] text-zinc-400">{(cat.subcategories ?? []).length} subcategor{(cat.subcategories ?? []).length !== 1 ? 'ies' : 'y'}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" disabled={ci === 0} onClick={() => moveCategory(ci, -1)}><ChevronUp className="h-4 w-4 text-zinc-400" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" disabled={ci === categories.length - 1} onClick={() => moveCategory(ci, 1)}><ChevronDown className="h-4 w-4 text-zinc-400" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" onClick={() => { setEditCategory(cat); setEditCategoryName(cat.name); }}><Pencil className="h-4 w-4 text-zinc-400" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-destructive hover:bg-destructive/10" onClick={() => setDeleteCategory(cat)}><Trash2 className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+
+                <div className="px-6 py-3 flex items-center justify-between">
+                  <span className="text-[12px] font-semibold uppercase tracking-wider text-zinc-400">Subcategories</span>
+                  <Button
+                    variant="ghost" size="sm"
+                    className="h-8 px-3 rounded-xl text-[13px] text-primary hover:bg-primary/10"
+                    onClick={() => { setSubCategoryId(cat.id); setSubName(''); setAddSubOpen(true); }}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />Add
+                  </Button>
+                </div>
+
+                <div className="px-6 pb-4 space-y-1.5">
+                  {(cat.subcategories ?? []).length === 0 ? (
+                    <p className="text-[13px] text-zinc-400 font-light py-2">No subcategories yet</p>
+                  ) : (cat.subcategories ?? []).map((sub, si) => (
+                    <div key={sub.id} className="flex items-center gap-2 py-1.5 px-3 rounded-2xl bg-zinc-50/60 dark:bg-zinc-800/40 border border-black/[0.03] dark:border-white/[0.03]">
+                      <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${sub.active ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600'}`} />
+                      <span className={`text-[14px] flex-1 truncate ${sub.active ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400 line-through'}`}>{sub.name}</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg" disabled={si === 0} onClick={() => moveSub(ci, si, -1)}><ChevronUp className="h-3.5 w-3.5 text-zinc-400" /></Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg" disabled={si === (cat.subcategories ?? []).length - 1} onClick={() => moveSub(ci, si, 1)}><ChevronDown className="h-3.5 w-3.5 text-zinc-400" /></Button>
+                        <Switch checked={sub.active} onCheckedChange={() => handleToggleSub(sub)} className="scale-90" />
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg" onClick={() => { setEditSub(sub); setEditSubName(sub.name); }}><Pencil className="h-3.5 w-3.5 text-zinc-400" /></Button>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg text-destructive hover:bg-destructive/10" onClick={() => setDeleteSub(sub)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="px-6 pb-5 flex items-center justify-between">
+                  <span className="text-[12px] text-zinc-400">Category visible in new ticket form</span>
+                  <Switch checked={cat.active} onCheckedChange={() => handleToggleCategory(cat)} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Add category dialog */}
+      <Dialog open={addCategoryOpen} onOpenChange={setAddCategoryOpen}>
+        <DialogContent className="sm:max-w-[400px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Add Category</DialogTitle>
+            <DialogDescription>Create a new ticket category, e.g. &quot;IT Support&quot;.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <Label htmlFor="cat-name">Category Name *</Label>
+            <Input id="cat-name" value={categoryName} onChange={e => setCategoryName(e.target.value)} placeholder="e.g. HR & Payroll" className="h-11 rounded-2xl" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddCategoryOpen(false)} className="rounded-2xl">Cancel</Button>
+            <Button onClick={handleAddCategory} disabled={saving} className="rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
+              {saving ? 'Creating…' : 'Create Category'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit category dialog */}
+      <Dialog open={!!editCategory} onOpenChange={o => !o && setEditCategory(null)}>
+        <DialogContent className="sm:max-w-[400px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Rename Category</DialogTitle>
+            <DialogDescription>Update the display name of this category.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <Label htmlFor="edit-cat-name">Category Name *</Label>
+            <Input id="edit-cat-name" value={editCategoryName} onChange={e => setEditCategoryName(e.target.value)} className="h-11 rounded-2xl" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditCategory(null)} className="rounded-2xl">Cancel</Button>
+            <Button onClick={handleEditCategory} disabled={saving} className="rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete category dialog */}
+      <Dialog open={!!deleteCategory} onOpenChange={o => !o && setDeleteCategory(null)}>
+        <DialogContent className="sm:max-w-[420px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Delete Category</DialogTitle>
+            <DialogDescription>
+              Delete &quot;{deleteCategory?.name}&quot; and its {(deleteCategory?.subcategories ?? []).length} subcategor{(deleteCategory?.subcategories ?? []).length !== 1 ? 'ies' : 'y'}? Existing tickets keep their data but show no category.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteCategory(null)} className="rounded-2xl">Cancel</Button>
+            <Button onClick={handleDeleteCategory} disabled={saving} className="rounded-2xl bg-red-600 text-white hover:bg-red-700">
+              {saving ? 'Deleting…' : 'Delete Category'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add subcategory dialog */}
+      <Dialog open={addSubOpen} onOpenChange={setAddSubOpen}>
+        <DialogContent className="sm:max-w-[400px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Add Subcategory</DialogTitle>
+            <DialogDescription>Create a new subcategory inside a category.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label>Category *</Label>
+              <Select value={subCategoryId} onValueChange={setSubCategoryId}>
+                <SelectTrigger className="h-11 rounded-2xl"><SelectValue /></SelectTrigger>
+                <SelectContent className="rounded-2xl">
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="sub-name">Subcategory Name *</Label>
+              <Input id="sub-name" value={subName} onChange={e => setSubName(e.target.value)} placeholder="e.g. Hardware" className="h-11 rounded-2xl" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddSubOpen(false)} className="rounded-2xl">Cancel</Button>
+            <Button onClick={handleAddSub} disabled={saving} className="rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
+              {saving ? 'Creating…' : 'Create Subcategory'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit subcategory dialog */}
+      <Dialog open={!!editSub} onOpenChange={o => !o && setEditSub(null)}>
+        <DialogContent className="sm:max-w-[400px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Rename Subcategory</DialogTitle>
+            <DialogDescription>Update the display name of this subcategory.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2 py-2">
+            <Label htmlFor="edit-sub-name">Subcategory Name *</Label>
+            <Input id="edit-sub-name" value={editSubName} onChange={e => setEditSubName(e.target.value)} className="h-11 rounded-2xl" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditSub(null)} className="rounded-2xl">Cancel</Button>
+            <Button onClick={handleEditSub} disabled={saving} className="rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete subcategory dialog */}
+      <Dialog open={!!deleteSub} onOpenChange={o => !o && setDeleteSub(null)}>
+        <DialogContent className="sm:max-w-[420px] rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>Delete Subcategory</DialogTitle>
+            <DialogDescription>
+              Delete &quot;{deleteSub?.name}&quot;? Existing tickets keep their data but show no subcategory.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteSub(null)} className="rounded-2xl">Cancel</Button>
+            <Button onClick={handleDeleteSub} disabled={saving} className="rounded-2xl bg-red-600 text-white hover:bg-red-700">
+              {saving ? 'Deleting…' : 'Delete Subcategory'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AdminTicketLayout>
+  );
+}

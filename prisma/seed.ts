@@ -150,11 +150,6 @@ async function main() {
 
   // Clear existing data in correct order (respecting foreign key constraints)
   console.log('Clearing existing data...');
-  await prisma.appSwitchEvent.deleteMany({});
-  await prisma.event.deleteMany({});
-  await prisma.sessionAppUsage.deleteMany({});
-  await prisma.sessionSummary.deleteMany({});
-  await prisma.session.deleteMany({});
   await prisma.refreshToken.deleteMany({});
   await prisma.user.deleteMany({});
   console.log('Cleared existing data');

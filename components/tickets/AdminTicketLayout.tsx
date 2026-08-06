@@ -19,7 +19,9 @@ import {
   ChevronDown,
   Shield,
   Briefcase,
-  PlusCircle
+  PlusCircle,
+  Users,
+  Settings
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -42,6 +44,8 @@ const adminNavItems = [
   { href: '/helpdesk/admin', label: 'Dashboard', icon: LayoutDashboard },       
   { href: '/helpdesk/admin/tickets', label: 'Tickets', icon: Ticket },
   { href: '/helpdesk/admin/kanban', label: 'Board', icon: KanbanSquare },       
+  { href: '/helpdesk/admin/users', label: 'Users', icon: Users },
+  { href: '/helpdesk/admin/settings', label: 'Settings', icon: Settings },
   { href: '/helpdesk/admin/new', label: 'Create Ticket', icon: PlusCircle },
 ];
 
