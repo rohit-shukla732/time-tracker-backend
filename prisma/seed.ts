@@ -151,8 +151,83 @@ async function main() {
   // Clear existing data in correct order (respecting foreign key constraints)
   console.log('Clearing existing data...');
   await prisma.refreshToken.deleteMany({});
+  await prisma.attendanceRecord.deleteMany({});
+  await prisma.leaveRequest.deleteMany({});
   await prisma.user.deleteMany({});
+  await prisma.leaveType.deleteMany({});
+  await prisma.attendanceType.deleteMany({});
+  await prisma.notificationSetting.deleteMany({});
   console.log('Cleared existing data');
+
+  // Seed default leave types
+  console.log('\nCreating leave types...');
+  await prisma.leaveType.upsert({
+    where: { name: 'Paid Leave' },
+    update: {},
+    create: {
+      name: 'Paid Leave',
+      description: 'Regular paid leave accrued monthly',
+      monthlyCredit: 1,
+      isPaid: true,
+    },
+  });
+  console.log('Created leave types');
+
+  // Seed default attendance types (configurable via HR settings)
+  console.log('\nCreating attendance types...');
+  const attendanceTypes = [
+    { name: 'Present', code: 'PRESENT', category: 'PRESENT', color: '#10b981', isPaid: true, isWorking: true, sortOrder: 0, isSystem: true },
+    { name: 'Approved Leave', code: 'APPROVED_LEAVE', category: 'LEAVE', color: '#3b82f6', isPaid: true, sortOrder: 10, mapsLeaveStatus: 'APPROVED', mapsHalfDay: 'FULL', mapsWithoutPay: false },
+    { name: 'Approved Half-day Leave', code: 'APPROVED_HALFDAY_LEAVE', category: 'LEAVE', color: '#60a5fa', isPaid: true, sortOrder: 11, mapsLeaveStatus: 'APPROVED', mapsHalfDay: 'HALF', mapsWithoutPay: false },
+    { name: 'Unapproved Leave', code: 'UNAPPROVED_LEAVE', category: 'LEAVE', color: '#f59e0b', isPaid: true, sortOrder: 20, mapsLeaveStatus: 'PENDING', mapsHalfDay: 'FULL', mapsWithoutPay: false },
+    { name: 'Unapproved Half-day Leave', code: 'UNAPPROVED_HALFDAY_LEAVE', category: 'LEAVE', color: '#fbbf24', isPaid: true, sortOrder: 21, mapsLeaveStatus: 'PENDING', mapsHalfDay: 'HALF', mapsWithoutPay: false },
+    { name: 'Approved Leave Without Pay', code: 'APPROVED_LEAVE_WITHOUT_PAY', category: 'LEAVE', color: '#f97316', isPaid: false, sortOrder: 30, mapsLeaveStatus: 'APPROVED', mapsHalfDay: 'FULL', mapsWithoutPay: true },
+    { name: 'Approved Half-day Leave Without Pay', code: 'APPROVED_HALFDAY_LEAVE_WITHOUT_PAY', category: 'LEAVE', color: '#fdba74', isPaid: false, sortOrder: 31, mapsLeaveStatus: 'APPROVED', mapsHalfDay: 'HALF', mapsWithoutPay: true },
+    { name: 'Unapproved Leave Without Pay', code: 'UNAPPROVED_LEAVE_WITHOUT_PAY', category: 'LEAVE', color: '#fb923c', isPaid: false, sortOrder: 40, mapsLeaveStatus: 'PENDING', mapsHalfDay: 'FULL', mapsWithoutPay: true },
+    { name: 'Unapproved Half-day Leave Without Pay', code: 'UNAPPROVED_HALFDAY_LEAVE_WITHOUT_PAY', category: 'LEAVE', color: '#fed7aa', isPaid: false, sortOrder: 41, mapsLeaveStatus: 'PENDING', mapsHalfDay: 'HALF', mapsWithoutPay: true },
+    { name: 'Holiday', code: 'HOLIDAY', category: 'HOLIDAY', color: '#8b5cf6', isPaid: true, sortOrder: 50, isSystem: true },
+    { name: 'Weekend', code: 'WEEKEND', category: 'WEEKEND', color: '#a1a1aa', isPaid: true, sortOrder: 60, isSystem: true },
+    { name: 'Double Pay', code: 'DOUBLE_PAY', category: 'PRESENT', color: '#ec4899', isPaid: true, isWorking: true, sortOrder: 70, isSystem: true },
+  ];
+  for (const t of attendanceTypes) {
+    await prisma.attendanceType.upsert({
+      where: { code: t.code },
+      update: {},
+      create: t,
+    });
+  }
+  console.log('Created attendance types');
+
+  // Seed default notification settings
+  console.log('\nCreating notification settings...');
+  const notificationDefaults = [
+    {
+      eventType: 'LEAVE_APPROVED',
+      notifyEmployee: true,
+      notifyManager: true,
+      notifyHR: true,
+    },
+    {
+      eventType: 'LEAVE_REJECTED',
+      notifyEmployee: true,
+      notifyManager: false,
+      notifyHR: false,
+    },
+    {
+      eventType: 'LEAVE_CANCELLED',
+      notifyEmployee: false,
+      notifyManager: true,
+      notifyHR: true,
+    },
+  ];
+  for (const n of notificationDefaults) {
+    await prisma.notificationSetting.upsert({
+      where: { eventType: n.eventType },
+      update: {},
+      create: n,
+    });
+  }
+  console.log('Created notification settings');
 
   // Seed all users
   console.log('\nCreating users...');
@@ -171,7 +246,24 @@ async function main() {
         role: userData.Role || Role.EMPLOYEE,
       },
     });
-}
+  }
+
+  // Assign managers: MANAGER/SENIOR_MANAGER/HR/ADMIN users report to HR/ADMIN
+  // (no manager above them), all other employees are spread across managers.
+  console.log('\nAssigning managers...');
+  const managerIds = ['ACE009', 'ACE012', 'ACE240', 'ACE321'];
+  const reportees = await prisma.user.findMany({
+    where: { role: { in: ['EMPLOYEE'] } },
+    orderBy: { id: 'asc' },
+    select: { id: true },
+  });
+  for (let i = 0; i < reportees.length; i++) {
+    await prisma.user.update({
+      where: { id: reportees[i].id },
+      data: { managerId: managerIds[i % managerIds.length] },
+    });
+  }
+  console.log(`Assigned managers to ${reportees.length} employees`);
   console.log(`\n✅ Seeding completed!`);
   console.log(`Created ${users.length} users`);
   console.log('\nDefault password for each user is their User ID (e.g., ACE012)');

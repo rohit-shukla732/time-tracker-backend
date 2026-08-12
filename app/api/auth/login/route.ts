@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     }
 
     const accessToken = signAccessToken({ userId: user.id, email });
-    const refreshToken = signRefreshToken({ userId: user.id });
+    const refreshToken = signRefreshToken({ userId: user.id, jti: crypto.randomUUID() });
 
     const refreshExpiresIn = process.env.REFRESH_EXPIRES_IN || "7d";
     const refreshExpiryMs = parseDurationMs(refreshExpiresIn);

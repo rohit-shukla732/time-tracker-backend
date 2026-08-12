@@ -14,16 +14,44 @@ model User {
   passwordHash String
   role         Role     @default(EMPLOYEE)
   isArchived   Boolean  @default(false)
+  isProbation  Boolean  @default(false)
+  managerId    String?
+  shiftGroupId String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  assignedTickets Ticket[] @relation("TicketAssignee")
-  createdTickets  Ticket[] @relation("TicketCreator")
+  manager        User?            @relation("UserReports", fields: [managerId], references: [id], onDelete: SetNull)
+  reports        User[]           @relation("UserReports")
+  shiftGroup     ShiftGroup?      @relation(fields: [shiftGroupId], references: [id], onDelete: SetNull)
+  assignedTickets Ticket[]        @relation("TicketAssignee")
+  createdTickets  Ticket[]        @relation("TicketCreator")
   ticketComments  TicketComment[]
   refreshTokens   RefreshToken[]
+  leaveRequests   LeaveRequest[]
+  approvedLeaves  LeaveRequest[]  @relation("LeaveApprover")
+  attendanceRecords AttendanceRecord[]
+  leaveOpeningBalances LeaveOpeningBalance[]
+  biometricPunches    BiometricPunch[]
+  biometricMappings   BiometricMapping[]
 
   @@index([email])
   @@index([role])
+  @@index([managerId])
+  @@index([shiftGroupId])
+}
+
+model ShiftGroup {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  startTime String
+  endTime   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+
+  @@index([isDefault])
 }
 
 model RefreshToken {
@@ -152,4 +180,191 @@ enum TicketStatus {
   PENDING
   RESOLVED
   CLOSED
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum HalfDaySession {
+  FIRST_HALF
+  SECOND_HALF
+}
+
+model LeaveType {
+  id              String        @id @default(uuid())
+  name            String        @unique
+  description     String?
+  monthlyCredit   Float         @default(1)
+  isPaid          Boolean       @default(true)
+  active          Boolean       @default(true)
+  rolloverMonthly Boolean       @default(true)
+  rolloverYearly  Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  requests        LeaveRequest[]
+  openingBalances LeaveOpeningBalance[]
+
+  @@index([active])
+}
+
+model LeaveOpeningBalance {
+  id          String    @id @default(uuid())
+  userId      String
+  leaveTypeId String
+  year        Int
+  balance     Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, leaveTypeId, year])
+  @@index([userId])
+}
+
+model BiometricConfig {
+  id                        Int       @id @default(1)
+  enabled                   Boolean   @default(false)
+  sourceUrl                 String?
+  sourceToken               String?
+  sourceApiKey              String?
+  pollIntervalMinutes       Int       @default(15)
+  shiftStart                String    @default("10:00")
+  shiftEnd                  String    @default("19:00")
+  halfDayThresholdMin       Int       @default(60)
+  lateGraceMinutes          Int       @default(60)
+  probationLateGraceMinutes Int       @default(45)
+  autoApply                 Boolean   @default(true)
+  lastRunAt                 DateTime?
+  lastRunStatus             String?
+  lastRunMessage            String?
+  updatedAt                 DateTime  @updatedAt
+}
+
+model BiometricMapping {
+  id        String   @id
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model BiometricPunch {
+  id              String   @id @default(uuid())
+  userId          String
+  date            DateTime
+  firstIn         DateTime?
+  lastOut         DateTime?
+  lateMinutes     Int      @default(0)
+  earlyOutMinutes Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
+model LeaveRequest {
+  id             String        @id @default(uuid())
+  userId         String
+  leaveTypeId    String
+  startDate      DateTime
+  endDate        DateTime
+  isHalfDay      Boolean       @default(false)
+  halfDaySession HalfDaySession?
+  /** Per-day half-day sessions: { "YYYY-MM-DD": "FIRST_HALF" | "SECOND_HALF" } */
+  halfDayDays    Json?
+  /** Days excluded from the leave inside the start/end range: ["YYYY-MM-DD", ...] */
+  skippedDays    Json?
+  /** Days NOT deducted from the paid balance: ["YYYY-MM-DD", ...] */
+  withoutPayDays Json?
+  durationDays   Float
+  reason         String
+  status         LeaveStatus   @default(PENDING)
+  managerComment String?
+  approvedById   String?
+  approvedAt     DateTime?
+  cancelledAt    DateTime?
+  isWithoutPay   Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id])
+  leaveType LeaveType  @relation(fields: [leaveTypeId], references: [id])
+  approver  User?      @relation("LeaveApprover", fields: [approvedById], references: [id])
+  attendanceRecords AttendanceRecord[]
+
+  @@index([userId])
+  @@index([leaveTypeId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+model AttendanceType {
+  id              String              @id @default(uuid())
+  name            String              @unique
+  code            String              @unique
+  description     String?
+  category        String              @default("OTHER")
+  color           String              @default("#10b981")
+  isPaid          Boolean             @default(true)
+  isWorking       Boolean             @default(false)
+  mapsLeaveStatus String?
+  mapsHalfDay     String?
+  mapsWithoutPay  Boolean?
+  active          Boolean             @default(true)
+  isSystem        Boolean             @default(false)
+  sortOrder       Int                 @default(0)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  records         AttendanceRecord[]
+
+  @@index([active])
+  @@index([category])
+}
+
+model AttendanceRecord {
+  id             String         @id @default(uuid())
+  userId         String
+  date           DateTime
+  typeId         String
+  isOverride     Boolean        @default(false)
+  source         String         @default("MANUAL")
+  leaveRequestId String?
+  markedById     String?
+  note           String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  type         AttendanceType @relation(fields: [typeId], references: [id])
+  leaveRequest LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([typeId])
+  @@index([leaveRequestId])
+}
+
+model NotificationSetting {
+  id             String   @id @default(uuid())
+  eventType      String   @unique
+  notifyEmployee Boolean  @default(true)
+  notifyManager  Boolean  @default(true)
+  notifyHR       Boolean  @default(true)
+  extraEmails    String[] @default([])
+  updatedAt      DateTime @updatedAt
+
+  @@index([eventType])
 }
