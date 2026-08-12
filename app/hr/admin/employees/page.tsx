@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { HrAdminLayout } from '@/components/hr/HrAdminLayout';
 import {
@@ -18,6 +18,7 @@ import {
   Wallet,
   Upload,
   FileSpreadsheet,
+  ListChecks,
   CheckCircle2,
   XCircle,
 } from 'lucide-react';
@@ -128,6 +129,14 @@ export default function HrEmployeesPage() {
     failed: number;
     errors: Array<{ row: number; empCode: string; error: string }>;
   } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [bulkEditManager, setBulkEditManager] = useState('');
+  const [bulkEditShift, setBulkEditShift] = useState('');
+  const [bulkEditRole, setBulkEditRole] = useState('');
+  const [bulkEditProbation, setBulkEditProbation] = useState('');
+  const [bulkEditSaving, setBulkEditSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -260,6 +269,89 @@ export default function HrEmployeesPage() {
       toast.error('Upload failed');
     } finally {
       setBulkUploading(false);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      const pageIds = rows.map((r) => r.id);
+      const allSelected = pageIds.length > 0 && pageIds.every((id) => prev.has(id));
+      if (allSelected) {
+        pageIds.forEach((id) => next.delete(id));
+      } else {
+        pageIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!selectAllRef.current) return;
+    const pageIds = rows.map((r) => r.id);
+    const selectedCount = pageIds.filter((id) => selectedIds.has(id)).length;
+    selectAllRef.current.indeterminate = selectedCount > 0 && selectedCount < pageIds.length;
+  }, [rows, selectedIds]);
+
+  const openBulkEdit = () => {
+    setBulkEditManager('');
+    setBulkEditShift('');
+    setBulkEditRole('');
+    setBulkEditProbation('');
+    setBulkEditOpen(true);
+  };
+
+  const saveBulkEdit = async () => {
+    if (selectedIds.size === 0) {
+      toast.error('Select employees first (tick the checkboxes in the table)');
+      return;
+    }
+    const payload: any = { userIds: [...selectedIds] };
+    if (bulkEditManager === '__REMOVE__') payload.managerId = null;
+    else if (bulkEditManager) payload.managerId = bulkEditManager;
+    if (bulkEditShift === '__REMOVE__') payload.shiftGroupId = null;
+    else if (bulkEditShift) payload.shiftGroupId = bulkEditShift;
+    if (bulkEditRole) payload.role = bulkEditRole;
+    if (bulkEditProbation !== '') payload.isProbation = bulkEditProbation === 'true';
+    if (Object.keys(payload).length === 1) {
+      toast.error('Pick at least one field to change');
+      return;
+    }
+
+    setBulkEditSaving(true);
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/hr/users/bulk-edit', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        toast.error(data.error || 'Bulk edit failed');
+        return;
+      }
+      toast.success(`Updated ${data.updated} employee(s)`);
+      setBulkEditOpen(false);
+      setSelectedIds(new Set());
+      fetchData();
+    } catch (error) {
+      toast.error('Bulk edit failed');
+    } finally {
+      setBulkEditSaving(false);
     }
   };
 
@@ -426,6 +518,18 @@ export default function HrEmployeesPage() {
           </div>
           <div className="flex items-center gap-3">
             <Button
+              onClick={openBulkEdit}
+              className="h-11 px-5 rounded-2xl bg-white dark:bg-zinc-900 border border-black/[0.04] dark:border-white/[0.04] text-zinc-900 dark:text-white hover:bg-zinc-50 dark:hover:bg-zinc-800 font-medium text-[14px]"
+            >
+              <ListChecks className="h-4 w-4" />
+              Bulk Edit
+              {selectedIds.size > 0 && (
+                <span className="ml-0.5 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[11px] font-bold px-1.5 py-0.5">
+                  {selectedIds.size}
+                </span>
+              )}
+            </Button>
+            <Button
               onClick={() => {
                 setBulkOpen(true);
                 setBulkFile(null);
@@ -514,6 +618,16 @@ export default function HrEmployeesPage() {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-black/[0.04] dark:border-white/[0.04]">
+                      <th className="px-5 py-3.5 w-12">
+                        <input
+                          ref={selectAllRef}
+                          type="checkbox"
+                          checked={rows.length > 0 && rows.every((r) => selectedIds.has(r.id))}
+                          onChange={toggleSelectAll}
+                          title="Select all on this page"
+                          className="h-4 w-4 rounded accent-zinc-900 dark:accent-white cursor-pointer"
+                        />
+                      </th>
                       <th className="px-5 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                         Employee
                       </th>
@@ -541,6 +655,8 @@ export default function HrEmployeesPage() {
                         expanded={expandedId === row.id}
                         year={year}
                         attendanceTypes={attendanceTypes}
+                        selected={selectedIds.has(row.id)}
+                        onSelect={() => toggleSelect(row.id)}
                         onToggle={() => setExpandedId(expandedId === row.id ? null : row.id)}
                         onAssignManager={() => openManagerDialog(row)}
                         onEdit={() => openEditForm(row)}
@@ -892,6 +1008,112 @@ export default function HrEmployeesPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Bulk edit dialog */}
+      <Dialog open={bulkEditOpen} onOpenChange={(open) => !open && setBulkEditOpen(false)}>
+        <DialogContent className="sm:max-w-md rounded-3xl bg-white dark:bg-zinc-900 border-black/[0.04] dark:border-white/[0.04]">
+          <DialogHeader>
+            <DialogTitle className="text-[18px] tracking-tight">Bulk Edit Employees</DialogTitle>
+            <DialogDescription className="text-[14px]">
+              Apply the same manager, shift group, role or probation status to{' '}
+              {selectedIds.size > 0 ? (
+                <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                  {selectedIds.size} selected employee(s)
+                </span>
+              ) : (
+                <span className="text-amber-600 dark:text-amber-400">no selected employees</span>
+              )}
+              . Fields left on “No change” are untouched.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-zinc-600 dark:text-zinc-400">Manager</label>
+              <select
+                value={bulkEditManager}
+                onChange={(e) => setBulkEditManager(e.target.value)}
+                className="w-full h-10 px-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.04] text-[14px] text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/10"
+              >
+                <option value="">No change</option>
+                <option value="__REMOVE__">No manager (remove)</option>
+                {managers.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} ({m.id} · {m.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-zinc-600 dark:text-zinc-400">Shift group</label>
+              <select
+                value={bulkEditShift}
+                onChange={(e) => setBulkEditShift(e.target.value)}
+                className="w-full h-10 px-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.04] text-[14px] text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/10"
+              >
+                <option value="">No change</option>
+                <option value="__REMOVE__">Default shift (remove)</option>
+                {shiftGroups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name} ({g.startTime}–{g.endTime})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-medium text-zinc-600 dark:text-zinc-400">Role</label>
+                <select
+                  value={bulkEditRole}
+                  onChange={(e) => setBulkEditRole(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.04] text-[14px] text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/10"
+                >
+                  <option value="">No change</option>
+                  <option value="EMPLOYEE">Employee</option>
+                  <option value="MANAGER">Manager</option>
+                  <option value="SENIOR_MANAGER">Senior Manager</option>
+                  <option value="HR">HR</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[13px] font-medium text-zinc-600 dark:text-zinc-400">Probation</label>
+                <select
+                  value={bulkEditProbation}
+                  onChange={(e) => setBulkEditProbation(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.04] text-[14px] text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/10"
+                >
+                  <option value="">No change</option>
+                  <option value="true">On probation</option>
+                  <option value="false">Not on probation</option>
+                </select>
+              </div>
+            </div>
+            {selectedIds.size === 0 && (
+              <p className="text-[13px] text-amber-600 dark:text-amber-400">
+                No employees selected yet — tick the checkboxes in the table first.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkEditOpen(false)}
+              disabled={bulkEditSaving}
+              className="h-11 px-5 rounded-2xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={saveBulkEdit}
+              disabled={bulkEditSaving || selectedIds.size === 0}
+              className="h-11 px-5 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100"
+            >
+              {bulkEditSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ListChecks className="h-4 w-4" />}
+              {bulkEditSaving ? 'Applying…' : `Apply to ${selectedIds.size} employee(s)`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Opening balance dialog */}
       <Dialog
         open={!!openingTarget}
@@ -1090,6 +1312,8 @@ function EmployeeTableRow({
   expanded,
   year,
   attendanceTypes,
+  selected,
+  onSelect,
   onToggle,
   onAssignManager,
   onEdit,
@@ -1100,6 +1324,8 @@ function EmployeeTableRow({
   expanded: boolean;
   year: number;
   attendanceTypes: AttendanceTypeInfo[];
+  selected: boolean;
+  onSelect: () => void;
   onToggle: () => void;
   onAssignManager: () => void;
   onEdit: () => void;
@@ -1109,9 +1335,20 @@ function EmployeeTableRow({
   return (
     <>
       <tr
-        className="border-b border-black/[0.04] dark:border-white/[0.04] hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer"
+        className={`border-b border-black/[0.04] dark:border-white/[0.04] transition-colors cursor-pointer ${
+          selected ? 'bg-zinc-100/70 dark:bg-zinc-800/60' : 'hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30'
+        }`}
         onClick={onToggle}
       >
+        <td className="px-5 py-4 w-12">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onSelect}
+            onClick={(e) => e.stopPropagation()}
+            className="h-4 w-4 rounded accent-zinc-900 dark:accent-white cursor-pointer"
+          />
+        </td>
         <td className="px-5 py-4">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 shrink-0">
@@ -1221,7 +1458,7 @@ function EmployeeTableRow({
       </tr>
       {expanded && (
         <tr className="border-b border-black/[0.04] dark:border-white/[0.04] bg-zinc-50/50 dark:bg-zinc-800/20">
-          <td colSpan={5} className="px-8 py-5 space-y-5">
+          <td colSpan={row.balances.length > 0 ? 6 : 5} className="px-8 py-5 space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {row.balances.map((b) => (
                 <div

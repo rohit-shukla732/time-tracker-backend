@@ -49,6 +49,24 @@ export async function PATCH(
       updateData.endTime = body.endTime.trim();
     }
 
+    if (updateData.startTime || updateData.endTime) {
+      const current = await prisma.shiftGroup.findUnique({
+        where: { id },
+        select: { startTime: true, endTime: true },
+      });
+      if (!current) {
+        return NextResponse.json({ error: "Shift group not found" }, { status: 404 });
+      }
+      const finalStart = updateData.startTime ?? current.startTime;
+      const finalEnd = updateData.endTime ?? current.endTime;
+      if (finalStart === finalEnd) {
+        return NextResponse.json(
+          { error: "Shift start and end must be different times" },
+          { status: 400 }
+        );
+      }
+    }
+
     if (typeof body.isDefault === "boolean" && body.isDefault) {
       await prisma.shiftGroup.updateMany({ where: { isDefault: true }, data: { isDefault: false } });
       updateData.isDefault = true;

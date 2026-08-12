@@ -23,6 +23,20 @@ export function proxy(req: NextRequest) {
     }
   }
 
+  // ✅ 3. HR subdomain → HR UI
+  if (hostname.startsWith("hr")) {
+    if (pathname === "/") {
+      return NextResponse.rewrite(
+        new URL("/hr/employee", req.url)
+      );
+    }
+    if (!pathname.startsWith("/hr")) {
+      return NextResponse.rewrite(
+        new URL(`/hr${pathname}`, req.url)
+      );
+    }
+  }
+
   if(pathname.startsWith("/ticketing")) {
     const url = req.nextUrl.clone();
     url.pathname = '/helpdesk/employee/login';

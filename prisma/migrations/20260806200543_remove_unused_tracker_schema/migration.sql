@@ -37,10 +37,15 @@
 
 */
 -- AlterEnum
-ALTER TYPE "Role" ADD VALUE 'SENIOR_MANAGER';
-
--- DropForeignKey
-ALTER TABLE "AddressInfo" DROP CONSTRAINT "AddressInfo_userId_fkey";
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+    WHERE t.typname = 'Role' AND e.enumlabel = 'SENIOR_MANAGER'
+  ) THEN
+    ALTER TYPE "Role" ADD VALUE 'SENIOR_MANAGER';
+  END IF;
+END $$;
 
 -- DropForeignKey
 ALTER TABLE "AppSwitchEvent" DROP CONSTRAINT "AppSwitchEvent_sessionId_fkey";
@@ -61,13 +66,7 @@ ALTER TABLE "AssetAssignment" DROP CONSTRAINT "AssetAssignment_userId_fkey";
 ALTER TABLE "AssetMaintenance" DROP CONSTRAINT "AssetMaintenance_assetId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "BankDetails" DROP CONSTRAINT "BankDetails_userId_fkey";
-
--- DropForeignKey
 ALTER TABLE "Branch" DROP CONSTRAINT "Branch_companyId_fkey";
-
--- DropForeignKey
-ALTER TABLE "ContactInfo" DROP CONSTRAINT "ContactInfo_userId_fkey";
 
 -- DropForeignKey
 ALTER TABLE "Department" DROP CONSTRAINT "Department_managerId_fkey";
@@ -97,12 +96,6 @@ ALTER TABLE "Event" DROP CONSTRAINT "Event_sessionId_fkey";
 ALTER TABLE "Event" DROP CONSTRAINT "Event_userId_fkey";
 
 -- DropForeignKey
-ALTER TABLE "FamilyInfo" DROP CONSTRAINT "FamilyInfo_userId_fkey";
-
--- DropForeignKey
-ALTER TABLE "GovernmentID" DROP CONSTRAINT "GovernmentID_userId_fkey";
-
--- DropForeignKey
 ALTER TABLE "LeaveBalance" DROP CONSTRAINT "LeaveBalance_userId_fkey";
 
 -- DropForeignKey
@@ -113,9 +106,6 @@ ALTER TABLE "LeaveRequest" DROP CONSTRAINT "LeaveRequest_userId_fkey";
 
 -- DropForeignKey
 ALTER TABLE "Notification" DROP CONSTRAINT "Notification_userId_fkey";
-
--- DropForeignKey
-ALTER TABLE "PersonalInfo" DROP CONSTRAINT "PersonalInfo_userId_fkey";
 
 -- DropForeignKey
 ALTER TABLE "Project" DROP CONSTRAINT "Project_createdById_fkey";
@@ -179,11 +169,20 @@ ALTER TABLE "late_coming_records" DROP CONSTRAINT "late_coming_records_userId_fk
 
 -- AlterTable
 ALTER TABLE "User" DROP COLUMN "lateThresholdMins",
-DROP COLUMN "shiftStartTime",
-ADD COLUMN     "isArchived" BOOLEAN NOT NULL DEFAULT false;
+DROP COLUMN "shiftStartTime";
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'User' AND column_name = 'isArchived'
+  ) THEN
+    ALTER TABLE "User" ADD COLUMN "isArchived" BOOLEAN NOT NULL DEFAULT false;
+  END IF;
+END $$;
 
 -- DropTable
-DROP TABLE "AddressInfo";
+DROP TABLE IF EXISTS "AddressInfo";
 
 -- DropTable
 DROP TABLE "AppSwitchEvent";
@@ -198,7 +197,7 @@ DROP TABLE "AssetAssignment";
 DROP TABLE "AssetMaintenance";
 
 -- DropTable
-DROP TABLE "BankDetails";
+DROP TABLE IF EXISTS "BankDetails";
 
 -- DropTable
 DROP TABLE "Branch";
@@ -207,7 +206,7 @@ DROP TABLE "Branch";
 DROP TABLE "Company";
 
 -- DropTable
-DROP TABLE "ContactInfo";
+DROP TABLE IF EXISTS "ContactInfo";
 
 -- DropTable
 DROP TABLE "Department";
@@ -225,10 +224,10 @@ DROP TABLE "EmploymentInfo";
 DROP TABLE "Event";
 
 -- DropTable
-DROP TABLE "FamilyInfo";
+DROP TABLE IF EXISTS "FamilyInfo";
 
 -- DropTable
-DROP TABLE "GovernmentID";
+DROP TABLE IF EXISTS "GovernmentID";
 
 -- DropTable
 DROP TABLE "LeaveBalance";
@@ -240,7 +239,7 @@ DROP TABLE "LeaveRequest";
 DROP TABLE "Notification";
 
 -- DropTable
-DROP TABLE "PersonalInfo";
+DROP TABLE IF EXISTS "PersonalInfo";
 
 -- DropTable
 DROP TABLE "Project";

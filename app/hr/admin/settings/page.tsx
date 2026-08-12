@@ -174,6 +174,8 @@ export default function HrSettingsPage() {
   const [bioLoading, setBioLoading] = useState(true);
   const [bioSaving, setBioSaving] = useState(false);
   const [bioRunning, setBioRunning] = useState(false);
+  const [bioImportFrom, setBioImportFrom] = useState('');
+  const [bioReapply, setBioReapply] = useState(false);
 
   const [bioMappings, setBioMappings] = useState<{ id: string; userId: string; user: { id: string; name: string; email: string } }[]>([]);
   const [mappingExternal, setMappingExternal] = useState('');
@@ -411,7 +413,10 @@ export default function HrSettingsPage() {
           Authorization: `Bearer ${token}`,
         },
         credentials: 'include',
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          ...(bioImportFrom ? { fromDate: bioImportFrom } : {}),
+          ...(bioReapply ? { reapply: true } : {}),
+        }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -423,9 +428,11 @@ export default function HrSettingsPage() {
         toast.info(r.message || 'Biometric sync is disabled');
       } else {
         toast.success(
-          `Import done: ${r.recordsCreated} record(s) marked (${r.present} present, ${r.halfDay} half-day, ${r.unapproved + r.unapprovedWithoutPay} unapproved), ${r.punchesStored} punch(es) stored`
+          `Import ${bioImportFrom ? `from ${bioImportFrom} ` : ''}done: ${r.recordsCreated} record(s) ${bioReapply ? 're-applied' : 'marked'} (${r.present} present, ${r.halfDay} half-day, ${r.unapproved + r.unapprovedWithoutPay} unapproved), ${r.punchesStored} punch(es) stored`
         );
       }
+      setBioImportFrom('');
+      setBioReapply(false);
       fetchBioConfig();
     } catch (error) {
       toast.error('Import failed');
@@ -1155,14 +1162,34 @@ export default function HrSettingsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={runBioImport}
-              disabled={bioRunning || bioLoading}
-              className="flex items-center justify-center gap-2 h-11 px-5 rounded-full bg-white dark:bg-zinc-900 border border-black/[0.04] dark:border-white/[0.04] text-[14px] font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
-            >
-              {bioRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-              Run import now
-            </button>
+            <div className="flex flex-col items-stretch gap-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={bioImportFrom}
+                  onChange={(e) => setBioImportFrom(e.target.value)}
+                  title="Import punches from this date (inclusive). Leave empty to fetch only punches newer than the last sync."
+                  className="h-11 px-3 rounded-full bg-white dark:bg-zinc-900 border border-black/[0.04] dark:border-white/[0.04] text-[13px] text-zinc-700 dark:text-zinc-300 outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-white/10 transition-all"
+                />
+                <button
+                  onClick={runBioImport}
+                  disabled={bioRunning || bioLoading}
+                  className="flex items-center justify-center gap-2 h-11 px-5 rounded-full bg-white dark:bg-zinc-900 border border-black/[0.04] dark:border-white/[0.04] text-[14px] font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                >
+                  {bioRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                  Run import now
+                </button>
+              </div>
+              <label className="flex items-center gap-2 text-[12px] text-zinc-500 dark:text-zinc-400 cursor-pointer select-none pl-1">
+                <input
+                  type="checkbox"
+                  checked={bioReapply}
+                  onChange={(e) => setBioReapply(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded accent-zinc-900 dark:accent-white"
+                />
+                Re-apply — overwrite existing biometric attendance in the window
+              </label>
+            </div>
             <button
               onClick={saveBioConfig}
               disabled={bioSaving || bioLoading}
@@ -1190,6 +1217,13 @@ export default function HrSettingsPage() {
                     or {`{ punches: [...] }`}. After the first successful run,
                     the app adds {`?since=YYYY-MM-DD`} (inclusive) so your API can
                     return only punches newer than the last sync.
+                  </p>
+                  <p className="text-[12px] text-zinc-400 dark:text-zinc-500 mt-1.5">
+                    The background worker re-evaluates biometric-marked days on every poll, so
+                    late-arriving punches correct the status automatically. Manual runs only mark
+                    unmarked days — tick the
+                    <span className="font-medium"> Re-apply </span>checkbox (and optionally a
+                    from-date) to recompute a window. Manual overrides and approved leaves are always kept.
                   </p>
                 </div>
                 <Switch checked={bioForm.enabled} onCheckedChange={(v) => setBioForm({ ...bioForm, enabled: v })} />

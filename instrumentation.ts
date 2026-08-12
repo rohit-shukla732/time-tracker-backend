@@ -1,6 +1,5 @@
 export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    const { startBiometricPolling } = await import("./lib/biometricJob");
-    startBiometricPolling();
-  }
+  // NOTE: biometric polling moved to the standalone worker process
+  // (scripts/biometric-worker.ts, managed via PM2 in ecosystem.config.js).
+  // Starting it here would double-poll when the app runs multiple instances.
 }

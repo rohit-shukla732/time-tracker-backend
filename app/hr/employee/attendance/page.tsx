@@ -28,6 +28,13 @@ interface AttendanceEntry {
   isOverride: boolean;
   source: string;
   note: string | null;
+  firstIn: string | null;
+  lastOut: string | null;
+}
+
+function punchTime(iso?: string | null): string {
+  if (!iso) return '—';
+  return iso.slice(11, 16);
 }
 
 export default function EmployeeAttendancePage() {
@@ -233,6 +240,20 @@ export default function EmployeeAttendancePage() {
                             {entry.typeName}
                           </span>
                         )}
+                        {entry?.firstIn && (
+                          <span
+                            className="w-full truncate text-[9.5px] font-medium leading-tight text-zinc-500 dark:text-zinc-400 px-1"
+                            title={
+                              entry.lastOut
+                                ? `First in ${punchTime(entry.firstIn)} · Last out ${punchTime(entry.lastOut)}`
+                                : `First in ${punchTime(entry.firstIn)}`
+                            }
+                          >
+                            {entry.lastOut
+                              ? `${punchTime(entry.firstIn)} – ${punchTime(entry.lastOut)}`
+                              : `In ${punchTime(entry.firstIn)}`}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -313,6 +334,18 @@ export default function EmployeeAttendancePage() {
                   <span className="text-zinc-500">Source</span>
                   <span className="font-medium">{selectedDay.source}</span>
                 </div>
+                {(selectedDay.firstIn || selectedDay.lastOut) && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">First in</span>
+                      <span className="font-medium font-mono">{punchTime(selectedDay.firstIn)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-zinc-500">Last out</span>
+                      <span className="font-medium font-mono">{punchTime(selectedDay.lastOut)}</span>
+                    </div>
+                  </>
+                )}
                 {selectedDay.note && (
                   <div className="flex justify-between">
                     <span className="text-zinc-500">Note</span>

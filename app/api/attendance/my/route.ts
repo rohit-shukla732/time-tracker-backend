@@ -26,30 +26,48 @@ export async function GET(req: NextRequest) {
     }
     await ensureWeekendRecords(daysInMonth);
 
-    const records = await prisma.attendanceRecord.findMany({
-      where: {
-        userId: authResult.user.id,
-        date: { gte: monthStart, lte: monthEnd },
-      },
-      include: {
-        type: { select: { id: true, name: true, code: true, category: true, color: true, isPaid: true } },
-      },
-      orderBy: { date: "asc" },
-    });
+    const [records, punches] = await Promise.all([
+      prisma.attendanceRecord.findMany({
+        where: {
+          userId: authResult.user.id,
+          date: { gte: monthStart, lte: monthEnd },
+        },
+        include: {
+          type: { select: { id: true, name: true, code: true, category: true, color: true, isPaid: true } },
+        },
+        orderBy: { date: "asc" },
+      }),
+      prisma.biometricPunch.findMany({
+        where: {
+          userId: authResult.user.id,
+          date: { gte: monthStart, lte: monthEnd },
+        },
+        select: { date: true, firstIn: true, lastOut: true },
+      }),
+    ]);
 
-    const entries = records.map((r) => ({
-      id: r.id,
-      date: r.date.toISOString(),
-      typeId: r.type.id,
-      typeName: r.type.name,
-      typeCode: r.type.code,
-      category: r.type.category,
-      color: r.type.color,
-      isPaid: r.type.isPaid,
-      isOverride: r.isOverride,
-      source: r.source,
-      note: r.note,
-    }));
+    const punchByDate = new Map(
+      punches.map((p) => [p.date.toISOString().slice(0, 10), p])
+    );
+
+    const entries = records.map((r) => {
+      const punch = punchByDate.get(r.date.toISOString().slice(0, 10));
+      return {
+        id: r.id,
+        date: r.date.toISOString(),
+        typeId: r.type.id,
+        typeName: r.type.name,
+        typeCode: r.type.code,
+        category: r.type.category,
+        color: r.type.color,
+        isPaid: r.type.isPaid,
+        isOverride: r.isOverride,
+        source: r.source,
+        note: r.note,
+        firstIn: punch?.firstIn ? punch.firstIn.toISOString() : null,
+        lastOut: punch?.lastOut ? punch.lastOut.toISOString() : null,
+      };
+    });
 
     // Summary counts
     const summary: Record<string, number> = {};

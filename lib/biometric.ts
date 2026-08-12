@@ -41,6 +41,72 @@ function parseTimeToMinutes(value: string | undefined): number | null {
   return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
 }
 
+const MINUTES_PER_DAY = 24 * 60;
+
+interface ShiftWindow {
+  start: number;
+  end: number;
+}
+
+/**
+ * True when the shift crosses midnight (e.g. 17:30 -> 02:30). The end time
+ * then belongs to the day after the shift start.
+ */
+function isOvernightShift(shift: ShiftWindow): boolean {
+  return shift.end < shift.start;
+}
+
+/**
+ * Minutes the employee was late: how much later than the shift start the
+ * first punch was. The in-punch is always on the shift-start day, so this
+ * works for overnight shifts too.
+ */
+function lateMinutesFor(shift: ShiftWindow, firstInMin: number | null): number {
+  if (firstInMin === null) return 0;
+  return Math.max(0, firstInMin - shift.start);
+}
+
+/**
+ * Minutes the employee left before the end of the shift.
+ *
+ * For overnight shifts the end time (e.g. 02:30) is on the next day. An out
+ * punch that is earlier in the day than the in punch (or earlier than the
+ * shift start when there is no in punch) is treated as next-day minutes, so
+ * both same-row punches and out-only rows are measured against the correct
+ * end-of-shift.
+ */
+function earlyOutMinutesFor(
+  shift: ShiftWindow,
+  lastOutMin: number | null,
+  firstInMin: number | null
+): number {
+  if (lastOutMin === null) return 0;
+  if (!isOvernightShift(shift)) {
+    return Math.max(0, shift.end - lastOutMin);
+  }
+  const dayOffset =
+    firstInMin !== null ? (lastOutMin < firstInMin ? 1 : 0) : lastOutMin < shift.start ? 1 : 0;
+  const effectiveEnd = shift.end + MINUTES_PER_DAY;
+  const effectiveOut = lastOutMin + dayOffset * MINUTES_PER_DAY;
+  return Math.max(0, effectiveEnd - effectiveOut);
+}
+
+/**
+ * Absolute timestamp for an out punch. For overnight shifts where both
+ * punches sit on the shift-start date, an out time earlier in the day than
+ * the in time belongs to the next day.
+ */
+function lastOutTimestamp(
+  date: Date,
+  lastOutMin: number,
+  shift: ShiftWindow,
+  firstInMin: number | null
+): Date {
+  const dayOffset =
+    isOvernightShift(shift) && firstInMin !== null && lastOutMin < firstInMin ? 1 : 0;
+  return new Date(date.getTime() + (dayOffset * MINUTES_PER_DAY + lastOutMin) * 60_000);
+}
+
 export async function getBiometricConfig(): Promise<BiometricConfigData> {
   return prisma.biometricConfig.upsert({
     where: { id: 1 },
@@ -103,8 +169,13 @@ export interface ImportResult {
  *
  * `since` controls the fetch window: undefined -> last successful run (so only
  * new punches are fetched), null -> full fetch (no param), a Date -> that date.
+ *
+ * `reapply` re-evaluates attendance for the processed window: existing
+ * BIOMETRIC-derived records (that are not manual overrides) are deleted and
+ * re-marked from the current punch data. Leave records and manual overrides
+ * are never touched.
  */
-export async function runBiometricImport(input?: { punches?: BiometricPunchInput[]; forceApply?: boolean; since?: Date | null }): Promise<ImportResult> {
+export async function runBiometricImport(input?: { punches?: BiometricPunchInput[]; forceApply?: boolean; since?: Date | null; reapply?: boolean }): Promise<ImportResult> {
   const cfg = await getBiometricConfig();
 
   const result: ImportResult = {
@@ -135,7 +206,8 @@ export async function runBiometricImport(input?: { punches?: BiometricPunchInput
       result.message = "No biometric source URL configured.";
       return result;
     }
-    raw = await fetchBiometricData(cfg, input?.since !== undefined ? input.since : cfg.lastRunAt);
+    const since = input?.since ?? cfg.lastRunAt ?? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    raw = await fetchBiometricData(cfg, since);
   }
 
   result.fetched = raw.length;
@@ -207,21 +279,24 @@ export async function runBiometricImport(input?: { punches?: BiometricPunchInput
     const stored = await Promise.all(
       normalized.map((n) => {
         const shift = shiftFor(n.userId);
+        const firstIn =
+          n.firstInMin !== null ? new Date(n.date.getTime() + n.firstInMin * 60_000) : null;
+        const lastOut =
+          n.lastOutMin !== null
+            ? lastOutTimestamp(n.date, n.lastOutMin, shift, n.firstInMin)
+            : null;
+        const late = lateMinutesFor(shift, n.firstInMin);
+        const earlyOut = earlyOutMinutesFor(shift, n.lastOutMin, n.firstInMin);
         return prisma.biometricPunch.upsert({
           where: { userId_date: { userId: n.userId, date: n.date } },
-          update: {
-            firstIn: n.firstInMin !== null ? new Date(n.date.getTime() + n.firstInMin * 60_000) : null,
-            lastOut: n.lastOutMin !== null ? new Date(n.date.getTime() + n.lastOutMin * 60_000) : null,
-            lateMinutes: n.firstInMin !== null ? Math.max(0, n.firstInMin - shift.start) : 0,
-            earlyOutMinutes: n.lastOutMin !== null ? Math.max(0, shift.end - n.lastOutMin) : 0,
-          },
+          update: { firstIn, lastOut, lateMinutes: late, earlyOutMinutes: earlyOut },
           create: {
             userId: n.userId,
             date: n.date,
-            firstIn: n.firstInMin !== null ? new Date(n.date.getTime() + n.firstInMin * 60_000) : null,
-            lastOut: n.lastOutMin !== null ? new Date(n.date.getTime() + n.lastOutMin * 60_000) : null,
-            lateMinutes: n.firstInMin !== null ? Math.max(0, n.firstInMin - shift.start) : 0,
-            earlyOutMinutes: n.lastOutMin !== null ? Math.max(0, shift.end - n.lastOutMin) : 0,
+            firstIn,
+            lastOut,
+            lateMinutes: late,
+            earlyOutMinutes: earlyOut,
           },
         });
       })
@@ -231,7 +306,14 @@ export async function runBiometricImport(input?: { punches?: BiometricPunchInput
 
   const apply = input?.forceApply !== undefined ? input.forceApply : cfg.autoApply;
   if (apply) {
-    const marked = await reconcileAttendance(normalized, cfg.halfDayThresholdMin, shiftFor, result, userById);
+    const marked = await reconcileAttendance(
+      normalized,
+      cfg.halfDayThresholdMin,
+      shiftFor,
+      result,
+      userById,
+      Boolean(input?.reapply)
+    );
     result.recordsCreated = marked.created;
     result.present = marked.present;
     result.halfDay = marked.halfDay;
@@ -257,7 +339,8 @@ async function reconcileAttendance(
   halfDayThreshold: number,
   shiftFor: (userId: string) => { start: number; end: number },
   result: ImportResult,
-  usersById: Map<string, { id: string; createdAt: Date }>
+  usersById: Map<string, { id: string; createdAt: Date }>,
+  reapply: boolean
 ) {
   const dates = [...new Set(normalized.map((n) => n.date.toISOString().slice(0, 10)))].sort();
   if (dates.length === 0) return { created: 0, present: 0, halfDay: 0, unapproved: 0, unapprovedWithoutPay: 0, absentUnmarked: 0 };
@@ -280,13 +363,33 @@ async function reconcileAttendance(
     }),
     prisma.attendanceRecord.findMany({
       where: { date: { in: dateObjs }, userId: { in: userIds } },
-      select: { userId: true, date: true },
+      select: { userId: true, date: true, isOverride: true, source: true },
     }),
   ]);
 
+  // Re-apply mode: drop the biometric-derived records for exactly the
+  // (user, date) pairs present in this run, then re-mark them below. Manual
+  // overrides and leave/other sourced records are never removed.
+  if (reapply && normalized.length > 0) {
+    await prisma.attendanceRecord.deleteMany({
+      where: {
+        OR: normalized.map((n) => ({
+          userId: n.userId,
+          date: n.date,
+          source: "BIOMETRIC",
+          isOverride: false,
+        })),
+      },
+    });
+  }
+
   const typeId = Object.fromEntries(attendanceTypes.map((t) => [t.code, t.id]));
   const holidayDates = new Set(holidayRecords.map((h) => h.date.toISOString().slice(0, 10)));
-  const existingKeys = new Set(existingRecords.map((r) => `${r.userId}|${r.date.toISOString().slice(0, 10)}`));
+  const existingKeys = new Set(
+    existingRecords
+      .filter((r) => !reapply || r.isOverride || r.source !== "BIOMETRIC")
+      .map((r) => `${r.userId}|${r.date.toISOString().slice(0, 10)}`)
+  );
   const paidType = paidLeaveTypes[0] || null;
 
   const punchByKey = new Map(normalized.map((n) => [n.dateKey, n as any]));
@@ -335,8 +438,8 @@ async function reconcileAttendance(
       }
 
       const shift = shiftFor(user.id);
-      const late = punch.firstInMin !== null ? Math.max(0, punch.firstInMin - shift.start) : 0;
-      const earlyOut = punch.lastOutMin !== null ? Math.max(0, shift.end - punch.lastOutMin) : 0;
+      const late = lateMinutesFor(shift, punch.firstInMin);
+      const earlyOut = earlyOutMinutesFor(shift, punch.lastOutMin, punch.firstInMin);
       const isHalfDay = late > halfDayThreshold || earlyOut > halfDayThreshold;
 
       if (isHalfDay) {

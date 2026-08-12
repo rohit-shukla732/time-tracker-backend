@@ -53,9 +53,14 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (startTime >= endTime) {
-      return NextResponse.json({ error: "Shift end must be later than shift start" }, { status: 400 });
+    if (startTime === endTime) {
+      return NextResponse.json(
+        { error: "Shift start and end must be different times" },
+        { status: 400 }
+      );
     }
+    // NOTE: startTime > endTime is allowed — it means an overnight shift
+    // that starts in the evening and ends the next day (e.g. 17:30 -> 02:30).
 
     const existing = await prisma.shiftGroup.findUnique({ where: { name } });
     if (existing) {
