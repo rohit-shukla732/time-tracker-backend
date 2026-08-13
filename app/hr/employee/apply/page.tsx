@@ -52,6 +52,7 @@ export default function ApplyLeavePage() {
   const router = useRouter();
   const [types, setTypes] = useState<LeaveType[]>([]);
   const [balances, setBalances] = useState<BalanceEntry[]>([]);
+  const [isProbation, setIsProbation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -98,6 +99,7 @@ export default function ApplyLeavePage() {
         if (balanceRes.ok) {
           const data = await balanceRes.json();
           setBalances(data.balances || []);
+          setIsProbation(data.isProbation || false);
         }
       } catch (e) {
         console.error('Failed to load leave data:', e);
@@ -552,6 +554,11 @@ export default function ApplyLeavePage() {
                   <div className="flex items-center gap-1.5 text-[12px] text-zinc-500 dark:text-zinc-400 ml-1">
                     <Wallet className="h-3.5 w-3.5" />
                     {selectedBalance.available} day(s) available · {selectedBalance.pending} pending · {selectedBalance.used} used
+                  </div>
+                )}
+                {isProbation && (
+                  <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[12px] font-medium text-amber-600 dark:text-amber-400 ml-1">
+                    Probation — no leave accrual, so days are counted as without pay.
                   </div>
                 )}
               </div>

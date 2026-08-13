@@ -34,6 +34,7 @@ interface LateDay {
 interface LateRow {
   name: string;
   isProbation: boolean;
+  isArchived: boolean;
   totalLate: number;
   graceMinutes: number;
   breached: boolean;
@@ -328,6 +329,11 @@ export default function HrAttendancePage() {
                           {r.isProbation && (
                             <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 text-[10px] font-semibold uppercase tracking-wide">
                               Probation
+                            </span>
+                          )}
+                          {r.isArchived && (
+                            <span className="ml-2 px-2 py-0.5 rounded-full bg-zinc-400/10 text-zinc-500 dark:bg-zinc-300/10 dark:text-zinc-400 text-[10px] font-semibold uppercase tracking-wide">
+                              Left company
                             </span>
                           )}
                         </p>

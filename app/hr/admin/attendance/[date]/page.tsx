@@ -22,6 +22,7 @@ interface AttendanceEntry {
   userName: string;
   userEmail: string;
   userRole: string;
+  userArchived: boolean;
   date: string;
   typeId: string;
   typeName: string;
@@ -333,7 +334,14 @@ export default function AttendanceDayPage() {
                         {e.typeCode.slice(0, 2)}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[13px] font-medium truncate">{e.userName}</span>
+                        <span className="block text-[13px] font-medium truncate">
+                          {e.userName}
+                          {e.userArchived && (
+                            <span className="ml-1.5 px-1.5 py-px rounded-md bg-zinc-400/10 text-zinc-500 dark:bg-zinc-300/10 dark:text-zinc-400 text-[9.5px] font-semibold uppercase tracking-wide">
+                              Left company
+                            </span>
+                          )}
+                        </span>
                         <span className="block text-[11px] text-zinc-500 flex items-center gap-1.5">
                           <span style={{ color: e.color }}>{e.typeName}</span>
                           {e.isOverride && (

@@ -490,8 +490,7 @@ export async function computeLateSummary(year: number, month: number) {
       select: { userId: true, date: true, firstIn: true, lastOut: true, lateMinutes: true, earlyOutMinutes: true },
     }),
     prisma.user.findMany({
-      where: { isArchived: false },
-      select: { id: true, name: true, isProbation: true },
+      select: { id: true, name: true, isProbation: true, isArchived: true },
     }),
     prisma.attendanceRecord.findMany({
       where: {
@@ -513,10 +512,11 @@ export async function computeLateSummary(year: number, month: number) {
     halfDayKeys.add(`${r.userId}|${r.date.toISOString().slice(0, 10)}`);
   }
 
-  const byUser = new Map<string, { name: string; isProbation: boolean; totalLate: number; days: { date: string; firstIn: string | null; lastOut: string | null; lateMinutes: number }[] }>();
+  const byUser = new Map<string, { id: string; name: string; isProbation: boolean; isArchived: boolean; totalLate: number; days: { date: string; firstIn: string | null; lastOut: string | null; lateMinutes: number }[] }>();
   for (const u of users) {
-    byUser.set(u.id, { name: u.name, isProbation: u.isProbation, totalLate: 0, days: [] });
+    byUser.set(u.id, { id: u.id, name: u.name, isProbation: u.isProbation, isArchived: u.isArchived, totalLate: 0, days: [] });
   }
+  const punchUserIds = new Set(punches.map((p) => p.userId));
   for (const p of punches) {
     const entry = byUser.get(p.userId);
     if (!entry) continue;
@@ -531,9 +531,14 @@ export async function computeLateSummary(year: number, month: number) {
   }
 
   const rows = [...byUser.values()]
+    .filter((u) => !u.isArchived || (u.isArchived && punchUserIds.has(u.id)))
     .map((u) => {
       const grace = u.isProbation ? cfg.probationLateGraceMinutes : cfg.lateGraceMinutes;
-      return { ...u, graceMinutes: grace, breached: u.totalLate > grace };
+      return {
+        ...u,
+        graceMinutes: grace,
+        breached: u.totalLate > grace,
+      };
     })
     .sort((a, b) => b.totalLate - a.totalLate);
 

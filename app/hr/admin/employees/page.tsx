@@ -1392,6 +1392,11 @@ function EmployeeTableRow({
         </td>
         {row.balances.length > 0 && (
           <td className="px-5 py-4">
+            {row.isProbation && (
+              <p className="mb-1.5 inline-flex px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 text-[10.5px] font-semibold uppercase tracking-wide">
+                Probation — no accrual
+              </p>
+            )}
             <div className="flex flex-wrap gap-1.5">
               {row.balances.map((b) => (
                 <span

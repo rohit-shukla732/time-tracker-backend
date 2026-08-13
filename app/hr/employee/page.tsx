@@ -30,6 +30,7 @@ export default function HrEmployeeDashboard() {
   const router = useRouter();
   const [user, setUser] = useState<{ name: string } | null>(null);
   const [balances, setBalances] = useState<BalanceEntry[]>([]);
+  const [isProbation, setIsProbation] = useState(false);
   const [totals, setTotals] = useState({ totalEarned: 0, totalUsed: 0, totalPending: 0, totalAvailable: 0 });
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +68,7 @@ export default function HrEmployeeDashboard() {
       if (balanceRes.ok) {
         const data = await balanceRes.json();
         setBalances(data.balances || []);
+        setIsProbation(data.isProbation || false);
         setTotals(data.totals || {});
       }
       if (calendarRes.ok) {
@@ -174,6 +176,12 @@ export default function HrEmployeeDashboard() {
             </div>
 
             {/* Balance per type */}
+            {isProbation && (
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-[13px] font-medium text-amber-600 dark:text-amber-400">
+                Probation — no leave accrual. Balances below only reflect opening balances and
+                rollovers.
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {balances.map((b) => (
                 <div

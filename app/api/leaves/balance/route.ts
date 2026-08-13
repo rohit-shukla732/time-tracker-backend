@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     const [user, types] = await Promise.all([
       prisma.user.findUnique({
         where: { id: currentUserId },
-        select: { createdAt: true },
+        select: { createdAt: true, isProbation: true },
       }),
       prisma.leaveType.findMany({
         where: { active: true },
@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       year,
+      isProbation: user?.isProbation || false,
       balances,
       totals: { totalEarned, totalUsed, totalPending, totalAvailable },
     });

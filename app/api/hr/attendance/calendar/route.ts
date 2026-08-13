@@ -42,16 +42,17 @@ export async function GET(req: NextRequest) {
     }
     await ensureWeekendRecords(dates);
 
+    // Archived employees still appear for the months/days they have records
+    // (e.g. someone who left mid-month), so their data is never hidden.
     const where: any = {
       date: { gte: dateRange.start, lte: dateRange.end },
-      user: { isArchived: false },
     };
     if (userId) where.userId = userId;
 
     const records = await prisma.attendanceRecord.findMany({
       where,
       include: {
-        user: { select: { id: true, name: true, email: true, role: true } },
+        user: { select: { id: true, name: true, email: true, role: true, isArchived: true } },
         type: { select: { id: true, name: true, code: true, category: true, color: true, isPaid: true } },
       },
       orderBy: [{ user: { name: "asc" } }, { date: "asc" }],
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
       userName: r.user.name,
       userEmail: r.user.email,
       userRole: r.user.role,
+      userArchived: r.user.isArchived,
       date: r.date.toISOString(),
       typeId: r.type.id,
       typeName: r.type.name,
