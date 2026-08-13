@@ -61,6 +61,10 @@ export async function GET(req: NextRequest) {
           user: { select: { id: true, name: true, email: true, role: true } },
           leaveType: { select: { id: true, name: true, isPaid: true } },
           approver: { select: { id: true, name: true } },
+          edits: {
+            include: { editedBy: { select: { id: true, name: true, role: true } } },
+            orderBy: { createdAt: "desc" as const },
+          },
         },
         orderBy: [{ startDate: "desc" }, { createdAt: "desc" }],
         skip,

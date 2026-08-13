@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { HrEmployeeLayout } from '@/components/hr/HrEmployeeLayout';
 import { STATUS_LABELS, statusDotStyle } from '@/components/hr/LeaveCalendar';
 import { withoutPayPortion } from '@/lib/leaveDisplay';
-import { Loader2, CalendarX2, Undo2 } from 'lucide-react';
+import { Loader2, CalendarX2, Undo2, History } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -33,6 +33,14 @@ interface LeaveRequest {
   createdAt: string;
   leaveType: { id: string; name: string; isPaid: boolean };
   approver: { id: string; name: string } | null;
+  edits?: LeaveEdit[];
+}
+
+interface LeaveEdit {
+  id: string;
+  note: string | null;
+  createdAt: string;
+  editedBy: { id: string; name: string; role: string };
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -127,7 +135,7 @@ export default function MyLeavesPage() {
               My Leaves
             </h1>
             <p className="text-[19px] text-zinc-500 dark:text-zinc-400 font-light">
-              Every request you've made, and its current status.
+              Every request you&apos;ve made, and its current status.
             </p>
           </div>
           <select
@@ -217,6 +225,34 @@ export default function MyLeavesPage() {
                             {r.managerComment && r.approver && ' · '}
                             {r.approver && `Decided by ${r.approver.name}`}
                           </p>
+                        )}
+                        {r.edits && r.edits.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-black/[0.04] dark:border-white/[0.04] space-y-1">
+                            {r.edits.slice(0, 3).map((e) => (
+                              <p key={e.id} className="flex items-start gap-1.5 text-[12px] text-zinc-400 dark:text-zinc-500">
+                                <History className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                <span>
+                                  <span className="font-medium text-zinc-500 dark:text-zinc-400">
+                                    Edited by {e.editedBy.name}
+                                  </span>{' '}
+                                  ({e.editedBy.role}) on{' '}
+                                  {new Date(e.createdAt).toLocaleString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                  })}
+                                  {e.note ? ` — ${e.note}` : ''}
+                                </span>
+                              </p>
+                            ))}
+                            {r.edits.length > 3 && (
+                              <p className="text-[12px] text-zinc-400 dark:text-zinc-500 pl-5">
+                                +{r.edits.length - 3} more edit{r.edits.length - 3 === 1 ? '' : 's'}
+                              </p>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>

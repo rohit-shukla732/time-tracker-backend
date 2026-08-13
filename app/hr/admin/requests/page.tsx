@@ -14,6 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageSquareQuote,
+  Pencil,
+  History,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -25,6 +27,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import LeaveRequestEditDialog from '@/components/hr/LeaveRequestEditDialog';
+
+interface LeaveEdit {
+  id: string;
+  note: string | null;
+  createdAt: string;
+  editedBy: { id: string; name: string; role: string };
+}
 
 interface LeaveRequest {
   id: string;
@@ -43,6 +53,7 @@ interface LeaveRequest {
   user: { id: string; name: string; email: string; role: string };
   leaveType: { id: string; name: string; isPaid: boolean };
   approver: { id: string; name: string } | null;
+  edits?: LeaveEdit[];
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -75,6 +86,7 @@ export default function HrRequestsPage() {
   const [actionMode, setActionMode] = useState<'APPROVE' | 'REJECT'>('APPROVE');
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [editTarget, setEditTarget] = useState<LeaveRequest | null>(null);
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -326,9 +338,48 @@ export default function HrRequestsPage() {
                             {r.approver && `Decided by ${r.approver.name}`}
                           </p>
                         )}
+                        {r.edits && r.edits.length > 0 && (
+                          <div className="mt-2 pt-2 border-t border-black/[0.04] dark:border-white/[0.04] space-y-1">
+                            {r.edits.slice(0, 3).map((e) => (
+                              <p key={e.id} className="flex items-start gap-1.5 text-[12px] text-zinc-400 dark:text-zinc-500">
+                                <History className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                <span>
+                                  <span className="font-medium text-zinc-500 dark:text-zinc-400">
+                                    Edited by {e.editedBy.name}
+                                  </span>{' '}
+                                  ({e.editedBy.role}) on{' '}
+                                  {new Date(e.createdAt).toLocaleString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                  })}
+                                  {e.note ? ` — ${e.note}` : ''}
+                                </span>
+                              </p>
+                            ))}
+                            {r.edits.length > 3 && (
+                              <p className="text-[12px] text-zinc-400 dark:text-zinc-500 pl-5">
+                                +{r.edits.length - 3} more edit{r.edits.length - 3 === 1 ? '' : 's'}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {(r.status === 'PENDING' || r.status === 'APPROVED') && (
+                        <button
+                          onClick={() => setEditTarget(r)}
+                          disabled={submitting}
+                          title="Edit this request (recorded in history)"
+                          className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-zinc-500/10 text-zinc-600 dark:bg-zinc-500/20 dark:text-zinc-300 text-[13px] font-medium hover:bg-zinc-500/20 dark:hover:bg-zinc-500/30 transition-colors disabled:opacity-50"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </button>
+                      )}
                       {r.status === 'PENDING' && (
                         <>
                           <button
@@ -438,6 +489,17 @@ export default function HrRequestsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <LeaveRequestEditDialog
+        open={!!editTarget}
+        onOpenChange={(open) => !open && setEditTarget(null)}
+        request={editTarget}
+        employeeName={editTarget?.user.name}
+        onSaved={() => {
+          setEditTarget(null);
+          fetchRequests();
+        }}
+      />
     </HrAdminLayout>
   );
 }

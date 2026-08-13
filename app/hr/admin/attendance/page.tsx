@@ -16,11 +16,29 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   CalendarCheck,
   Loader2,
   Clock,
 } from 'lucide-react';
 import { HrAdminLayout } from '@/components/hr/HrAdminLayout';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+
+interface LateDay {
+  date: string;
+  firstIn: string | null;
+  lastOut: string | null;
+  lateMinutes: number;
+}
+
+interface LateRow {
+  name: string;
+  isProbation: boolean;
+  totalLate: number;
+  graceMinutes: number;
+  breached: boolean;
+  days: LateDay[];
+}
 
 interface AttendanceEntry {
   id: string;
@@ -47,8 +65,9 @@ export default function HrAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [lateRows, setLateRows] = useState<{ name: string; isProbation: boolean; totalLate: number; graceMinutes: number; breached: boolean; days: { date: string; lateMinutes: number }[] }[]>([]);
+  const [lateRows, setLateRows] = useState<LateRow[]>([]);
   const [lateLoading, setLateLoading] = useState(true);
+  const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const user = localStorage.getItem('user');
@@ -129,6 +148,11 @@ export default function HrAttendancePage() {
   const openDay = (day: Date) => {
     router.push(`/hr/admin/attendance/${format(day, 'yyyy-MM-dd')}`);
   };
+
+  const punchTime = (iso: string | null): string => (iso ? iso.slice(11, 16) : '—');
+
+  const toggleRow = (name: string) =>
+    setOpenRows((prev) => ({ ...prev, [name]: !prev[name] }));
 
   return (
     <HrAdminLayout>
@@ -283,46 +307,114 @@ export default function HrAttendancePage() {
             </p>
           ) : (
             <div className="space-y-2">
-              {lateRows.map((r) => (
-                <div
-                  key={r.name}
-                  className={`flex items-center justify-between gap-3 p-3.5 rounded-2xl border ${
-                    r.breached
-                      ? 'bg-red-50/60 dark:bg-red-500/10 border-red-200 dark:border-red-500/20'
-                      : 'bg-zinc-50/60 dark:bg-zinc-800/40 border-black/[0.04] dark:border-white/[0.04]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <p className="text-[14px] font-medium text-zinc-900 dark:text-white truncate">
-                      {r.name}
-                      {r.isProbation && (
-                        <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 text-[10px] font-semibold uppercase tracking-wide">
-                          Probation
+              {lateRows.map((r) => {
+                const lateDays = r.days.filter((d) => d.lateMinutes > 0);
+                const open = !!openRows[r.name];
+                return (
+                  <Collapsible
+                    key={r.name}
+                    open={open}
+                    onOpenChange={() => toggleRow(r.name)}
+                    className={`rounded-2xl border overflow-hidden ${
+                      r.breached
+                        ? 'bg-red-50/60 dark:bg-red-500/10 border-red-200 dark:border-red-500/20'
+                        : 'bg-zinc-50/60 dark:bg-zinc-800/40 border-black/[0.04] dark:border-white/[0.04]'
+                    }`}
+                  >
+                    <CollapsibleTrigger className="w-full flex items-center justify-between gap-3 p-3.5 text-left cursor-pointer select-none">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <p className="text-[14px] font-medium text-zinc-900 dark:text-white truncate">
+                          {r.name}
+                          {r.isProbation && (
+                            <span className="ml-2 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 text-[10px] font-semibold uppercase tracking-wide">
+                              Probation
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-[12px] text-zinc-400 hidden sm:block truncate">
+                          {lateDays.length === 0
+                            ? 'No late arrivals'
+                            : `${lateDays.length} late day(s) · ${r.totalLate} min total`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-[13px] text-zinc-600 dark:text-zinc-300">
+                          {r.totalLate} min / {r.graceMinutes} min grace
                         </span>
+                        {r.breached ? (
+                          <span className="px-2.5 py-1 rounded-full bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 text-[11px] font-semibold uppercase tracking-wide">
+                            Breached
+                          </span>
+                        ) : r.totalLate > 0 ? (
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 text-[11px] font-semibold uppercase tracking-wide">
+                            Within limit
+                          </span>
+                        ) : null}
+                        <ChevronDown
+                          className={`h-4 w-4 text-zinc-400 transition-transform ${open ? 'rotate-180' : ''}`}
+                        />
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      {lateDays.length === 0 ? (
+                        <p className="px-4 pb-4 text-[12px] text-zinc-400">
+                          No late arrivals this month.
+                        </p>
+                      ) : (
+                        <div className="px-4 pb-4">
+                          <div className="rounded-xl border border-black/[0.04] dark:border-white/[0.04] divide-y divide-black/[0.04] dark:divide-white/[0.04]">
+                            {lateDays.map((d) => (
+                              <div
+                                key={d.date}
+                                className="grid grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr] items-center gap-x-4 px-3 py-2"
+                              >
+                                <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200">
+                                  {format(new Date(d.date + 'T00:00:00'), 'EEE, MMM d')}
+                                </span>
+                                <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+                                  In {punchTime(d.firstIn)}
+                                </span>
+                                <span className="text-[12px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+                                  Out {punchTime(d.lastOut)}
+                                </span>
+                                <span className="text-[12px] font-semibold text-amber-600 dark:text-amber-400 text-right tabular-nums">
+                                  {d.lateMinutes}m late
+                                </span>
+                              </div>
+                            ))}
+                            <div
+                              className={`grid grid-cols-[1fr_auto_auto_auto] sm:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr] items-center gap-x-4 px-3 py-2.5 rounded-b-xl ${
+                                r.breached
+                                  ? 'bg-red-50 dark:bg-red-500/10'
+                                  : 'bg-zinc-50 dark:bg-zinc-800/40'
+                              }`}
+                            >
+                              <span className="text-[13px] font-semibold text-zinc-900 dark:text-white">
+                                Total
+                              </span>
+                              <span className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                                {lateDays.length} day(s)
+                              </span>
+                              <span className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                                {r.graceMinutes} min grace
+                              </span>
+                              <span
+                                className={`text-[12px] font-bold text-right tabular-nums ${
+                                  r.breached
+                                    ? 'text-red-600 dark:text-red-400'
+                                    : 'text-emerald-600 dark:text-emerald-400'
+                                }`}
+                              >
+                                {r.totalLate} min
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       )}
-                    </p>
-                    {r.days.length > 0 && (
-                      <p className="text-[12px] text-zinc-400 hidden sm:block truncate">
-                        {r.days.map((d) => `${d.date.slice(5)} (${d.lateMinutes}m)`).join(' · ')}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="text-[13px] text-zinc-600 dark:text-zinc-300">
-                      {r.totalLate} min / {r.graceMinutes} min grace
-                    </span>
-                    {r.breached ? (
-                      <span className="px-2.5 py-1 rounded-full bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 text-[11px] font-semibold uppercase tracking-wide">
-                        Breached
-                      </span>
-                    ) : r.totalLate > 0 ? (
-                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 text-[11px] font-semibold uppercase tracking-wide">
-                        Within limit
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+                );
+              })}
             </div>
           )}
         </div>

@@ -8,6 +8,10 @@ const requestInclude = {
   user: { select: { id: true, name: true, email: true, role: true, managerId: true } },
   leaveType: { select: { id: true, name: true, isPaid: true } },
   approver: { select: { id: true, name: true } },
+  edits: {
+    include: { editedBy: { select: { id: true, name: true, role: true } } },
+    orderBy: { createdAt: "desc" as const },
+  },
 } as const;
 
 // POST /api/leaves/[id]/decision - Approve or reject a leave request

@@ -21,6 +21,7 @@ import {
   Briefcase,
   Inbox,
   CalendarCheck,
+  CalendarRange,
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -44,6 +45,7 @@ export function HrAdminLayout({ children }: HrAdminLayoutProps) {
     { href: '/hr/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/hr/admin/requests', label: 'Requests', icon: Inbox },
     { href: '/hr/admin/attendance', label: 'Attendance', icon: CalendarCheck },
+    { href: '/hr/admin/calendar', label: 'Calendar', icon: CalendarRange },
     { href: '/hr/admin/employees', label: 'Employees', icon: Users },
     { href: '/hr/admin/settings', label: 'Settings', icon: Settings },
   ];

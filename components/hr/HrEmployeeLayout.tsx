@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LayoutDashboard, CalendarDays, LogOut, ChevronDown, CheckSquare, Briefcase, CalendarCheck } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, LogOut, ChevronDown, CheckSquare, Briefcase, CalendarCheck, CalendarRange } from 'lucide-react';
 import Image from 'next/image';
 
 interface User {
@@ -69,7 +69,10 @@ export function HrEmployeeLayout({ children }: HrEmployeeLayoutProps) {
     { href: '/hr/employee/my-leaves', label: 'My Leaves', icon: CalendarDays },
     { href: '/hr/employee/attendance', label: 'Attendance', icon: CalendarCheck },
     ...(isApprover
-      ? [{ href: '/hr/employee/approvals', label: 'Team Approvals', icon: CheckSquare }]
+      ? [
+          { href: '/hr/employee/team-calendar', label: 'Team Calendar', icon: CalendarRange },
+          { href: '/hr/employee/approvals', label: 'Team Approvals', icon: CheckSquare },
+        ]
       : []),
     ...(isHr
       ? [{ href: '/hr/admin', label: 'HR Portal', icon: Briefcase }]

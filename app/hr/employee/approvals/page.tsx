@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { HrEmployeeLayout } from '@/components/hr/HrEmployeeLayout';
 import { withoutPayPortion } from '@/lib/leaveDisplay';
-import { Loader2, Check, X, Inbox, MessageSquareQuote } from 'lucide-react';
+import { Loader2, Check, X, Inbox, MessageSquareQuote, Pencil, History } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -15,6 +15,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import LeaveRequestEditDialog from '@/components/hr/LeaveRequestEditDialog';
+
+interface LeaveEdit {
+  id: string;
+  note: string | null;
+  createdAt: string;
+  editedBy: { id: string; name: string; role: string };
+}
 
 interface ApprovalRequest {
   id: string;
@@ -30,6 +38,7 @@ interface ApprovalRequest {
   createdAt: string;
   user: { id: string; name: string; email: string; role: string; managerId: string | null };
   leaveType: { id: string; name: string; isPaid: boolean };
+  edits?: LeaveEdit[];
 }
 
 export default function TeamApprovalsPage() {
@@ -39,6 +48,8 @@ export default function TeamApprovalsPage() {
   const [actionTarget, setActionTarget] = useState<ApprovalRequest | null>(null);
   const [rejectComment, setRejectComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const [editTarget, setEditTarget] = useState<ApprovalRequest | null>(null);
 
   const fetchRequests = useCallback(async () => {
     try {
@@ -114,6 +125,10 @@ export default function TeamApprovalsPage() {
     setActionTarget(r);
   };
 
+  const openEdit = (r: ApprovalRequest) => {
+    setEditTarget(r);
+  };
+
   return (
     <HrEmployeeLayout>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 font-sans space-y-8">
@@ -134,7 +149,7 @@ export default function TeamApprovalsPage() {
           <div className="py-24 text-center">
             <Inbox className="h-12 w-12 mx-auto text-zinc-300 dark:text-zinc-600 mb-4" />
             <p className="text-[16px] font-medium text-zinc-500 dark:text-zinc-400">
-              You're all caught up
+              You&apos;re all caught up
             </p>
             <p className="text-[14px] text-zinc-400 dark:text-zinc-500 mt-1">
               No pending leave requests from your team.
@@ -200,9 +215,45 @@ export default function TeamApprovalsPage() {
                       <p className="text-[12px] text-zinc-400 dark:text-zinc-500 mt-1">
                         Applied {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </p>
+                      {r.edits && r.edits.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-black/[0.04] dark:border-white/[0.04] space-y-1">
+                          {r.edits.slice(0, 3).map((e) => (
+                            <p key={e.id} className="flex items-start gap-1.5 text-[12px] text-zinc-400 dark:text-zinc-500">
+                              <History className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                              <span>
+                                <span className="font-medium text-zinc-500 dark:text-zinc-400">
+                                  Edited by {e.editedBy.name}
+                                </span>{' '}
+                                ({e.editedBy.role}) on{' '}
+                                {new Date(e.createdAt).toLocaleString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                })}
+                                {e.note ? ` — ${e.note}` : ''}
+                              </span>
+                            </p>
+                          ))}
+                          {r.edits.length > 3 && (
+                            <p className="text-[12px] text-zinc-400 dark:text-zinc-500 pl-5">
+                              +{r.edits.length - 3} more edit{r.edits.length - 3 === 1 ? '' : 's'}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEdit(r)}
+                      disabled={submitting}
+                      className="flex items-center gap-1.5 h-10 px-4 rounded-full bg-zinc-500/10 text-zinc-600 dark:bg-zinc-500/20 dark:text-zinc-300 text-[13px] font-medium hover:bg-zinc-500/20 dark:hover:bg-zinc-500/30 transition-colors disabled:opacity-50"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </button>
                     <button
                       onClick={() => decide(r.id, 'APPROVED')}
                       disabled={submitting}
@@ -268,6 +319,17 @@ export default function TeamApprovalsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <LeaveRequestEditDialog
+        open={!!editTarget}
+        onOpenChange={(open) => !open && setEditTarget(null)}
+        request={editTarget}
+        employeeName={editTarget?.user.name}
+        onSaved={() => {
+          setEditTarget(null);
+          fetchRequests();
+        }}
+      />
     </HrEmployeeLayout>
   );
 }

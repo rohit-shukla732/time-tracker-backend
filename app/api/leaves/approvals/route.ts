@@ -30,6 +30,10 @@ export async function GET(req: NextRequest) {
       include: {
         user: { select: { id: true, name: true, email: true, role: true, managerId: true } },
         leaveType: { select: { id: true, name: true, isPaid: true } },
+        edits: {
+          include: { editedBy: { select: { id: true, name: true, role: true } } },
+          orderBy: { createdAt: "desc" as const },
+        },
       },
       orderBy: { startDate: "asc" },
     });

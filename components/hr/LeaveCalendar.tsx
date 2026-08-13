@@ -19,7 +19,7 @@ export interface CalendarEvent {
   id: string;
   startDate: string;
   endDate: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED' | 'ATTENDANCE';
   typeName: string;
   userName?: string;
   isHalfDay?: boolean;
@@ -27,6 +27,8 @@ export interface CalendarEvent {
   durationDays?: number;
   reason?: string;
   attendanceTypeName?: string | null;
+  /** Attendance-type color (e.g. for attendance calendar entries) */
+  color?: string;
   /** Per-day attendance type names: { "YYYY-MM-DD": name } for mixed requests */
   attendanceTypeNames?: Record<string, string> | null;
   /** Per-day half-day sessions: { "YYYY-MM-DD": "FIRST_HALF" | "SECOND_HALF" } */
@@ -43,6 +45,9 @@ interface LeaveCalendarProps {
   showNames?: boolean;
   onDayClick?: (date: Date, dayEvents: CalendarEvent[]) => void;
   className?: string;
+  /** Controlled month; when provided the parent owns navigation state */
+  viewMonth?: Date;
+  onViewMonthChange?: (month: Date) => void;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -79,8 +84,22 @@ export default function LeaveCalendar({
   showNames = false,
   onDayClick,
   className = '',
+  viewMonth: controlledMonth,
+  onViewMonthChange,
 }: LeaveCalendarProps) {
-  const [viewMonth, setViewMonth] = useState(() => new Date());
+  const [internalMonth, setInternalMonth] = useState(() => new Date());
+  const viewMonth = controlledMonth ?? internalMonth;
+  const setViewMonth = (month: Date) => {
+    if (onViewMonthChange) {
+      onViewMonthChange(month);
+    } else {
+      setInternalMonth(month);
+    }
+  };
+  const goToMonth = (offset: number) => {
+    const next = new Date(viewMonth.getFullYear(), viewMonth.getMonth() + offset, 1);
+    setViewMonth(next);
+  };
 
   const eventByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
@@ -135,7 +154,7 @@ export default function LeaveCalendar({
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setViewMonth((m) => addMonths(m, -1))}
+            onClick={() => goToMonth(-1)}
             className="p-2 rounded-xl text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
             aria-label="Previous month"
           >
@@ -148,7 +167,7 @@ export default function LeaveCalendar({
             Today
           </button>
           <button
-            onClick={() => setViewMonth((m) => addMonths(m, 1))}
+            onClick={() => goToMonth(1)}
             className="p-2 rounded-xl text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
             aria-label="Next month"
           >
@@ -207,7 +226,18 @@ export default function LeaveCalendar({
                 <span
                   key={event.id}
                   title={eventTitle(event)}
-                  className={`w-full truncate text-[10px] font-medium leading-tight px-1.5 py-[3px] rounded-md border ${STATUS_STYLES[event.status] || STATUS_STYLES.PENDING}`}
+                  style={
+                    event.color
+                      ? {
+                          color: event.color,
+                          backgroundColor: event.color + '14',
+                          borderColor: event.color + '33',
+                        }
+                      : undefined
+                  }
+                  className={`w-full truncate text-[10px] font-medium leading-tight px-1.5 py-[3px] rounded-md border ${
+                    event.color ? '' : STATUS_STYLES[event.status] || STATUS_STYLES.PENDING
+                  }`}
                 >
                   {showNames
                     ? (event.userName || 'Employee')
@@ -244,6 +274,10 @@ function eventTitle(event: CalendarEvent): string {
   const label = event.attendanceTypeName || event.typeName;
   const half = event.isHalfDay ? ` (Half day${event.halfDaySession ? ` — ${event.halfDaySession === 'FIRST_HALF' ? 'First half' : 'Second half'}` : ''})` : '';
   const pay = !event.attendanceTypeName && event.isWithoutPay ? ' · WITHOUT PAY' : '';
+  const status =
+    event.status === 'ATTENDANCE'
+      ? (event.attendanceTypeName || label)
+      : `${STATUS_LABELS[event.status] || event.status}${half} · ${event.durationDays ?? 0} day(s)`;
   const reason = event.reason ? `\nReason: ${event.reason}` : '';
-  return `${who}${label}${pay} · ${STATUS_LABELS[event.status] || event.status}${half} · ${event.durationDays ?? 0} day(s)${reason}`;
+  return `${who}${label}${pay} · ${status}${reason}`;
 }

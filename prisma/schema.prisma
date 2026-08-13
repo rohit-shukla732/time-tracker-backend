@@ -29,6 +29,7 @@ model User {
   refreshTokens   RefreshToken[]
   leaveRequests   LeaveRequest[]
   approvedLeaves  LeaveRequest[]  @relation("LeaveApprover")
+  leaveRequestEdits LeaveRequestEdit[] @relation("LeaveEditActor")
   attendanceRecords AttendanceRecord[]
   leaveOpeningBalances LeaveOpeningBalance[]
   biometricPunches    BiometricPunch[]
@@ -302,6 +303,7 @@ model LeaveRequest {
   user      User       @relation(fields: [userId], references: [id])
   leaveType LeaveType  @relation(fields: [leaveTypeId], references: [id])
   approver  User?      @relation("LeaveApprover", fields: [approvedById], references: [id])
+  edits     LeaveRequestEdit[]
   attendanceRecords AttendanceRecord[]
 
   @@index([userId])
@@ -309,6 +311,23 @@ model LeaveRequest {
   @@index([status])
   @@index([startDate])
   @@index([endDate])
+}
+
+model LeaveRequestEdit {
+  id             String   @id @default(uuid())
+  leaveRequestId String
+  editedById     String
+  editedByRole   Role
+  note           String?
+  /** Old values of the edited fields, for audit purposes: { field: oldValue } */
+  changes        Json?
+  createdAt      DateTime @default(now())
+
+  leaveRequest LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  editedBy     User         @relation("LeaveEditActor", fields: [editedById], references: [id])
+
+  @@index([leaveRequestId])
+  @@index([editedById])
 }
 
 model AttendanceType {

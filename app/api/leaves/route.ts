@@ -1,27 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, unauthorizedResponse } from "@/lib/roleAuth";
 import { prisma } from "@/lib/prisma";
-import { computeTypeBalance, dateFromInput, type LeaveTypeInfo } from "@/lib/leaveUtils";
+import { computeTypeBalance, dateFromInput, normalizeLeaveDays, type LeaveTypeInfo } from "@/lib/leaveUtils";
 import { syncLeaveAttendance } from "@/lib/attendanceUtils";
-
-const DAY_MS = 86_400_000;
-
-function utcDayKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
-function eachUtcDay(start: Date, end: Date): Date[] {
-  const days: Date[] = [];
-  for (let t = start.getTime(); t <= end.getTime(); t += DAY_MS) {
-    days.push(new Date(t));
-  }
-  return days;
-}
 
 const requestInclude = {
   user: { select: { id: true, name: true, email: true, role: true } },
   leaveType: { select: { id: true, name: true, isPaid: true } },
   approver: { select: { id: true, name: true } },
+  edits: {
+    include: { editedBy: { select: { id: true, name: true, role: true } } },
+    orderBy: { createdAt: "desc" as const },
+  },
 } as const;
 
 // GET /api/leaves - My leave requests (optional ?year=)
@@ -62,10 +52,6 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { leaveTypeId, startDate, endDate, reason } = body;
-    // Explicit choice from the apply page: undefined -> auto (current behaviour).
-    const explicitWithoutPay = body.isWithoutPay === true || body.isWithoutPay === false
-      ? body.isWithoutPay
-      : undefined;
 
     if (!leaveTypeId || !startDate || !endDate || !reason?.trim()) {
       return NextResponse.json({ error: "Leave type, dates and reason are required" }, { status: 400 });
@@ -89,67 +75,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cannot apply for a date in the past" }, { status: 400 });
     }
 
-    // Per-day selection: halfDayDays maps a day to a session, skippedDays
-    // removes days from the range. Supports mixed full/half day requests.
-    const halfDayDays: Record<string, string> = {};
-    if (body.halfDayDays && typeof body.halfDayDays === "object") {
-      for (const [day, session] of Object.entries(body.halfDayDays)) {
-        if (session === "FIRST_HALF" || session === "SECOND_HALF") {
-          halfDayDays[String(day)] = session;
-        }
-      }
+    let normalized: ReturnType<typeof normalizeLeaveDays>;
+    try {
+      normalized = normalizeLeaveDays({ start, end, body });
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Invalid leave selection" }, { status: 400 });
     }
-    // Legacy single-day half-day payload support.
-    if (body.isHalfDay && start.getTime() === end.getTime()) {
-      halfDayDays[utcDayKey(start)] = body.halfDaySession === "SECOND_HALF" ? "SECOND_HALF" : "FIRST_HALF";
-    }
-
-    const skippedRaw: string[] = Array.isArray(body.skippedDays)
-      ? (body.skippedDays as unknown[]).map((s) => String(s))
-      : [];
-    const skippedDays: string[] = [...new Set(skippedRaw)];
-
-    // Per-day without-pay selection. Days not listed use the balance.
-    // Legacy whole-request isWithoutPay=true means every selected day is unpaid.
-    const withoutPayRaw: string[] = Array.isArray(body.withoutPayDays)
-      ? (body.withoutPayDays as unknown[]).map((s) => String(s))
-      : [];
-    const withoutPayDays: string[] = [...new Set(withoutPayRaw)];
-
-    const allDays = eachUtcDay(start, end);
-    const selectedDays = allDays.filter((d) => !skippedDays.includes(utcDayKey(d)));
-    if (selectedDays.length === 0) {
-      return NextResponse.json({ error: "Select at least one day" }, { status: 400 });
-    }
-    for (const key of Object.keys(halfDayDays)) {
-      if (!selectedDays.some((d) => utcDayKey(d) === key)) {
-        return NextResponse.json(
-          { error: `Half-day date ${key} is outside the selected days` },
-          { status: 400 }
-        );
-      }
-    }
-    for (const key of withoutPayDays) {
-      if (!selectedDays.some((d) => utcDayKey(d) === key)) {
-        return NextResponse.json(
-          { error: `Without-pay date ${key} is outside the selected days` },
-          { status: 400 }
-        );
-      }
-    }
-    if (skippedDays.some((k) => !allDays.some((d) => utcDayKey(d) === k))) {
-      return NextResponse.json({ error: "Skipped day is outside the leave range" }, { status: 400 });
-    }
-
-    const dayCost = (d: Date) => (halfDayDays[utcDayKey(d)] ? 0.5 : 1);
-    const durationDays = selectedDays.reduce((sum, d) => sum + dayCost(d), 0);
-    const isHalfDay = selectedDays.some((d) => halfDayDays[utcDayKey(d)]);
-    const paidDays =
-      explicitWithoutPay === true && withoutPayDays.length === 0
-        ? 0
-        : selectedDays.reduce((sum, d) => (withoutPayDays.includes(utcDayKey(d)) ? sum : sum + dayCost(d)), 0);
-    const withoutPayTotal = Math.round((durationDays - paidDays) * 100) / 100;
-    const isWithoutPay = withoutPayTotal === durationDays;
+    const {
+      halfDayDays,
+      skippedDays,
+      withoutPayDays,
+      selectedDays,
+      durationDays,
+      isHalfDay,
+      halfDaySession,
+      paidDays,
+      isWithoutPay,
+    } = normalized;
 
     // Overlap check against existing PENDING/APPROVED requests, day by day,
     // so skipped days inside the range don't block the request.
@@ -163,8 +105,11 @@ export async function POST(req: NextRequest) {
       select: { startDate: true, endDate: true },
     });
     if (overlapping.length > 0) {
-      const blocked = selectedDays.some((d) =>
-        overlapping.some((o) => d >= o.startDate && d <= o.endDate)
+      const blocked = selectedDays.some((key) =>
+        overlapping.some((o) => {
+          const day = dateFromInput(key);
+          return day >= o.startDate && day <= o.endDate;
+        })
       );
       if (blocked) {
         return NextResponse.json(
@@ -205,9 +150,7 @@ export async function POST(req: NextRequest) {
         startDate: start,
         endDate: end,
         isHalfDay,
-        halfDaySession: isHalfDay
-          ? ((Object.values(halfDayDays)[0] || "FIRST_HALF") as "FIRST_HALF" | "SECOND_HALF")
-          : null,
+        halfDaySession: isHalfDay ? halfDaySession : null,
         halfDayDays,
         skippedDays,
         withoutPayDays: withoutPayDays.length > 0 ? withoutPayDays : undefined,

@@ -256,7 +256,7 @@ export async function runBiometricImport(input?: { punches?: BiometricPunchInput
     const code = String(p.employeeCode || "").trim().toUpperCase();
     const date = parseDateUtc(p.date);
     if (!date) continue;
-    let userId = userById.get(code)?.id || mappingByCode.get(code);
+    const userId = userById.get(code)?.id || mappingByCode.get(code);
     if (!userId) {
       result.unmatched++;
       continue;
@@ -482,7 +482,7 @@ export async function computeLateSummary(year: number, month: number) {
     getBiometricConfig(),
     prisma.biometricPunch.findMany({
       where: { date: { gte: start, lte: end } },
-      select: { userId: true, date: true, lateMinutes: true },
+      select: { userId: true, date: true, firstIn: true, lastOut: true, lateMinutes: true },
     }),
     prisma.user.findMany({
       where: { isArchived: false },
@@ -490,7 +490,7 @@ export async function computeLateSummary(year: number, month: number) {
     }),
   ]);
 
-  const byUser = new Map<string, { name: string; isProbation: boolean; totalLate: number; days: { date: string; lateMinutes: number }[] }>();
+  const byUser = new Map<string, { name: string; isProbation: boolean; totalLate: number; days: { date: string; firstIn: string | null; lastOut: string | null; lateMinutes: number }[] }>();
   for (const u of users) {
     byUser.set(u.id, { name: u.name, isProbation: u.isProbation, totalLate: 0, days: [] });
   }
@@ -498,7 +498,12 @@ export async function computeLateSummary(year: number, month: number) {
     const entry = byUser.get(p.userId);
     if (!entry) continue;
     entry.totalLate += p.lateMinutes;
-    entry.days.push({ date: p.date.toISOString().slice(0, 10), lateMinutes: p.lateMinutes });
+    entry.days.push({
+      date: p.date.toISOString().slice(0, 10),
+      firstIn: p.firstIn ? p.firstIn.toISOString() : null,
+      lastOut: p.lastOut ? p.lastOut.toISOString() : null,
+      lateMinutes: p.lateMinutes,
+    });
   }
 
   const rows = [...byUser.values()]

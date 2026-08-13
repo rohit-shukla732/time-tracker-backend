@@ -35,6 +35,133 @@ export function dateFromInput(value: string): Date {
   return new Date(Date.UTC(y, m - 1, d));
 }
 
+const DAY_MS = 86_400_000;
+
+function utcDayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function eachUtcDay(start: Date, end: Date): Date[] {
+  const days: Date[] = [];
+  for (let t = start.getTime(); t <= end.getTime(); t += DAY_MS) {
+    days.push(new Date(t));
+  }
+  return days;
+}
+
+export interface NormalizedLeaveDays {
+  halfDayDays: Record<string, string>;
+  skippedDays: string[];
+  withoutPayDays: string[];
+  /** YYYY-MM-DD keys of the days actually covered by the leave */
+  selectedDays: string[];
+  durationDays: number;
+  isHalfDay: boolean;
+  halfDaySession: "FIRST_HALF" | "SECOND_HALF";
+  paidDays: number;
+  withoutPayTotal: number;
+  isWithoutPay: boolean;
+}
+
+/**
+ * Normalize per-day leave selection from a raw request body.
+ * Shared by the apply and manager-edit endpoints so the rules never drift:
+ * - halfDayDays: { "YYYY-MM-DD": "FIRST_HALF" | "SECOND_HALF" }
+ * - skippedDays: days inside the range excluded from the leave
+ * - withoutPayDays: days not deducted from the paid balance
+ * Throws Error with a user-facing message on invalid input.
+ */
+export function normalizeLeaveDays(params: {
+  start: Date;
+  end: Date;
+  body: {
+    isHalfDay?: unknown;
+    halfDaySession?: unknown;
+    halfDayDays?: unknown;
+    skippedDays?: unknown;
+    withoutPayDays?: unknown;
+    isWithoutPay?: unknown;
+  };
+}): NormalizedLeaveDays {
+  const { start, end, body } = params;
+
+  const halfDayDays: Record<string, string> = {};
+  if (body.halfDayDays && typeof body.halfDayDays === "object") {
+    for (const [day, session] of Object.entries(body.halfDayDays)) {
+      if (session === "FIRST_HALF" || session === "SECOND_HALF") {
+        halfDayDays[String(day)] = session;
+      }
+    }
+  }
+  // Legacy single-day half-day payload support.
+  if (body.isHalfDay && start.getTime() === end.getTime()) {
+    halfDayDays[utcDayKey(start)] =
+      body.halfDaySession === "SECOND_HALF" ? "SECOND_HALF" : "FIRST_HALF";
+  }
+
+  const skippedRaw: string[] = Array.isArray(body.skippedDays)
+    ? (body.skippedDays as unknown[]).map((s) => String(s))
+    : [];
+  const skippedDays: string[] = [...new Set(skippedRaw)];
+
+  // Per-day without-pay selection. Days not listed use the balance.
+  // Legacy whole-request isWithoutPay=true means every selected day is unpaid.
+  const withoutPayRaw: string[] = Array.isArray(body.withoutPayDays)
+    ? (body.withoutPayDays as unknown[]).map((s) => String(s))
+    : [];
+  const withoutPayDays: string[] = [...new Set(withoutPayRaw)];
+
+  const allDays = eachUtcDay(start, end);
+  const selectedDays = allDays.filter((d) => !skippedDays.includes(utcDayKey(d)));
+  if (selectedDays.length === 0) {
+    throw new Error("Select at least one day");
+  }
+  for (const key of Object.keys(halfDayDays)) {
+    if (!selectedDays.some((d) => utcDayKey(d) === key)) {
+      throw new Error(`Half-day date ${key} is outside the selected days`);
+    }
+  }
+  for (const key of withoutPayDays) {
+    if (!selectedDays.some((d) => utcDayKey(d) === key)) {
+      throw new Error(`Without-pay date ${key} is outside the selected days`);
+    }
+  }
+  if (skippedDays.some((k) => !allDays.some((d) => utcDayKey(d) === k))) {
+    throw new Error("Skipped day is outside the leave range");
+  }
+
+  const dayCost = (d: Date) => (halfDayDays[utcDayKey(d)] ? 0.5 : 1);
+  const durationDays = selectedDays.reduce((sum, d) => sum + dayCost(d), 0);
+  const isHalfDay = selectedDays.some((d) => halfDayDays[utcDayKey(d)]);
+  // Legacy whole-request isWithoutPay=true with no per-day selection means the
+  // entire request is unpaid.
+  const explicitWithoutPay = body.isWithoutPay === true;
+  const paidDays =
+    explicitWithoutPay && withoutPayDays.length === 0
+      ? 0
+      : selectedDays.reduce(
+          (sum, d) => (withoutPayDays.includes(utcDayKey(d)) ? sum : sum + dayCost(d)),
+          0
+        );
+  const withoutPayTotal = Math.round((durationDays - paidDays) * 100) / 100;
+  const isWithoutPay = withoutPayTotal === durationDays;
+
+  return {
+    halfDayDays,
+    skippedDays,
+    withoutPayDays,
+    selectedDays: selectedDays.map(utcDayKey),
+    durationDays,
+    isHalfDay,
+    halfDaySession: isHalfDay
+      ? ((Object.values(halfDayDays)[0] || "FIRST_HALF") as "FIRST_HALF" | "SECOND_HALF")
+      : "FIRST_HALF",
+    paidDays,
+    withoutPayTotal,
+    isWithoutPay,
+  };
+}
+
 /**
  * Inclusive calendar days between two UTC dates.
  */
