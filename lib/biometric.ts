@@ -473,22 +473,45 @@ async function reconcileAttendance(
 
 /**
  * Monthly late summary per user (late policy).
+ *
+ * Days that count as a half day (first-in or last-out beyond the half-day
+ * threshold, or attendance marked as an unapproved half-day) are excluded:
+ * half days are already sanctioned with a half-day deduction, so they should
+ * not add to the monthly late-policy total.
  */
 export async function computeLateSummary(year: number, month: number) {
   const start = new Date(Date.UTC(year, month - 1, 1));
   const end = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
-  const [cfg, punches, users] = await Promise.all([
+  const [cfg, punches, users, halfDayRecords] = await Promise.all([
     getBiometricConfig(),
     prisma.biometricPunch.findMany({
       where: { date: { gte: start, lte: end } },
-      select: { userId: true, date: true, firstIn: true, lastOut: true, lateMinutes: true },
+      select: { userId: true, date: true, firstIn: true, lastOut: true, lateMinutes: true, earlyOutMinutes: true },
     }),
     prisma.user.findMany({
       where: { isArchived: false },
       select: { id: true, name: true, isProbation: true },
     }),
+    prisma.attendanceRecord.findMany({
+      where: {
+        date: { gte: start, lte: end },
+        type: { code: { in: ["UNAPPROVED_HALFDAY_LEAVE", "UNAPPROVED_HALFDAY_LEAVE_WITHOUT_PAY"] } },
+      },
+      select: { userId: true, date: true },
+    }),
   ]);
+
+  const threshold = cfg.halfDayThresholdMin;
+  const halfDayKeys = new Set<string>();
+  for (const p of punches) {
+    if (p.lateMinutes > threshold || p.earlyOutMinutes > threshold) {
+      halfDayKeys.add(`${p.userId}|${p.date.toISOString().slice(0, 10)}`);
+    }
+  }
+  for (const r of halfDayRecords) {
+    halfDayKeys.add(`${r.userId}|${r.date.toISOString().slice(0, 10)}`);
+  }
 
   const byUser = new Map<string, { name: string; isProbation: boolean; totalLate: number; days: { date: string; firstIn: string | null; lastOut: string | null; lateMinutes: number }[] }>();
   for (const u of users) {
@@ -497,6 +520,7 @@ export async function computeLateSummary(year: number, month: number) {
   for (const p of punches) {
     const entry = byUser.get(p.userId);
     if (!entry) continue;
+    if (halfDayKeys.has(`${p.userId}|${p.date.toISOString().slice(0, 10)}`)) continue;
     entry.totalLate += p.lateMinutes;
     entry.days.push({
       date: p.date.toISOString().slice(0, 10),
