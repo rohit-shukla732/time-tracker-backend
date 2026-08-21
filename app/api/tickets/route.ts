@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
     const assignedTo = searchParams.get('assignedTo');
+    const search = searchParams.get('search');
+    const limitParam = parseInt(searchParams.get('limit') || '', 10);
 
     const where: any = {};
 
@@ -30,10 +32,30 @@ export async function GET(req: NextRequest) {
     // Apply filters
     if (status) where.status = status;
     if (priority) where.priority = priority;
-    if (assignedTo) where.assignedTo = assignedTo;
+    if (assignedTo === 'none') {
+      where.assignedTo = null;
+    } else if (assignedTo) {
+      where.assignedTo = assignedTo;
+    }
+
+    // Global search: title, description, ticket number, creator name
+    if (search && search.trim()) {
+      const term = search.trim();
+      const asNumber = parseInt(term.replace(/^t-0*/i, ''), 10);
+      const searchOr: any[] = [
+        { title: { contains: term, mode: 'insensitive' } },
+        { description: { contains: term, mode: 'insensitive' } },
+        { creator: { is: { name: { contains: term, mode: 'insensitive' } } } },
+      ];
+      if (!Number.isNaN(asNumber)) {
+        searchOr.push({ ticketNumber: asNumber });
+      }
+      where.OR = searchOr;
+    }
 
     const tickets = await prisma.ticket.findMany({
       where,
+      ...(Number.isFinite(limitParam) && limitParam > 0 ? { take: limitParam } : {}),
       include: {
         creator: {
           select: {
@@ -121,15 +143,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Resolve the category: explicit id, or the first active category
+    // Resolve the category: explicit id, or IT_SUPPORT, or the first active category
     let resolvedCategoryId = categoryId ?? null;
     if (!resolvedCategoryId) {
-      const defaultCategory = await prisma.ticketCategory.findFirst({
-        where: { active: true },
-        orderBy: { sortOrder: 'asc' },
+      const itSupport = await prisma.ticketCategory.findFirst({
+        where: { active: true, name: 'IT_SUPPORT' },
         select: { id: true },
       });
-      resolvedCategoryId = defaultCategory?.id ?? null;
+      if (itSupport) {
+        resolvedCategoryId = itSupport.id;
+      } else {
+        const defaultCategory = await prisma.ticketCategory.findFirst({
+          where: { active: true },
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true },
+        });
+        resolvedCategoryId = defaultCategory?.id ?? null;
+      }
     }
 
     // Subcategory must belong to the resolved category
@@ -142,6 +172,19 @@ export async function POST(req: NextRequest) {
       if (!sub) resolvedSubcategoryId = null;
     } else {
       resolvedSubcategoryId = null;
+    }
+
+    // Issue type is required whenever the category offers any
+    if (!resolvedSubcategoryId && resolvedCategoryId) {
+      const subCount = await prisma.ticketSubcategory.count({
+        where: { categoryId: resolvedCategoryId, active: true },
+      });
+      if (subCount > 0) {
+        return NextResponse.json(
+          { error: 'Issue type is required' },
+          { status: 400 }
+        );
+      }
     }
 
     // Get the next ticket number

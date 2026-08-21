@@ -76,7 +76,10 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 export default function AdminTicketsPage() {
   const router = useRouter();
   const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('q') || '';
+  });
   const [statusFilter, setStatusFilter] = useState(() => {
     if (typeof window === 'undefined') return 'all';
     const s = new URLSearchParams(window.location.search).get('status');
@@ -210,6 +213,9 @@ export default function AdminTicketsPage() {
   );
 
   const handleStatusChange = async (ticketId: string, newStatus: string) => {
+    const previous = tickets;
+    // Optimistic update
+    setTickets((prev: Ticket[]) => prev.map(t => t.id === ticketId ? { ...t, status: newStatus, resolvedAt: newStatus === TicketStatus.RESOLVED ? new Date() : null } : t));
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) { router.push('/helpdesk/admin/login'); return; }
@@ -230,10 +236,17 @@ export default function AdminTicketsPage() {
         credentials: 'include',
         body: JSON.stringify({ type: 'status_update', newStatus }),
       }).catch(() => {});
-    } catch { toast.error('Failed to update status'); }
+    } catch {
+      setTickets(previous);
+      toast.error('Failed to update status');
+    }
   };
 
   const handleAssignmentChange = async (ticketId: string, assigneeId: string | null) => {
+    const previous = tickets;
+    const assignee = assigneeId ? itTeamMembers.find(m => m.id === assigneeId) : null;
+    // Optimistic update
+    setTickets((prev: Ticket[]) => prev.map(t => t.id === ticketId ? { ...t, assignedTo: assigneeId, assignee: assignee ? { id: assignee.id, name: assignee.name, email: assignee.email, role: assignee.role } : null } : t));
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) { router.push('/helpdesk/admin/login'); return; }
@@ -254,7 +267,10 @@ export default function AdminTicketsPage() {
         credentials: 'include',
         body: JSON.stringify({ type: 'assignment', assignedToId: assigneeId }),
       }).catch(() => {});
-    } catch { toast.error('Failed to assign ticket'); }
+    } catch {
+      setTickets(previous);
+      toast.error('Failed to assign ticket');
+    }
   };
 
   const confirmDelete = async () => {

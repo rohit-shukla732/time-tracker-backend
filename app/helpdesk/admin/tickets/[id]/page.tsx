@@ -126,6 +126,10 @@ export default function AdminTicketDetailsPage() {
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
     if (!ticket) return;
+    const previous = ticket;
+
+    // Optimistic update
+    setTicket({ ...ticket, status: newStatus, resolvedAt: newStatus === TicketStatus.RESOLVED ? new Date() : null });
 
     try {
       const token = localStorage.getItem('accessToken');
@@ -164,7 +168,7 @@ export default function AdminTicketDetailsPage() {
       const updatedTicket = await response.json();
       setTicket(updatedTicket);
       toast.success('Ticket status updated');
-      
+
       // Send email notification via API
       try {
         await fetch(`/api/tickets/${ticketId}/send-email`, {
@@ -184,12 +188,17 @@ export default function AdminTicketDetailsPage() {
       }
     } catch (error) {
       console.error('Error updating status:', error);
+      setTicket(previous);
       toast.error('Failed to update status');
     }
   };
 
   const handlePriorityChange = async (newPriority: TicketPriority) => {
     if (!ticket) return;
+    const previous = ticket;
+
+    // Optimistic update
+    setTicket({ ...ticket, priority: newPriority });
 
     try {
       const token = localStorage.getItem('accessToken');
@@ -229,6 +238,7 @@ export default function AdminTicketDetailsPage() {
       toast.success('Ticket priority updated');
     } catch (error) {
       console.error('Error updating priority:', error);
+      setTicket(previous);
       toast.error('Failed to update priority');
     }
   };

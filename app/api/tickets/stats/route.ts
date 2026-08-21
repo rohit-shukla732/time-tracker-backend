@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
       byCategory,
       bySubcategory,
       categories,
+      unassigned,
+      recentTickets,
     ] = await Promise.all([
       prisma.ticket.count(),
       prisma.ticket.count({ where: { status: 'OPEN' } }),
@@ -48,6 +50,17 @@ export async function GET(req: NextRequest) {
       }),
       prisma.ticketCategory.findMany({
         include: { subcategories: true },
+      }),
+      prisma.ticket.count({ where: { assignedTo: null } }),
+      // Only createdAt/resolvedAt needed for the 14-day flow series
+      prisma.ticket.findMany({
+        select: { createdAt: true, resolvedAt: true },
+        where: {
+          OR: [
+            { createdAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) } },
+            { resolvedAt: { gte: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) } },
+          ],
+        },
       }),
     ]);
 
@@ -73,6 +86,21 @@ export async function GET(req: NextRequest) {
       return acc;
     }, {});
 
+    // Build a 14-day created/resolved daily series (oldest first)
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const flow: Array<{ date: string; created: number; resolved: number }> = [];
+    for (let i = 13; i >= 0; i--) {
+      const dayStart = new Date(startOfToday.getTime() - i * DAY_MS);
+      const dayEnd = new Date(dayStart.getTime() + DAY_MS);
+      flow.push({
+        date: dayStart.toISOString().split('T')[0],
+        created: recentTickets.filter((t: any) => t.createdAt >= dayStart && t.createdAt < dayEnd).length,
+        resolved: recentTickets.filter((t: any) => t.resolvedAt && t.resolvedAt >= dayStart && t.resolvedAt < dayEnd).length,
+      });
+    }
+
     return NextResponse.json({
       total,
       open,
@@ -80,9 +108,11 @@ export async function GET(req: NextRequest) {
       pending,
       resolved,
       closed,
+      unassigned,
       byPriority: priorityStats,
       byCategory: categoryStats,
       bySubcategory: subcategoryStats,
+      flow,
     });
   } catch (error: any) {
     console.error('Error fetching ticket stats:', error);

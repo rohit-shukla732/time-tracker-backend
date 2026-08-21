@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const role = url.searchParams.get('role');
+    const search = url.searchParams.get('search');
 
     const whereCondition: any = {};
 
@@ -21,6 +22,12 @@ export async function GET(req: NextRequest) {
       // Admin and HR can see all users
       if (role) {
         whereCondition.role = role;
+      }
+      if (search && search.trim()) {
+        whereCondition.OR = [
+          { name: { contains: search.trim(), mode: 'insensitive' } },
+          { email: { contains: search.trim(), mode: 'insensitive' } },
+        ];
       }
     } else {
       // All other roles can only see themselves

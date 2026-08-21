@@ -63,9 +63,14 @@ export default function NewTicketPage() {
           "No ticket categories are configured yet. Please contact your administrator."
         );
       } else {
+        // Prefer IT_SUPPORT so issue types are visible without picking a category
+        const preferred =
+          data.find((c) => c.name === "IT_SUPPORT") ||
+          data.find((c) => c.name.trim().toUpperCase() === "IT SUPPORT") ||
+          data[0];
         setFormData((prev) => ({
           ...prev,
-          categoryId: prev.categoryId || data[0].id,
+          categoryId: prev.categoryId || preferred.id,
         }));
       }
     } catch (error) {
@@ -165,6 +170,12 @@ export default function NewTicketPage() {
 
     if (!formData.title.trim() || !formData.description.trim()) {
       toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // Issue type is mandatory whenever the selected category offers any
+    if (activeSubcategories.length > 0 && !formData.subcategoryId) {
+      toast.error("Please select an issue type");
       return;
     }
 

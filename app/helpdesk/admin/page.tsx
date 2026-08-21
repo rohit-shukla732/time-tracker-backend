@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { AdminTicketLayout } from '@/components/tickets/AdminTicketLayout';
 import { PageHeader, GlassCard, statusDotClass, priorityDotClass } from '@/components/tickets/shared';
+import { AnimatedNumber } from '@/components/tickets/AnimatedNumber';
+import { FlowChart, FlowPoint } from '@/components/tickets/FlowChart';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Ticket,
@@ -16,6 +18,9 @@ import {
   ShieldCheck,
   Inbox,
   Activity,
+  UserPlus,
+  TrendingUp,
+  Layers,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -32,11 +37,15 @@ interface Stats {
   high: number;
   medium: number;
   low: number;
+  unassigned: number;
+  flow: FlowPoint[];
+  byCategory: Record<string, number>;
 }
 
 const DEFAULT_STATS: Stats = {
   total: 0, open: 0, inProgress: 0, pending: 0,
   resolved: 0, closed: 0, urgent: 0, high: 0, medium: 0, low: 0,
+  unassigned: 0, flow: [], byCategory: {},
 };
 
 export default function AdminDashboard() {
@@ -89,6 +98,9 @@ export default function AdminDashboard() {
         high:       data.byPriority?.high   || 0,
         medium:     data.byPriority?.medium || 0,
         low:        data.byPriority?.low    || 0,
+        unassigned: data.unassigned || 0,
+        flow:       Array.isArray(data.flow) ? data.flow : [],
+        byCategory: data.byCategory && typeof data.byCategory === 'object' ? data.byCategory : {},
       };
 
       if (isBackground && previousTotal.current > 0 && next.total > previousTotal.current) {
@@ -154,6 +166,16 @@ export default function AdminDashboard() {
   const pct = (n: number) => stats.total > 0 ? Math.round((n / stats.total) * 100) : 0;
   const active = stats.open + stats.inProgress + stats.pending;
   const resolutionRate = pct(stats.resolved + stats.closed);
+
+  // Weekly creation trend from the 14-day flow series
+  const sumCreated = (points: FlowPoint[]) => points.reduce((acc, d) => acc + d.created, 0);
+  const thisWeekCreated = sumCreated(stats.flow.slice(7));
+  const lastWeekCreated = sumCreated(stats.flow.slice(0, 7));
+  const trendDelta = thisWeekCreated - lastWeekCreated;
+
+  const topCategories = Object.entries(stats.byCategory)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
 
   if (loading) {
     return (
@@ -239,8 +261,22 @@ export default function AdminDashboard() {
                 <Ticket className="h-5 w-5" strokeWidth={2} />
               </div>
             </div>
-            <div className="text-[56px] font-semibold tracking-[-0.04em] text-zinc-900 dark:text-white leading-none">
-              {stats.total}
+            <div className="flex items-baseline gap-4">
+              <AnimatedNumber value={stats.total} className="text-[56px] font-semibold tracking-[-0.04em] text-zinc-900 dark:text-white leading-none" />
+              {stats.flow.length === 14 && (
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-semibold ${
+                    trendDelta > 0
+                      ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400'
+                      : trendDelta < 0
+                        ? 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+                        : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
+                  }`}
+                  title={`${thisWeekCreated} created this week vs ${lastWeekCreated} last week`}
+                >
+                  {trendDelta > 0 ? '+' : ''}{trendDelta} this week
+                </span>
+              )}
             </div>
           </GlassCard>
 
@@ -255,9 +291,8 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-baseline gap-2">
-              <span className={`text-[56px] font-semibold tracking-[-0.04em] leading-none ${resolutionRate >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                {resolutionRate}%
-              </span>
+              <AnimatedNumber value={resolutionRate} className={`text-[56px] font-semibold tracking-[-0.04em] leading-none ${resolutionRate >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
+              <span className={`text-[28px] font-semibold tracking-[-0.02em] pb-1 ${resolutionRate >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>%</span>
             </div>
             <div className="mt-4 h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                <div className={`h-full rounded-full transition-all duration-500 ${resolutionRate >= 70 ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${resolutionRate}%` }} />
@@ -282,17 +317,27 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-baseline gap-3">
-              <span className="text-[56px] font-semibold tracking-[-0.04em] text-blue-600 dark:text-blue-400 leading-none">
-                {active}
-              </span>
+              <AnimatedNumber value={active} className="text-[56px] font-semibold tracking-[-0.04em] text-blue-600 dark:text-blue-400 leading-none" />
               <span className="text-[16px] text-zinc-500 font-medium pb-2">tickets</span>
             </div>
-            {(stats.urgent > 0 || stats.high > 0) && (
-              <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 text-[13px] font-medium transition-transform group-hover:scale-105 origin-left">
-                <Flame className="h-4 w-4" strokeWidth={2.5} />
-                {stats.urgent + stats.high} require urgent attention
-              </div>
-            )}
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              {(stats.urgent > 0 || stats.high > 0) && (
+                <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 text-[13px] font-medium transition-transform group-hover:scale-105 origin-left">
+                  <Flame className="h-4 w-4" strokeWidth={2.5} />
+                  {stats.urgent + stats.high} require urgent attention
+                </span>
+              )}
+              {stats.unassigned > 0 && (
+                <button
+                  onClick={() => router.push('/helpdesk/admin/tickets?assignedTo=none')}
+                  aria-label="View unassigned tickets"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 text-[13px] font-medium hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                >
+                  <UserPlus className="h-4 w-4" strokeWidth={2.5} />
+                  {stats.unassigned} unassigned
+                </button>
+              )}
+            </div>
           </GlassCard>
         </div>
 
@@ -372,6 +417,61 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+          </GlassCard>
+        </div>
+
+        {/* Analytics Row */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <GlassCard className="lg:col-span-2 flex flex-col p-8">
+            <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+              <div className="space-y-1">
+                <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Ticket Flow</h2>
+                <p className="text-[14px] text-zinc-500 font-light">Created vs resolved · last 14 days</p>
+              </div>
+              <div className="flex items-center gap-4 text-[13px] font-medium">
+                <span className="inline-flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300">
+                  <span className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
+                  Created
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  Resolved
+                </span>
+              </div>
+            </div>
+            <div className="flex-1 flex items-end">
+              <FlowChart data={stats.flow} />
+            </div>
+          </GlassCard>
+
+          <GlassCard className="flex flex-col p-8">
+            <div className="space-y-1 mb-6">
+              <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Top Categories</h2>
+              <p className="text-[14px] text-zinc-500 font-light">Where tickets come from</p>
+            </div>
+            {topCategories.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-2 text-zinc-400 dark:text-zinc-500 py-8">
+                <Layers className="h-8 w-8" strokeWidth={1.5} />
+                <p className="text-[14px] font-light">No categorized tickets yet</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {topCategories.map(([name, count]) => (
+                  <div key={name}>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-[14px] font-medium text-zinc-800 dark:text-zinc-200 truncate pr-3">{name}</span>
+                      <span className="text-[14px] font-semibold text-zinc-900 dark:text-white shrink-0">{count}</span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-indigo-500 transition-all duration-700"
+                        style={{ width: `${stats.total > 0 ? Math.max(2, Math.round((count / stats.total) * 100)) : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </GlassCard>
         </div>
 

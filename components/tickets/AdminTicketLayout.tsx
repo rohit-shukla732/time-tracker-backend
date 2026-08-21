@@ -20,9 +20,11 @@ import {
   Briefcase,
   PlusCircle,
   Users,
-  Settings
+  Settings,
+  Search
 } from 'lucide-react';
 import Image from 'next/image';
+import { AdminCommandPalette } from '@/components/tickets/AdminCommandPalette';
 
 interface User {
   id: string;
@@ -39,6 +41,7 @@ export function AdminTicketLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 const adminNavItems = [
   { href: '/helpdesk/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/helpdesk/admin/tickets', label: 'Tickets', icon: Ticket },
@@ -155,8 +158,8 @@ const adminNavItems = [
                     <Link key={item.href} href={item.href}>
                       <button
                         className={`flex items-center gap-2 px-4 py-2 rounded-full text-[14px] font-medium transition-all duration-200 ${
-                          isActive 
-                            ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm' 
+                          isActive
+                            ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-300 shadow-sm'
                             : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
                         }`}
                       >
@@ -169,8 +172,19 @@ const adminNavItems = [
               </div>
             </div>
 
-            {/* User Menu */}
+            {/* Search / Command Palette Trigger */}
             <div className="flex items-center shrink-0">
+              <button
+                onClick={() => setPaletteOpen(true)}
+                aria-label="Open search (Ctrl+K)"
+                className="flex items-center gap-2 h-9 pl-3 pr-2 mr-2 rounded-full bg-zinc-100/60 dark:bg-zinc-800/60 border border-black/[0.04] dark:border-white/[0.04] text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              >
+                <Search className="h-4 w-4" />
+                <kbd className="hidden md:flex items-center gap-0.5 text-[11px] font-medium tracking-wide">
+                  <span className="px-1 py-0.5 rounded-md bg-white dark:bg-zinc-700 border border-black/[0.06] dark:border-white/[0.06] shadow-sm">Ctrl</span>
+                  <span className="px-1 py-0.5 rounded-md bg-white dark:bg-zinc-700 border border-black/[0.06] dark:border-white/[0.06] shadow-sm">K</span>
+                </kbd>
+              </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center gap-3 pl-2 pr-4 py-1.5 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/20">
@@ -206,10 +220,14 @@ const adminNavItems = [
         </div>
       </nav>
 
-      {/* Main Content Spacer */}
-      <main className="w-full relative z-10 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-        {children}
+      {/* Main Content with keyed page transition */}
+      <main className="w-full relative z-10">
+        <div key={pathname} className="animate-in fade-in slide-in-from-bottom-3 duration-500 ease-out">
+          {children}
+        </div>
       </main>
+
+      <AdminCommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
   );
 }
