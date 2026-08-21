@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { AdminTicketLayout } from '@/components/tickets/AdminTicketLayout';
+import { PageHeader, GlassCard, btnPrimary, btnSecondary } from '@/components/tickets/shared';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -309,32 +311,28 @@ export default function AdminUsersPage() {
     <AdminTicketLayout>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10 font-sans space-y-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-2">
-            <h1 className="text-[40px] leading-[1.1] font-semibold tracking-[-0.03em] text-zinc-900 dark:text-zinc-100">
-              Users
-            </h1>
-            <p className="text-[17px] text-zinc-500 dark:text-zinc-400 font-light">
-              Manage staff accounts, roles and access.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => { setBulkDialogOpen(true); setBulkFile(null); setUploadResult(null); }}
-              className="flex items-center justify-center h-12 px-6 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-white/50 dark:bg-zinc-900/50 text-zinc-900 dark:text-white text-[14px] font-medium shadow-sm hover:bg-white dark:hover:bg-zinc-800 transition-colors"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Bulk Upload
-            </Button>
-            <Button
-              onClick={() => setCreateDialogOpen(true)}
-              className="flex items-center justify-center h-12 px-6 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[14px] font-medium transition-transform hover:shadow-md active:scale-[0.98]"
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add User
-            </Button>
-          </div>
-        </div>
+        <PageHeader
+          title="Users"
+          subtitle="Manage staff accounts, roles and access."
+          actions={
+            <>
+              <Button
+                onClick={() => { setBulkDialogOpen(true); setBulkFile(null); setUploadResult(null); }}
+                className={btnSecondary}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Bulk Upload
+              </Button>
+              <Button
+                onClick={() => setCreateDialogOpen(true)}
+                className={btnPrimary}
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
+            </>
+          }
+        />
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
@@ -376,7 +374,7 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Table */}
-        <div className="overflow-hidden rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <GlassCard className="overflow-hidden">
           <div className="flex items-center justify-between py-5 px-6 sm:px-8 border-b border-black/[0.04] dark:border-white/[0.04]">
             <h2 className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Staff Register</h2>
             <div className="flex items-center gap-3 text-[14px] text-zinc-500">
@@ -390,9 +388,16 @@ export default function AdminUsersPage() {
 
           <div className="p-0">
             {loading ? (
-              <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-900 dark:border-white border-t-transparent" />
-                <span className="text-[15px] text-zinc-500 font-light">Loading users…</span>
+              <div className="p-6 sm:p-8 space-y-4" aria-busy="true" aria-label="Loading users">
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-6 w-16 shrink-0 rounded-lg" />
+                    <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+                    <Skeleton className="h-6 flex-1 rounded-lg" style={{ width: `${85 - (i % 3) * 10}%` }} />
+                    <Skeleton className="hidden lg:block h-6 w-40 rounded-lg" />
+                    <Skeleton className="hidden xl:block h-6 w-24 rounded-lg" />
+                  </div>
+                ))}
               </div>
             ) : (
               <>
@@ -402,11 +407,11 @@ export default function AdminUsersPage() {
                       <TableRow className="bg-zinc-50/50 dark:bg-zinc-900/20 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 border-b border-black/[0.04] dark:border-white/[0.04]">
                         <TableHead className="pl-6 w-[130px]">Code</TableHead>
                         <TableHead className="w-[200px]">Name</TableHead>
-                        <TableHead>Email</TableHead>
+                        <TableHead className="hidden lg:table-cell">Email</TableHead>
                         <TableHead className="w-[140px]">Role</TableHead>
-                        <TableHead className="w-[120px]">Tickets</TableHead>
+                        <TableHead className="hidden xl:table-cell w-[120px]">Tickets</TableHead>
                         <TableHead className="w-[110px]">Status</TableHead>
-                        <TableHead className="w-[120px]">Created</TableHead>
+                        <TableHead className="hidden xl:table-cell w-[120px]">Created</TableHead>
                         <TableHead className="w-[52px] pr-4" />
                       </TableRow>
                     </TableHeader>
@@ -428,7 +433,7 @@ export default function AdminUsersPage() {
                         <TableRow key={user.id} className="group hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 border-b border-black/[0.04] dark:border-white/[0.04] transition-colors">
                           <TableCell className="pl-6 font-mono text-xs font-medium">
                             {user.id}
-                            {user.isArchived && <span className="ml-2 text-[10px] uppercase tracking-wider text-zinc-400">archived</span>}
+                            {user.isArchived && <span className="ml-2 text-[10px] uppercase tracking-wider text-zinc-500 dark:text-zinc-400">archived</span>}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2.5">
@@ -440,7 +445,7 @@ export default function AdminUsersPage() {
                               <span className="text-sm font-medium truncate max-w-[140px]">{user.name}</span>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden lg:table-cell">
                             <span className="text-sm text-zinc-600 dark:text-zinc-400 truncate max-w-[220px] block">{user.email}</span>
                           </TableCell>
                           <TableCell>
@@ -448,7 +453,7 @@ export default function AdminUsersPage() {
                               {ROLE_LABELS[user.role] ?? user.role}
                             </Badge>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden xl:table-cell">
                             <span className="text-[13px] text-zinc-500">
                               {user._count.createdTickets} created · {user._count.assignedTickets} assigned
                             </span>
@@ -459,13 +464,18 @@ export default function AdminUsersPage() {
                               {user.isArchived ? 'Archived' : 'Active'}
                             </span>
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          <TableCell className="hidden xl:table-cell text-xs text-muted-foreground whitespace-nowrap">
                             {formatDistanceToNow(new Date(user.createdAt))}
                           </TableCell>
                           <TableCell className="pr-4">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 transition-opacity">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label={`Actions for ${user.name}`}
+                                  className="h-7 w-7 opacity-40 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 transition-opacity focus-visible:opacity-100"
+                                >
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -522,7 +532,7 @@ export default function AdminUsersPage() {
               </>
             )}
           </div>
-        </div>
+        </GlassCard>
       </div>
 
       {/* Create user dialog */}

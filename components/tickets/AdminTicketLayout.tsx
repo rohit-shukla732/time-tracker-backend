@@ -14,7 +14,6 @@ import {
 import {
   LayoutDashboard,
   Ticket,
-  KanbanSquare,
   LogOut,
   ChevronDown,
   Shield,
@@ -41,9 +40,8 @@ export function AdminTicketLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
 const adminNavItems = [
-  { href: '/helpdesk/admin', label: 'Dashboard', icon: LayoutDashboard },       
+  { href: '/helpdesk/admin', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/helpdesk/admin/tickets', label: 'Tickets', icon: Ticket },
-  { href: '/helpdesk/admin/kanban', label: 'Board', icon: KanbanSquare },       
   { href: '/helpdesk/admin/users', label: 'Users', icon: Users },
   { href: '/helpdesk/admin/settings', label: 'Settings', icon: Settings },
   { href: '/helpdesk/admin/new', label: 'Create Ticket', icon: PlusCircle },

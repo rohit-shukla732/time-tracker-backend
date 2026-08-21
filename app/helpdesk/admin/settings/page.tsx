@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AdminTicketLayout } from '@/components/tickets/AdminTicketLayout';
+import { PageHeader, GlassCard, btnPrimary } from '@/components/tickets/shared';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +38,7 @@ import {
 import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 
-interface CategoryWithSubs extends TicketCategory {}
+type CategoryWithSubs = TicketCategory;
 
 interface SubcategoryItem {
   id: string;
@@ -275,42 +277,36 @@ export default function AdminSettingsPage() {
     <AdminTicketLayout>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10 font-sans space-y-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-2">
-            <h1 className="text-[40px] leading-[1.1] font-semibold tracking-[-0.03em] text-zinc-900 dark:text-zinc-100">
-              Settings
-            </h1>
-            <p className="text-[17px] text-zinc-500 dark:text-zinc-400 font-light">
-              Manage ticket categories and subcategories. Disabled items are hidden from new ticket forms.
-            </p>
-          </div>
-          <Button
-            onClick={() => setAddCategoryOpen(true)}
-            className="flex items-center justify-center h-12 px-6 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[14px] font-medium transition-transform hover:shadow-md active:scale-[0.98]"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Category
-          </Button>
-        </div>
+        <PageHeader
+          title="Settings"
+          subtitle="Manage ticket categories and subcategories. Disabled items are hidden from new ticket forms."
+          actions={
+            <Button onClick={() => setAddCategoryOpen(true)} className={btnPrimary}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Category
+            </Button>
+          }
+        />
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center min-h-[300px] gap-4">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-900 dark:border-white border-t-transparent" />
-            <span className="text-[15px] text-zinc-500 font-light">Loading categories…</span>
+          <div className="grid md:grid-cols-2 gap-6" aria-busy="true" aria-label="Loading categories">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[280px] rounded-[32px]" />
+            ))}
           </div>
         ) : categories.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[300px] gap-3 rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04]">
-            <FolderOpen className="h-10 w-10 text-zinc-300 dark:text-zinc-600" />
+          <GlassCard className="flex flex-col items-center justify-center min-h-[300px] gap-3">
+            <FolderOpen className="h-10 w-10 text-zinc-300 dark:text-zinc-600" aria-hidden="true" />
             <span className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">No categories yet</span>
             <span className="text-[14px] text-zinc-500 font-light">Create your first ticket category to get started</span>
-            <Button onClick={() => setAddCategoryOpen(true)} className="mt-2 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
+            <Button onClick={() => setAddCategoryOpen(true)} className={`mt-2 ${btnPrimary}`}>
               <Plus className="h-4 w-4 mr-2" />Add Category
             </Button>
-          </div>
+          </GlassCard>
         ) : (
           <div className="grid md:grid-cols-2 gap-6">
             {categories.map((cat, ci) => (
-              <div key={cat.id} className="rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+              <GlassCard key={cat.id} className="overflow-hidden">
                 <div className="flex items-center gap-3 py-4 px-6 border-b border-black/[0.04] dark:border-white/[0.04]">
                   <div className="h-9 w-9 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                     <Layers className="h-4.5 w-4.5" />
@@ -325,10 +321,10 @@ export default function AdminSettingsPage() {
                     <p className="text-[12px] text-zinc-400">{(cat.subcategories ?? []).length} subcategor{(cat.subcategories ?? []).length !== 1 ? 'ies' : 'y'}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" disabled={ci === 0} onClick={() => moveCategory(ci, -1)}><ChevronUp className="h-4 w-4 text-zinc-400" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" disabled={ci === categories.length - 1} onClick={() => moveCategory(ci, 1)}><ChevronDown className="h-4 w-4 text-zinc-400" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl" onClick={() => { setEditCategory(cat); setEditCategoryName(cat.name); }}><Pencil className="h-4 w-4 text-zinc-400" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-destructive hover:bg-destructive/10" onClick={() => setDeleteCategory(cat)}><Trash2 className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" aria-label={`Move ${cat.name} up`} className="h-8 w-8 rounded-xl focus-visible:ring-2 focus-visible:ring-zinc-400" disabled={ci === 0} onClick={() => moveCategory(ci, -1)}><ChevronUp className="h-4 w-4 text-zinc-500 dark:text-zinc-400" /></Button>
+                    <Button variant="ghost" size="icon" aria-label={`Move ${cat.name} down`} className="h-8 w-8 rounded-xl focus-visible:ring-2 focus-visible:ring-zinc-400" disabled={ci === categories.length - 1} onClick={() => moveCategory(ci, 1)}><ChevronDown className="h-4 w-4 text-zinc-500 dark:text-zinc-400" /></Button>
+                    <Button variant="ghost" size="icon" aria-label={`Rename ${cat.name}`} className="h-8 w-8 rounded-xl focus-visible:ring-2 focus-visible:ring-zinc-400" onClick={() => { setEditCategory(cat); setEditCategoryName(cat.name); }}><Pencil className="h-4 w-4 text-zinc-500 dark:text-zinc-400" /></Button>
+                    <Button variant="ghost" size="icon" aria-label={`Delete ${cat.name}`} className="h-8 w-8 rounded-xl text-destructive hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-zinc-400" onClick={() => setDeleteCategory(cat)}><Trash2 className="h-4 w-4" /></Button>
                   </div>
                 </div>
 
@@ -351,21 +347,21 @@ export default function AdminSettingsPage() {
                       <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${sub.active ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-600'}`} />
                       <span className={`text-[14px] flex-1 truncate ${sub.active ? 'text-zinc-700 dark:text-zinc-300' : 'text-zinc-400 line-through'}`}>{sub.name}</span>
                       <div className="flex items-center gap-1 shrink-0">
-                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg" disabled={si === 0} onClick={() => moveSub(ci, si, -1)}><ChevronUp className="h-3.5 w-3.5 text-zinc-400" /></Button>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg" disabled={si === (cat.subcategories ?? []).length - 1} onClick={() => moveSub(ci, si, 1)}><ChevronDown className="h-3.5 w-3.5 text-zinc-400" /></Button>
-                        <Switch checked={sub.active} onCheckedChange={() => handleToggleSub(sub)} className="scale-90" />
-                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg" onClick={() => { setEditSub(sub); setEditSubName(sub.name); }}><Pencil className="h-3.5 w-3.5 text-zinc-400" /></Button>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg text-destructive hover:bg-destructive/10" onClick={() => setDeleteSub(sub)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" aria-label={`Move subcategory ${sub.name} up`} className="h-6 w-6 rounded-lg focus-visible:ring-2 focus-visible:ring-zinc-400" disabled={si === 0} onClick={() => moveSub(ci, si, -1)}><ChevronUp className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" /></Button>
+                        <Button variant="ghost" size="icon" aria-label={`Move subcategory ${sub.name} down`} className="h-6 w-6 rounded-lg focus-visible:ring-2 focus-visible:ring-zinc-400" disabled={si === (cat.subcategories ?? []).length - 1} onClick={() => moveSub(ci, si, 1)}><ChevronDown className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" /></Button>
+                        <Switch checked={sub.active} onCheckedChange={() => handleToggleSub(sub)} aria-label={`Toggle ${sub.name}`} className="scale-90" />
+                        <Button variant="ghost" size="icon" aria-label={`Rename subcategory ${sub.name}`} className="h-6 w-6 rounded-lg focus-visible:ring-2 focus-visible:ring-zinc-400" onClick={() => { setEditSub(sub); setEditSubName(sub.name); }}><Pencil className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" /></Button>
+                        <Button variant="ghost" size="icon" aria-label={`Delete subcategory ${sub.name}`} className="h-6 w-6 rounded-lg text-destructive hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-zinc-400" onClick={() => setDeleteSub(sub)}><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </div>
                   ))}
                 </div>
 
                 <div className="px-6 pb-5 flex items-center justify-between">
-                  <span className="text-[12px] text-zinc-400">Category visible in new ticket form</span>
-                  <Switch checked={cat.active} onCheckedChange={() => handleToggleCategory(cat)} />
+                  <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Category visible in new ticket form</span>
+                  <Switch checked={cat.active} onCheckedChange={() => handleToggleCategory(cat)} aria-label={`Toggle ${cat.name}`} />
                 </div>
-              </div>
+              </GlassCard>
             ))}
           </div>
         )}

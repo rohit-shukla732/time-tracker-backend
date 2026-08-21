@@ -76,6 +76,7 @@ export interface TicketComment {
   userId: string;
   content: string;
   createdAt: Date;
+  isInternal?: boolean;
   user?: User;
 }
 

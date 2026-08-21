@@ -2,20 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { AdminTicketLayout } from '@/components/tickets/AdminTicketLayout';
+import { PageHeader, GlassCard, statusDotClass, priorityDotClass } from '@/components/tickets/shared';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Ticket,
   AlertCircle,
   Clock,
   CheckCircle2,
-  XCircle,
   RefreshCw,
   Download,
-  ArrowRight,
   Flame,
   TriangleAlert,
   ShieldCheck,
   Inbox,
-  TrendingUp,
   Activity,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -114,7 +113,6 @@ export default function AdminDashboard() {
       toast.info('Preparing export…');
       const response = await makeAuthenticatedRequest('/api/tickets/export');
       if (!response.ok) throw new Error();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tickets = await response.json() as any[];
 
       const headers = [
@@ -157,36 +155,24 @@ export default function AdminDashboard() {
   const active = stats.open + stats.inProgress + stats.pending;
   const resolutionRate = pct(stats.resolved + stats.closed);
 
-  const statCards = [
-    { label: 'Open',        value: stats.open,       icon: Inbox,         color: 'text-blue-500',   bg: 'bg-blue-500/10',   border: 'border-blue-500/20',   ring: 'ring-blue-500/30' },
-    { label: 'In Progress', value: stats.inProgress, icon: Clock,         color: 'text-yellow-500', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', ring: 'ring-yellow-500/30' },
-    { label: 'Pending',     value: stats.pending,    icon: AlertCircle,   color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20', ring: 'ring-orange-500/30' },
-    { label: 'Resolved',    value: stats.resolved,   icon: CheckCircle2,  color: 'text-green-500',  bg: 'bg-green-500/10',  border: 'border-green-500/20',  ring: 'ring-green-500/30' },
-    { label: 'Closed',      value: stats.closed,     icon: XCircle,       color: 'text-gray-400',   bg: 'bg-gray-500/10',   border: 'border-gray-500/20',   ring: 'ring-gray-500/30' },
-    { label: 'Total',       value: stats.total,      icon: Ticket,        color: 'text-primary',    bg: 'bg-primary/10',    border: 'border-primary/20',    ring: 'ring-primary/30' },
-  ];
-
-  const priorityBars = [
-    { label: 'Urgent', value: stats.urgent, color: 'bg-red-500',    text: 'text-red-600 dark:text-red-400',    icon: Flame },
-    { label: 'High',   value: stats.high,   color: 'bg-orange-500', text: 'text-orange-600 dark:text-orange-400', icon: TriangleAlert },
-    { label: 'Medium', value: stats.medium, color: 'bg-yellow-500', text: 'text-yellow-600 dark:text-yellow-400', icon: Activity },
-    { label: 'Low',    value: stats.low,    color: 'bg-green-500',  text: 'text-green-600 dark:text-green-400',  icon: ShieldCheck },
-  ];
-
-  const statusSegments = [
-    { label: 'Open',        value: stats.open,       color: 'bg-blue-500' },
-    { label: 'In Progress', value: stats.inProgress, color: 'bg-yellow-500' },
-    { label: 'Pending',     value: stats.pending,    color: 'bg-orange-500' },
-    { label: 'Resolved',    value: stats.resolved,   color: 'bg-green-500' },
-    { label: 'Closed',      value: stats.closed,     color: 'bg-gray-400' },
-  ];
-
   if (loading) {
     return (
       <AdminTicketLayout>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-zinc-900 dark:border-white border-t-transparent" />
-          <p className="text-[15px] text-zinc-500 font-light">Loading dashboard…</p>
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10 font-sans space-y-10" aria-busy="true" aria-label="Loading dashboard">
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-72 rounded-2xl" />
+            <Skeleton className="h-5 w-96 rounded-xl" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-[220px] rounded-[32px]" />
+            ))}
+          </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <Skeleton key={i} className="h-[340px] rounded-[32px]" />
+            ))}
+          </div>
         </div>
       </AdminTicketLayout>
     );
@@ -194,57 +180,55 @@ export default function AdminDashboard() {
 
   return (
     <AdminTicketLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 font-sans space-y-10">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10 font-sans space-y-10">
 
         {/* Header Area */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-2">
-            <h1 className="text-[40px] leading-[1.1] font-semibold tracking-[-0.03em] text-zinc-900 dark:text-zinc-100">
-              IT Support Hub
-            </h1>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-[17px] text-zinc-500 dark:text-zinc-400 font-light">
-              <p>Monitor and manage your support queue.</p>
-              {lastUpdated && (
-                <>
-                  <span className="hidden sm:inline text-zinc-300 dark:text-zinc-700">•</span>
-                  <p className="text-[14px]">Updated {lastUpdated.toLocaleTimeString()}</p>
-                </>
-              )}
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 shrink-0">
-            <button 
-              onClick={() => fetchStats()} 
-              disabled={refreshing}
-              className="flex items-center justify-center p-3 rounded-full bg-white/60 dark:bg-zinc-900/50 border border-black/[0.04] dark:border-white/[0.04] backdrop-blur-xl text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all active:scale-[0.98] shadow-sm disabled:opacity-50"
-              title="Refresh Stats"
-            >
-              <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
-            <button 
-              onClick={downloadTicketsCSV} 
-              disabled={downloading || stats.total === 0}
-              className="flex items-center justify-center h-12 px-5 rounded-full bg-white/60 dark:bg-zinc-900/50 border border-black/[0.04] dark:border-white/[0.04] backdrop-blur-xl text-[14px] font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all active:scale-[0.98] shadow-sm disabled:opacity-50"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {downloading ? 'Exporting…' : 'Export CSV'}
-            </button>
-            <button 
-              onClick={() => router.push('/helpdesk/admin/tickets')}
-              className="flex items-center justify-center h-12 px-6 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[14px] font-medium transition-transform hover:shadow-md active:scale-[0.98]"
-            >
-              <Ticket className="h-4 w-4 mr-2" />
-              All Tickets
-            </button>
-          </div>
-        </div>
+        <PageHeader
+          title="IT Support Hub"
+          subtitle="Monitor and manage your support queue."
+          meta={lastUpdated ? (
+            <p className="text-[14px] text-zinc-500 dark:text-zinc-400 font-light">
+              Updated {lastUpdated.toLocaleTimeString()}
+            </p>
+          ) : undefined}
+          actions={
+            <>
+              <button
+                onClick={() => fetchStats()}
+                disabled={refreshing}
+                aria-label="Refresh stats"
+                className="flex items-center justify-center p-3 rounded-full bg-white/60 dark:bg-zinc-900/50 border border-black/[0.04] dark:border-white/[0.04] backdrop-blur-xl text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all active:scale-[0.98] shadow-sm disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+              >
+                <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={downloadTicketsCSV}
+                disabled={downloading || stats.total === 0}
+                className="flex items-center justify-center h-12 px-5 rounded-full bg-white/60 dark:bg-zinc-900/50 border border-black/[0.04] dark:border-white/[0.04] backdrop-blur-xl text-[14px] font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all active:scale-[0.98] shadow-sm disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {downloading ? 'Exporting…' : 'Export CSV'}
+              </button>
+              <button
+                onClick={() => router.push('/helpdesk/admin/tickets')}
+                className="flex items-center justify-center h-12 px-6 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[14px] font-medium transition-transform hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+              >
+                <Ticket className="h-4 w-4 mr-2" />
+                All Tickets
+              </button>
+            </>
+          }
+        />
 
         {/* Hero Metrics Row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div 
+          <GlassCard
+            role="button"
+            tabIndex={0}
+            aria-label="View all tickets"
             onClick={() => router.push('/helpdesk/admin/tickets')}
-            className="group cursor-pointer flex flex-col p-8 rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300"
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push('/helpdesk/admin/tickets'); } }}
+            className="group cursor-pointer flex flex-col p-8 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
           >
             <div className="flex items-center justify-between mb-8">
               <div className="space-y-1">
@@ -258,9 +242,9 @@ export default function AdminDashboard() {
             <div className="text-[56px] font-semibold tracking-[-0.04em] text-zinc-900 dark:text-white leading-none">
               {stats.total}
             </div>
-          </div>
+          </GlassCard>
 
-          <div className="flex flex-col p-8 rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+          <GlassCard className="flex flex-col p-8">
             <div className="flex items-center justify-between mb-8">
               <div className="space-y-1">
                 <h2 className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Resolution Rate</h2>
@@ -278,11 +262,15 @@ export default function AdminDashboard() {
             <div className="mt-4 h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                <div className={`h-full rounded-full transition-all duration-500 ${resolutionRate >= 70 ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${resolutionRate}%` }} />
             </div>
-          </div>
+          </GlassCard>
 
-          <div 
+          <GlassCard
+            role="button"
+            tabIndex={0}
+            aria-label="View active tickets"
             onClick={() => router.push('/helpdesk/admin/tickets')}
-            className="group cursor-pointer flex flex-col p-8 rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300"
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push('/helpdesk/admin/tickets'); } }}
+            className="group cursor-pointer flex flex-col p-8 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
           >
             <div className="flex items-center justify-between mb-8">
               <div className="space-y-1">
@@ -305,24 +293,32 @@ export default function AdminDashboard() {
                 {stats.urgent + stats.high} require urgent attention
               </div>
             )}
-          </div>
+          </GlassCard>
         </div>
 
         {/* Detailed Breakdown Row */}
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Visual Status List */}
-          <div className="flex flex-col p-8 rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+          <GlassCard className="flex flex-col p-8">
             <div className="mb-8">
               <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Queue by Status</h2>
             </div>
             <div className="space-y-5">
               {[
-                { label: 'Open', count: stats.open, color: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400', icon: Inbox },
-                { label: 'In Progress', count: stats.inProgress, color: 'bg-yellow-500', bg: 'bg-yellow-50 dark:bg-yellow-500/10', text: 'text-yellow-600 dark:text-yellow-400', icon: Clock },
-                { label: 'Pending', count: stats.pending, color: 'bg-orange-500', bg: 'bg-orange-50 dark:bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', icon: AlertCircle },
-                { label: 'Resolved', count: stats.resolved, color: 'bg-green-500', bg: 'bg-green-50 dark:bg-green-500/10', text: 'text-green-600 dark:text-green-400', icon: CheckCircle2 }
+                { key: 'OPEN', label: 'Open', count: stats.open, bg: 'bg-blue-50 dark:bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400', icon: Inbox },
+                { key: 'IN_PROGRESS', label: 'In Progress', count: stats.inProgress, bg: 'bg-purple-50 dark:bg-purple-500/10', text: 'text-purple-600 dark:text-purple-400', icon: Clock },
+                { key: 'PENDING', label: 'Pending', count: stats.pending, bg: 'bg-yellow-50 dark:bg-yellow-500/10', text: 'text-yellow-600 dark:text-yellow-400', icon: AlertCircle },
+                { key: 'RESOLVED', label: 'Resolved', count: stats.resolved, bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', icon: CheckCircle2 }
               ].map((s) => (
-                <div key={s.label} className="group relative flex items-center gap-4 p-3 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer" onClick={() => router.push('/helpdesk/admin/tickets')}>
+                <div
+                  key={s.key}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View ${s.label.toLowerCase()} tickets`}
+                  className="group relative flex items-center gap-4 p-3 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+                  onClick={() => router.push(`/helpdesk/admin/tickets?status=${s.key}`)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/helpdesk/admin/tickets?status=${s.key}`); } }}
+                >
                   <div className={`p-2.5 rounded-full ${s.bg}`}>
                     <s.icon className={`h-5 w-5 ${s.text}`} strokeWidth={2.5} />
                   </div>
@@ -332,27 +328,35 @@ export default function AdminDashboard() {
                       <span className="text-[15px] font-semibold text-zinc-900 dark:text-white">{s.count}</span>
                     </div>
                     <div className="h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                      <div className={`h-full ${s.color} rounded-full transition-all duration-500`} style={{ width: `${pct(s.count)}%` }} />
+                      <div className={`h-full ${statusDotClass(s.key)} rounded-full transition-all duration-500`} style={{ width: `${pct(s.count)}%` }} />
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </GlassCard>
 
           {/* Priority Breakdown */}
-          <div className="flex flex-col p-8 rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+          <GlassCard className="flex flex-col p-8">
             <div className="mb-8">
               <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Queue by Priority</h2>
             </div>
             <div className="space-y-5">
               {[
-                { label: 'Urgent', count: stats.urgent, color: 'bg-red-500', bg: 'bg-red-50 dark:bg-red-500/10', text: 'text-red-600 dark:text-red-400', icon: Flame },
-                { label: 'High', count: stats.high, color: 'bg-orange-500', bg: 'bg-orange-50 dark:bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', icon: TriangleAlert },
-                { label: 'Medium', count: stats.medium, color: 'bg-yellow-500', bg: 'bg-yellow-50 dark:bg-yellow-500/10', text: 'text-yellow-600 dark:text-yellow-400', icon: Activity },
-                { label: 'Low', count: stats.low, color: 'bg-green-500', bg: 'bg-green-50 dark:bg-green-500/10', text: 'text-green-600 dark:text-green-400', icon: ShieldCheck }
+                { key: 'URGENT', label: 'Urgent', count: stats.urgent, bg: 'bg-red-50 dark:bg-red-500/10', text: 'text-red-600 dark:text-red-400', icon: Flame },
+                { key: 'HIGH', label: 'High', count: stats.high, bg: 'bg-orange-50 dark:bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', icon: TriangleAlert },
+                { key: 'MEDIUM', label: 'Medium', count: stats.medium, bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', icon: Activity },
+                { key: 'LOW', label: 'Low', count: stats.low, bg: 'bg-zinc-100 dark:bg-zinc-800', text: 'text-zinc-500 dark:text-zinc-400', icon: ShieldCheck }
               ].map((p) => (
-                <div key={p.label} className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer" onClick={() => router.push('/helpdesk/admin/tickets')}>
+                <div
+                  key={p.key}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`View ${p.label.toLowerCase()} priority tickets`}
+                  className="group flex items-center gap-4 p-3 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+                  onClick={() => router.push(`/helpdesk/admin/tickets?priority=${p.key}`)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push(`/helpdesk/admin/tickets?priority=${p.key}`); } }}
+                >
                   <div className={`p-2.5 rounded-full ${p.bg}`}>
                     <p.icon className={`h-5 w-5 ${p.text}`} strokeWidth={2.5} />
                   </div>
@@ -362,13 +366,13 @@ export default function AdminDashboard() {
                       <span className="text-[15px] font-semibold text-zinc-900 dark:text-white">{p.count}</span>
                     </div>
                     <div className="h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                      <div className={`h-full ${p.color} rounded-full transition-all duration-500`} style={{ width: `${pct(p.count)}%` }} />
+                      <div className={`h-full ${priorityDotClass(p.key)} rounded-full transition-all duration-500`} style={{ width: `${pct(p.count)}%` }} />
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </GlassCard>
         </div>
 
       </div>

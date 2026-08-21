@@ -2,7 +2,19 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AdminTicketLayout } from '@/components/tickets/AdminTicketLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  PageHeader,
+  GlassCard,
+  StatusBadge,
+  PriorityBadge,
+  STATUS_STYLES,
+  statusDotClass,
+  priorityDotClass,
+  statusLabel,
+  priorityLabel,
+} from '@/components/tickets/shared';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Plus, Ticket as TicketIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +53,6 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  Hash,
   RotateCcw,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -52,7 +63,6 @@ import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 type SortKey = 'ticketNumber' | 'title' | 'creatorName' | 'subcategory' | 'priority' | 'status' | 'assigneeName' | 'createdAt';
 type SortDir = 'asc' | 'desc';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Ticket = any;
 
 const PRIORITY_ORDER: Record<string, number> = {
@@ -67,15 +77,22 @@ export default function AdminTicketsPage() {
   const router = useRouter();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(() => {
+    if (typeof window === 'undefined') return 'all';
+    const s = new URLSearchParams(window.location.search).get('status');
+    return s && Object.values(TicketStatus).includes(s as TicketStatus) ? s : 'all';
+  });
+  const [priorityFilter, setPriorityFilter] = useState(() => {
+    if (typeof window === 'undefined') return 'all';
+    const p = new URLSearchParams(window.location.search).get('priority');
+    return p && Object.values(TicketPriority).includes(p as TicketPriority) ? p : 'all';
+  });
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [itTeamMembers, setItTeamMembers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
   const [categories, setCategories] = useState<TicketCategory[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [ticketToDelete, setTicketToDelete] = useState<string | null>(null);
-  const [assigningNumbers, setAssigningNumbers] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>('createdAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -170,18 +187,25 @@ export default function AdminTicketsPage() {
   };
 
   const SortIcon = ({ col }: { col: SortKey }) => {
-    if (sortKey !== col) return <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground/60 ml-1 inline-block" />;
+    if (sortKey !== col) return <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground/60 ml-1 inline-block" aria-hidden="true" />;
     return sortDir === 'asc'
-      ? <ChevronUp className="h-3.5 w-3.5 ml-1 inline-block text-primary" />
-      : <ChevronDown className="h-3.5 w-3.5 ml-1 inline-block text-primary" />;
+      ? <ChevronUp className="h-3.5 w-3.5 ml-1 inline-block text-primary" aria-hidden="true" />
+      : <ChevronDown className="h-3.5 w-3.5 ml-1 inline-block text-primary" aria-hidden="true" />;
   };
 
   const Th = ({ col, children, className }: { col: SortKey; children: React.ReactNode; className?: string }) => (
     <TableHead
-      className={`cursor-pointer select-none whitespace-nowrap hover:text-foreground transition-colors ${sortKey === col ? 'text-foreground' : ''} ${className ?? ''}`}
-      onClick={() => handleSort(col)}
+      aria-sort={sortKey === col ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      className={`whitespace-nowrap transition-colors ${sortKey === col ? 'text-foreground' : ''} ${className ?? ''}`}
     >
-      {children}<SortIcon col={col} />
+      <button
+        type="button"
+        onClick={() => handleSort(col)}
+        aria-label={`Sort by ${children}`}
+        className="inline-flex items-center cursor-pointer select-none hover:text-foreground rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+      >
+        {children}<SortIcon col={col} />
+      </button>
     </TableHead>
   );
 
@@ -252,43 +276,6 @@ export default function AdminTicketsPage() {
     } catch { toast.error('Failed to delete ticket'); }
   };
 
-  const handleAssignNumbers = async () => {
-    try {
-      setAssigningNumbers(true);
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch('/api/tickets/assign-numbers', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
-      if (res.status === 401 || res.status === 403) { ['accessToken','refreshToken','user'].forEach(k => localStorage.removeItem(k)); router.push('/helpdesk/admin/login'); return; }
-      if (!res.ok) throw new Error();
-      const result = await res.json();
-      if (result.success) { toast.success(`Assigned numbers to ${result.ticketsUpdated} ticket(s)`); fetchTickets(); }
-      else toast.info(result.message || 'No tickets to update');
-    } catch { toast.error('Failed to assign ticket numbers'); }
-    finally { setAssigningNumbers(false); }
-  };
-
-  const getPriorityStyle = (p: string) => ({
-    URGENT: 'bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400',
-    HIGH:   'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400',
-    MEDIUM: 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400',
-    LOW:    'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
-  }[p] ?? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400');
-
-  const getStatusStyle = (s: string) => ({
-    OPEN:        'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400',
-    IN_PROGRESS: 'bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400',
-    PENDING:     'bg-yellow-500/10 text-yellow-600 dark:bg-yellow-500/20 dark:text-yellow-400',
-    RESOLVED:    'bg-green-500/10 text-green-600 dark:bg-green-500/20 dark:text-green-400',
-    CLOSED:      'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
-  }[s] ?? 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400');
-
-  const getStatusDot = (s: string) => ({
-    OPEN: 'bg-blue-500', IN_PROGRESS: 'bg-purple-500', PENDING: 'bg-yellow-500',
-    RESOLVED: 'bg-green-500', CLOSED: 'bg-zinc-400',
-  }[s] ?? 'bg-zinc-400');
-
   const getInitials = (name: string) => name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
 
   const getSubLabel = (s?: { name: string } | null) => s?.name ?? 'Not specified';
@@ -300,30 +287,16 @@ export default function AdminTicketsPage() {
     <AdminTicketLayout>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-10 font-sans space-y-8">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-2">
-            <h1 className="text-[40px] leading-[1.1] font-semibold tracking-[-0.03em] text-zinc-900 dark:text-zinc-100">
-              All Tickets
-            </h1>
-            <p className="text-[17px] text-zinc-500 dark:text-zinc-400 font-light">
-              Manage, assign and resolve system support requests.
-            </p>
-          </div>
-          {/* <button
-            onClick={handleAssignNumbers}
-            disabled={assigningNumbers}
-            className="flex items-center justify-center h-12 px-6 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[14px] font-medium transition-transform hover:shadow-md active:scale-[0.98] disabled:opacity-50 shrink-0"
-          >
-            <Hash className="h-4 w-4 mr-2" />
-            {assigningNumbers ? 'Assigning…' : 'Fix Ticket #s'}
-          </button> */}
-        </div>
+        <PageHeader
+          title="All Tickets"
+          subtitle="Manage, assign and resolve system support requests."
+        />
 
         {/* Filters */}
-        <div className="p-4 sm:p-6 rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <GlassCard className="p-4 sm:p-6">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" aria-hidden="true" />
               <Input placeholder="Search tickets, users, #number…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 h-11 rounded-2xl border-black/[0.06] dark:border-white/[0.06] bg-white/50 dark:bg-zinc-900/50 text-[14px] shadow-sm" />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -332,7 +305,7 @@ export default function AdminTicketsPage() {
                 <SelectItem value="all">All Status</SelectItem>
                 {Object.values(TicketStatus).map(s => (
                   <SelectItem key={s} value={s}>
-                    <span className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${getStatusDot(s)}`} />{s.replace(/_/g,' ')}</span>
+                    <span className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${statusDotClass(s)}`} />{statusLabel(s)}</span>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -341,10 +314,11 @@ export default function AdminTicketsPage() {
               <SelectTrigger className="w-[145px] h-11 rounded-2xl border-black/[0.06] dark:border-white/[0.06] bg-white/50 dark:bg-zinc-900/50 text-[14px] shadow-sm"><SelectValue placeholder="Priority" /></SelectTrigger>
               <SelectContent className="rounded-2xl">
                 <SelectItem value="all">All Priorities</SelectItem>
-                <SelectItem value={TicketPriority.URGENT}>🔴 Urgent</SelectItem>
-                <SelectItem value={TicketPriority.HIGH}>🟠 High</SelectItem>
-                <SelectItem value={TicketPriority.MEDIUM}>🟡 Medium</SelectItem>
-                <SelectItem value={TicketPriority.LOW}>🟢 Low</SelectItem>
+                {Object.values(TicketPriority).map(p => (
+                  <SelectItem key={p} value={p}>
+                    <span className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${priorityDotClass(p)}`} />{priorityLabel(p)}</span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -367,10 +341,10 @@ export default function AdminTicketsPage() {
               {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''}
             </span>
           </div>
-        </div>
+        </GlassCard>
 
         {/* Table */}
-        <div className="overflow-hidden rounded-[32px] bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-black/[0.04] dark:border-white/[0.04] shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <GlassCard className="overflow-hidden">
           <div className="flex items-center justify-between py-5 px-6 sm:px-8 border-b border-black/[0.04] dark:border-white/[0.04]">
             <h2 className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Ticket Register</h2>
             <div className="flex items-center gap-3 text-[14px] text-zinc-500">
@@ -384,9 +358,16 @@ export default function AdminTicketsPage() {
 
           <div className="p-0">
             {loading ? (
-              <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-900 dark:border-white border-t-transparent" />
-                <span className="text-[15px] text-zinc-500 font-light">Loading tickets…</span>
+              <div className="p-6 sm:p-8 space-y-4" aria-busy="true" aria-label="Loading tickets">
+                {Array.from({ length: 7 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-4">
+                    <Skeleton className="h-6 w-10 shrink-0 rounded-lg" />
+                    <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                    <Skeleton className="h-6 flex-1 rounded-lg" style={{ width: `${88 - (i % 3) * 12}%` }} />
+                    <Skeleton className="hidden lg:block h-6 w-28 rounded-lg" />
+                    <Skeleton className="hidden xl:block h-6 w-36 rounded-lg" />
+                  </div>
+                ))}
               </div>
             ) : (
               <>
@@ -397,11 +378,11 @@ export default function AdminTicketsPage() {
                         <Th col="ticketNumber" className="pl-6 w-[80px]">#</Th>
                         <Th col="creatorName" className="w-[160px]">User</Th>
                         <Th col="title">Title</Th>
-                        <Th col="subcategory" className="w-[160px]">Category</Th>
+                        <Th col="subcategory" className="hidden lg:table-cell w-[160px]">Category</Th>
                         <Th col="priority" className="w-[110px]">Priority</Th>
                         <Th col="status" className="w-[170px]">Status</Th>
-                        <Th col="assigneeName" className="w-[190px]">Assigned To</Th>
-                        <Th col="createdAt" className="w-[120px]">Created</Th>
+                        <Th col="assigneeName" className="hidden xl:table-cell w-[190px]">Assigned To</Th>
+                        <Th col="createdAt" className="hidden xl:table-cell w-[120px]">Created</Th>
                         <TableHead className="w-[52px] pr-4" />
                       </TableRow>
                     </TableHeader>
@@ -411,16 +392,39 @@ export default function AdminTicketsPage() {
                           <TableCell colSpan={9} className="py-24 text-center">
                             <div className="flex flex-col items-center gap-3">
                               <div className="h-12 w-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-2">
-                                <Search className="h-5 w-5 text-zinc-400" />
+                                {hasFilters ? (
+                                  <Search className="h-5 w-5 text-zinc-400" aria-hidden="true" />
+                                ) : (
+                                  <TicketIcon className="h-5 w-5 text-zinc-400" aria-hidden="true" />
+                                )}
                               </div>
-                              <span className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">No tickets found</span>
-                              <span className="text-[14px] text-zinc-500 font-light">Try adjusting your filters or search query</span>
-                              {hasFilters && <Button variant="link" size="sm" onClick={resetFilters} className="mt-2 text-zinc-900 dark:text-white">Clear all filters</Button>}
+                              {hasFilters ? (
+                                <>
+                                  <span className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">No tickets found</span>
+                                  <span className="text-[14px] text-zinc-500 font-light">Try adjusting your filters or search query</span>
+                                  <Button variant="link" size="sm" onClick={resetFilters} className="mt-2 text-zinc-900 dark:text-white">Clear all filters</Button>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">No tickets yet</span>
+                                  <span className="text-[14px] text-zinc-500 font-light">Create the first support ticket to get started</span>
+                                  <Button onClick={() => router.push('/helpdesk/admin/new')} className="mt-2 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:shadow-md">
+                                    <Plus className="h-4 w-4 mr-1.5" />Create Ticket
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
                       ) : paginatedTickets.map((ticket: Ticket) => (
-                        <TableRow key={ticket.id} className="cursor-pointer group hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 border-b border-black/[0.04] dark:border-white/[0.04] transition-colors" onClick={() => router.push(`/helpdesk/admin/tickets/${ticket.id}`)}>
+                        <TableRow
+                          key={ticket.id}
+                          tabIndex={0}
+                          aria-label={`Open ticket ${ticket.ticketNumber ?? ''}: ${ticket.title}`}
+                          className="cursor-pointer group hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 border-b border-black/[0.04] dark:border-white/[0.04] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400"
+                          onClick={() => router.push(`/helpdesk/admin/tickets/${ticket.id}`)}
+                          onKeyDown={e => { if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'TR') router.push(`/helpdesk/admin/tickets/${ticket.id}`); }}
+                        >
                           {/* # */}
                           <TableCell className="pl-6 font-mono text-xs text-muted-foreground font-medium">
                             {ticket.ticketNumber ? `#${ticket.ticketNumber}` : '—'}
@@ -444,21 +448,19 @@ export default function AdminTicketsPage() {
                             )}
                           </TableCell>
                           {/* Category */}
-                          <TableCell>
+                          <TableCell className="hidden lg:table-cell">
                             <Badge variant="outline" className="font-normal text-xs">{getSubLabel(ticket.subcategory)}</Badge>
                           </TableCell>
                           {/* Priority */}
                           <TableCell>
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[12px] font-semibold tracking-wide uppercase ${getPriorityStyle(ticket.priority)}`}>
-                              {ticket.priority}
-                            </span>
+                            <PriorityBadge priority={ticket.priority} />
                           </TableCell>
                           {/* Status select */}
                           <TableCell onClick={e => e.stopPropagation()}>
                             <Select value={ticket.status} onValueChange={v => handleStatusChange(ticket.id, v)}>
-                              <SelectTrigger className={`h-8 w-[140px] px-3 border-0 rounded-xl font-medium text-[12px] uppercase tracking-wide transition-colors ${getStatusStyle(ticket.status)} hover:opacity-80 focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10`}>
+                              <SelectTrigger aria-label={`Change status for ticket ${ticket.ticketNumber ?? ''}`} className={`h-8 w-[140px] px-3 border-0 rounded-xl font-medium text-[12px] uppercase tracking-wide transition-colors ${(STATUS_STYLES[ticket.status] ?? STATUS_STYLES.CLOSED).badge} hover:opacity-80 focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10`}>
                                 <div className="flex items-center gap-2">
-                                  {/* <span className={`h-1.5 w-1.5 rounded-full ${getStatusDot(ticket.status)}`} /> */}
+                                  <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusDotClass(ticket.status)}`} />
                                   <SelectValue />
                                 </div>
                               </SelectTrigger>
@@ -466,8 +468,8 @@ export default function AdminTicketsPage() {
                                 {Object.values(TicketStatus).map(s => (
                                   <SelectItem key={s} value={s} className="text-[13px] font-medium">
                                     <span className="flex items-center gap-2">
-                                      <span className={`h-2 w-2 rounded-full ${getStatusDot(s)}`} />
-                                      {s.replace(/_/g,' ')}
+                                      <span className={`h-2 w-2 rounded-full ${statusDotClass(s)}`} />
+                                      {statusLabel(s)}
                                     </span>
                                   </SelectItem>
                                 ))}
@@ -475,7 +477,7 @@ export default function AdminTicketsPage() {
                             </Select>
                           </TableCell>
                           {/* Assignee select */}
-                          <TableCell onClick={e => e.stopPropagation()}>
+                          <TableCell className="hidden xl:table-cell" onClick={e => e.stopPropagation()}>
                             <Select value={ticket.assignedTo ?? 'unassigned'} onValueChange={v => handleAssignmentChange(ticket.id, v === 'unassigned' ? null : v)}>
                               <SelectTrigger className="h-8 w-[170px] border border-black/[0.06] dark:border-white/[0.06] bg-white/50 dark:bg-zinc-900/50 rounded-xl hover:bg-black/[0.02] dark:hover:bg-white/[0.02] focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10 transition-colors px-3">
                                 <SelectValue>
@@ -503,14 +505,15 @@ export default function AdminTicketsPage() {
                             </Select>
                           </TableCell>
                           {/* Created */}
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                          <TableCell className="hidden xl:table-cell text-xs text-muted-foreground whitespace-nowrap">
                             {formatDistanceToNow(new Date(ticket.createdAt))}
                           </TableCell>
                           {/* Delete */}
                           <TableCell className="pr-4" onClick={e => e.stopPropagation()}>
                             <Button
                               variant="ghost" size="icon"
-                              className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive/10 transition-opacity"
+                              aria-label={`Delete ticket ${ticket.ticketNumber ?? ''}`}
+                              className="h-7 w-7 opacity-40 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 text-destructive hover:bg-destructive/10 transition-opacity focus-visible:opacity-100"
                               onClick={() => { setTicketToDelete(ticket.id); setDeleteDialogOpen(true); }}
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -549,7 +552,7 @@ export default function AdminTicketsPage() {
               </>
             )}
           </div>
-        </div>
+        </GlassCard>
       </div>
 
       {/* Delete dialog */}
