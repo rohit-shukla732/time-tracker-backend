@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminTicketLayout } from "@/components/tickets/AdminTicketLayout";
+import { makeAuthenticatedRequest } from "@/lib/adminAuth";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,25 +34,49 @@ export default function NewTicketPage() {
   const [showShipmentAnimation, setShowShipmentAnimation] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadCategories = useCallback(async () => {
+    setLoadError(null);
+    if (!localStorage.getItem("accessToken")) {
+      router.push("/helpdesk/admin/login");
+      return;
+    }
+    try {
+      const response = await makeAuthenticatedRequest("/api/tickets/categories", {
+        headers: { "Content-Type": "application/json" },
+      });
+      if (response.status === 401) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+        router.push("/helpdesk/admin/login");
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`Failed to load ticket categories: ${response.status}`);
+      }
+      const data: TicketCategory[] = await response.json();
+      setCategories(data);
+      if (data.length === 0) {
+        setLoadError(
+          "No ticket categories are configured yet. Please contact your administrator."
+        );
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          categoryId: prev.categoryId || data[0].id,
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load ticket categories:", error);
+      setLoadError("Failed to load ticket categories. Please try again.");
+    }
+  }, [router]);
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
-    fetch("/api/tickets/categories", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data: TicketCategory[]) => {
-        setCategories(data);
-        if (data.length > 0) {
-          setFormData((prev) => ({
-            ...prev,
-            categoryId: prev.categoryId || data[0].id,
-          }));
-        }
-      })
-      .catch(() => console.error("Failed to load ticket categories"));
-  }, []);
+    loadCategories();
+  }, [loadCategories]);
 
   const activeSubcategories = categories.find(
     (c) => c.id === formData.categoryId
@@ -335,53 +360,69 @@ export default function NewTicketPage() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2.5">
-                    <Label htmlFor="category" className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 ml-1">Category *</Label>
-                    <Select
-                      value={formData.categoryId}
-                      onValueChange={handleCategoryChange}
-                      disabled={categories.length <= 1}
-                    >
-                      <SelectTrigger id="category" className="h-14 px-4 bg-white/50 dark:bg-zinc-900/50 border-black/5 dark:border-white/5 rounded-2xl text-[16px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-2 focus-visible:ring-primary/20 transition-all">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-2xl border-black/5 dark:border-white/5 shadow-xl">
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id} className="rounded-xl">
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {loadError ? (
+                    <div className="md:col-span-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl border border-amber-200/70 dark:border-amber-500/30 bg-amber-50/70 dark:bg-amber-500/10">
+                        <p className="text-[14px] text-amber-800 dark:text-amber-200 font-light">{loadError}</p>
+                        <button
+                          type="button"
+                          onClick={loadCategories}
+                          className="shrink-0 px-5 h-10 rounded-full bg-amber-600 text-white text-[13px] font-medium hover:bg-amber-700 active:scale-[0.98] transition-all"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="space-y-2.5">
+                        <Label htmlFor="category" className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 ml-1">Category *</Label>
+                        <Select
+                          value={formData.categoryId}
+                          onValueChange={handleCategoryChange}
+                        >
+                          <SelectTrigger id="category" className="h-14 px-4 bg-white/50 dark:bg-zinc-900/50 border-black/5 dark:border-white/5 rounded-2xl text-[16px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-2 focus-visible:ring-primary/20 transition-all">
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-2xl border-black/5 dark:border-white/5 shadow-xl">
+                            {categories.map((category) => (
+                              <SelectItem key={category.id} value={category.id} className="rounded-xl">
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                  <div className="space-y-2.5">
-                    <Label htmlFor="subcategory" className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 ml-1">Issue Type *</Label>
-                    <Select
-                      value={formData.subcategoryId}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, subcategoryId: value })
-                      }
-                    >
-                      <SelectTrigger id="subcategory" className="h-14 px-4 bg-white/50 dark:bg-zinc-900/50 border-black/5 dark:border-white/5 rounded-2xl text-[16px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-2 focus-visible:ring-primary/20 transition-all">
-                        <SelectValue placeholder="Select issue type" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-2xl border-black/5 dark:border-white/5 shadow-xl">
-                        {activeSubcategories.length === 0 && (
-                          <SelectItem value="none" disabled className="rounded-xl">
-                            No issue types available
-                          </SelectItem>
-                        )}
-                        {activeSubcategories.map((subcategory) => (
-                          <SelectItem key={subcategory.id} value={subcategory.id} className="rounded-xl">
-                            <div className="flex flex-col items-start py-1">
-                              <span className="font-medium">{subcategory.name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      <div className="space-y-2.5">
+                        <Label htmlFor="subcategory" className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 ml-1">Issue Type *</Label>
+                        <Select
+                          value={formData.subcategoryId}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, subcategoryId: value })
+                          }
+                        >
+                          <SelectTrigger id="subcategory" className="h-14 px-4 bg-white/50 dark:bg-zinc-900/50 border-black/5 dark:border-white/5 rounded-2xl text-[16px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-2 focus-visible:ring-primary/20 transition-all">
+                            <SelectValue placeholder="Select issue type" />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-2xl border-black/5 dark:border-white/5 shadow-xl">
+                            {activeSubcategories.length === 0 && (
+                              <SelectItem value="none" disabled className="rounded-xl">
+                                No issue types available
+                              </SelectItem>
+                            )}
+                            {activeSubcategories.map((subcategory) => (
+                              <SelectItem key={subcategory.id} value={subcategory.id} className="rounded-xl">
+                                <div className="flex flex-col items-start py-1">
+                                  <span className="font-medium">{subcategory.name}</span>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="space-y-3">
