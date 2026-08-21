@@ -7,13 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -23,7 +16,7 @@ import {
 import { TicketPriority, TicketCategory, TicketSubcategory } from "@/types";
 import { toast } from "sonner";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
-import FullTrainScene from "@/components/animated/Loader";
+import TicketShipmentAnimation from "@/components/animated/TicketShipmentAnimation";
 
 export default function NewTicketPage() {
   const router = useRouter();
@@ -37,7 +30,7 @@ export default function NewTicketPage() {
   });
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-  const [showQueueDialog, setShowQueueDialog] = useState(false);
+  const [showShipmentAnimation, setShowShipmentAnimation] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -250,14 +243,10 @@ export default function NewTicketPage() {
         console.error("Failed to send email notifications:", emailError);
       }
 
-      toast.success(
-        "Ticket created successfully! Check your email for confirmation.",
-      );
-
       // Clean up preview URLs
       previewUrls.forEach((url) => URL.revokeObjectURL(url));
 
-      setShowQueueDialog(true);
+      setShowShipmentAnimation(true);
     } catch (error) {
       console.error("Error creating ticket:", error);
       setIsSubmitting(false);
@@ -537,44 +526,17 @@ export default function NewTicketPage() {
         </div>
       </div>
       
-      <Dialog
-        open={showQueueDialog}
-        onOpenChange={(open) => {
-          if (!open) router.push("/helpdesk/admin/tickets");
-          setShowQueueDialog(open);
+      <TicketShipmentAnimation
+        open={showShipmentAnimation}
+        onDashboard={() => {
+          setShowShipmentAnimation(false);
+          router.push("/helpdesk/admin");
         }}
-      >
-        <DialogContent className="sm:max-w-md rounded-3xl p-8 border-transparent shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)]">
-          <div className="flex flex-col items-center text-center gap-6">
-
-            <DialogHeader>
-              <DialogTitle className="text-[24px] tracking-tight font-semibold">
-                You’re in the Support Queue
-              </DialogTitle>
-
-              <DialogDescription className="text-[16px] space-y-4 pt-4 text-zinc-500 font-light">
-                <p>
-                  Your request has been successfully submitted and is now moving
-                  through our system. Tickets are handled in the order they arrive.
-                </p>
-
-                <p>
-                  You can monitor progress or add updates anytime from the <strong>My Tickets</strong> section.
-                </p>
-              </DialogDescription>
-            </DialogHeader>
-
-            <button 
-              onClick={() => setShowQueueDialog(false)} 
-              className="w-full h-12 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-medium active:scale-[0.98] transition-all shadow-md"
-            >
-              Go to My Tickets
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        onViewTickets={() => {
+          setShowShipmentAnimation(false);
+          router.push("/helpdesk/admin/tickets");
+        }}
+      />
     </AdminTicketLayout>
   );
 }
-
-
