@@ -40,7 +40,6 @@ import {
 import { formatDistanceToNow } from '@/lib/utils';
 import { toast } from 'sonner';
 import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
-import Image from 'next/image';
 
 export default function AdminTicketDetailsPage() {
   const router = useRouter();
@@ -422,11 +421,11 @@ export default function AdminTicketDetailsPage() {
                           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxIndex(si); } }}
                         >
                           <div className="relative aspect-video rounded-2xl border border-black/[0.04] dark:border-white/[0.04] bg-black/5 dark:bg-white/5 overflow-hidden">
-                            <Image
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
                               src={screenshot.url}
                               alt={screenshot.filename}
-                              fill
-                              className="object-cover group-hover:scale-105 transition-transform duration-500"
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                             />
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
                           </div>

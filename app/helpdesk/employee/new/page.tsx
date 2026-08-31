@@ -63,14 +63,17 @@ export default function NewTicketPage() {
           "No ticket categories are configured yet. Please contact your administrator."
         );
       } else {
-        // Prefer IT_SUPPORT so issue types are visible without picking a category
+        // Auto-select: prefer IT_SUPPORT, otherwise pick the first active category
         const preferred =
           data.find((c) => c.name === "IT_SUPPORT") ||
+          data.find((c) => c.name.trim().toUpperCase().replace(/\s+/g, "") === "ITSUPPORT") ||
           data.find((c) => c.name.trim().toUpperCase() === "IT SUPPORT") ||
+          data.find((c) => c.name.trim().toUpperCase().includes("IT")) ||
           data[0];
         setFormData((prev) => ({
           ...prev,
-          categoryId: prev.categoryId || preferred.id,
+          categoryId: preferred.id,
+          subcategoryId: "",
         }));
       }
     } catch (error) {
@@ -168,8 +171,18 @@ export default function NewTicketPage() {
       return;
     }
 
-    if (!formData.title.trim() || !formData.description.trim()) {
-      toast.error("Please fill in all required fields");
+    if (!formData.title.trim()) {
+      toast.error("Please enter a ticket title");
+      return;
+    }
+
+    if (!formData.description.trim()) {
+      toast.error("Please enter a description");
+      return;
+    }
+
+    if (!formData.categoryId) {
+      toast.error("Please select a category");
       return;
     }
 

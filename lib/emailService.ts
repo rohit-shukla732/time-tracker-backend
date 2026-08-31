@@ -1,11 +1,39 @@
 import { Client } from '@microsoft/microsoft-graph-client';
 import { ClientSecretCredential } from '@azure/identity';
+import { readFile } from 'fs/promises';
+import path from 'path';
 
 interface EmailOptions {
   to: string;
   subject: string;
   body: string;
   isHTML?: boolean;
+}
+
+// Logo embedded as a CID attachment so it renders reliably in all email clients
+const LOGO_CONTENT_ID = 'email_logo';
+const LOGO_PATH = path.join(process.cwd(), 'public', 'assets', 'email_dp.jpg');
+
+async function readLogoAttachment(): Promise<{
+  contentId: string;
+  base64: string;
+  mimeType: string;
+} | null> {
+  try {
+    const buffer = await readFile(LOGO_PATH);
+    return {
+      contentId: LOGO_CONTENT_ID,
+      base64: buffer.toString('base64'),
+      mimeType: 'image/jpeg',
+    };
+  } catch (error) {
+    console.error('Failed to read email logo:', error);
+    return null;
+  }
+}
+
+function logoSrc(): string {
+  return `cid:${LOGO_CONTENT_ID}`;
 }
 
 class EmailService {
@@ -56,7 +84,9 @@ class EmailService {
       const client = await this.getClient();
       const helpdeskEmail = process.env.HELPDESK_EMAIL;
 
-      const message = {
+      const logo = await readLogoAttachment();
+
+      const message: any = {
         message: {
           subject,
           body: {
@@ -73,6 +103,20 @@ class EmailService {
         },
         saveToSentItems: true,
       };
+
+      // Attach the logo as an inline (CID) attachment so it renders in the header
+      if (logo) {
+        message.message.attachments = [
+          {
+            '@odata.type': '#microsoft.graph.fileAttachment',
+            name: 'email_dp.jpg',
+            contentType: logo.mimeType,
+            contentId: logo.contentId,
+            isInline: true,
+            contentBytes: logo.base64,
+          },
+        ];
+      }
 
       await client.api(`/users/${helpdeskEmail}/sendMail`).post(message);
 
@@ -117,7 +161,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
            <div class="img">
-                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
+                <img src="cid:email_logo" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -202,7 +246,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
+                <img src="cid:email_logo" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -298,7 +342,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
+                <img src="cid:email_logo" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -390,7 +434,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
+                <img src="cid:email_logo" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -474,7 +518,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
+                <img src="cid:email_logo" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -563,7 +607,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
+                <img src="cid:email_logo" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
@@ -649,7 +693,7 @@ class EmailService {
         <div class="enterprise">
           <div class="header">
           <div class="img">
-                <img src="https://acehcs.in/_next/image?url=%2Fassets%2Femail_dp.jpg&w=64&q=75" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
+                <img src="cid:email_logo" alt="ACE Healthcare Solutions" style="height:70px; width:70px; border-radius: 100%;">
             </div>
             <div class="logo-text">ACE Healthcare Solutions</div>
             <div class="header-right">
