@@ -15,8 +15,9 @@ export function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // ✅ 2. Ticketing subdomain → helpdesk UI
-  if (hostname.startsWith("ticketing")) {
+
+  // ✅ 2. Helpdesk subdomain → helpdesk UI
+  if (hostname.startsWith("helpdesk")) {
     if (!pathname.startsWith("/helpdesk")) {
       return NextResponse.rewrite(
         new URL(`/helpdesk${pathname}`, req.url)
