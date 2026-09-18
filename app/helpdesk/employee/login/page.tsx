@@ -1,54 +1,56 @@
 "use client";
 
-import { useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Ticket, AlertCircle, Loader2 } from 'lucide-react';
-import Link from 'next/link';
 import Image from 'next/image';
 
-export default function HelpdeskEmployeeLogin() {
+const SSO_ERRORS: Record<string, string> = {
+  access_denied: 'Sign-in was cancelled or denied.',
+  no_account: 'No ACE Healthcare account is linked to this Microsoft login. Please contact your administrator.',
+  account_disabled: 'Your account is disabled. Please contact your administrator.',
+  session_expired: 'Your sign-in session expired. Please try again.',
+  sso_error: 'Sign-in failed. Please try again.',
+};
+
+function HelpdeskEmployeeLoginContent() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const searchParams = useSearchParams();
+  const [error, setError] = useState(SSO_ERRORS[searchParams.get('error') || ''] || '');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      router.replace('/helpdesk/employee/dashboard');
+    }
+  }, [router]);
+
+  const handleSso = async () => {
     setError('');
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('/api/auth/sso/authorize', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ portal: 'employee' }),
       });
 
       const data = await response.json();
 
-      if (!response.ok) {
-        setError(data.error || 'Login failed');
+      if (!response.ok || !data.url) {
+        setError(data.error || 'Failed to start sign in');
         setLoading(false);
         return;
       }
 
-      // Store tokens and user info
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      
-      // Dispatch custom event to update UI immediately
-      window.dispatchEvent(new Event('userUpdated'));
-
-      // Redirect to helpdesk dashboard
-      router.push('/helpdesk/employee/dashboard');
-    } catch (err) {
+      window.location.href = data.url;
+    } catch {
       setError('Failed to connect to server');
       setLoading(false);
     }
@@ -75,8 +77,8 @@ export default function HelpdeskEmployeeLogin() {
 
         <div className="relative z-10">
           <div className="w-30 h-30 rounded-3xl bg-white/10 backdrop-blur-xl flex items-center justify-center border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
-                      <Image src="/assets/email_dp.jpg" alt="ACE Logo" width={64} height={64} className="h-full w-full object-cover rounded-3xl" />
-                    </div>
+            <Image src="/assets/email_dp.jpg" alt="ACE Logo" width={64} height={64} className="h-full w-full object-cover rounded-3xl" />
+          </div>
           <h1 className="text-[56px] font-medium tracking-tight leading-[1.05] mb-6 text-white">
             Resolve issues. <br />
             <span className="text-zinc-500">Restore flow.</span>
@@ -95,7 +97,7 @@ export default function HelpdeskEmployeeLogin() {
       {/* Right Pane - Minimalist Form */}
       <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-12 relative bg-zinc-50 dark:bg-black">
         <div className="w-full max-w-[380px] space-y-10">
-          
+
           <div className="space-y-3">
             <div className="lg:hidden flex justify-center mb-8">
               <div className="bg-zinc-100 dark:bg-zinc-900 p-3 rounded-2xl shadow-sm border border-black/5 dark:border-white/5">
@@ -106,77 +108,49 @@ export default function HelpdeskEmployeeLogin() {
               Welcome
             </h2>
             <p className="text-[17px] text-zinc-500 dark:text-zinc-400 font-medium text-center lg:text-left">
-              Sign in to your employee account.
+              Sign in with your ACE Microsoft account.
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-[15px] font-medium flex items-center gap-3 border border-red-100 dark:border-red-500/20">
-                <AlertCircle className="w-5 h-5 shrink-0" />
-                <p>{error}</p>
-              </div>
-            )}
-            
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 ml-1">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="h-14 px-4 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 rounded-2xl text-[17px] shadow-sm hover:border-zinc-300 dark:hover:border-zinc-700 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-primary/10 transition-all placeholder:text-zinc-400"
-                />
-              </div>
-              
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between ml-1">
-                  <Label htmlFor="password" className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400">
-                    Password
-                  </Label>
-                  <Link 
-                    href="/auth/forgot-password" 
-                    className="text-[14px] font-medium text-primary hover:text-primary/80 transition-colors"
-                  >
-                    Forgot?
-                  </Link>
-                </div>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  disabled={loading}
-                  className="h-14 px-4 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 rounded-2xl text-[17px] shadow-sm hover:border-zinc-300 dark:hover:border-zinc-700 focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-primary/10 transition-all placeholder:text-zinc-400 tracking-widest"
-                />
-              </div>
+          {error && (
+            <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-[15px] font-medium flex items-center gap-3 border border-red-100 dark:border-red-500/20">
+              <AlertCircle className="w-5 h-5 shrink-0" />
+              <p>{error}</p>
             </div>
+          )}
 
-            <Button 
-              type="submit" 
-              className="w-full h-14 rounded-2xl text-[17px] font-semibold tracking-wide bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 shadow-[0_4px_14px_0_rgba(0,0,0,0.1)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.15)] active:scale-[0.98] transition-all duration-200 mt-2"
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="h-6 w-6 animate-spin opacity-70" />
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-          </form>
+          <Button
+            type="button"
+            onClick={handleSso}
+            disabled={loading}
+            className="w-full h-14 rounded-2xl text-[16px] font-semibold tracking-wide bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 shadow-[0_4px_14px_0_rgba(0,0,0,0.1)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.15)] active:scale-[0.98] transition-all duration-200 gap-3"
+          >
+            {loading ? (
+              <Loader2 className="h-6 w-6 animate-spin opacity-70" />
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 23 23" aria-hidden="true">
+                <path fill="#f25022" d="M1 1h10v10H1z" />
+                <path fill="#7fba00" d="M12 1h10v10H12z" />
+                <path fill="#00a4ef" d="M1 12h10v10H1z" />
+                <path fill="#ffb900" d="M12 12h10v10H12z" />
+              </svg>
+            )}
+            {loading ? 'Redirecting to Microsoft...' : 'Sign in with Microsoft'}
+          </Button>
+
+          <p className="text-center text-[13px] text-zinc-400 dark:text-zinc-500">
+            You will be redirected to Microsoft to sign in securely.
+          </p>
         </div>
       </div>
     </div>
   );
 }
 
-
-
+export default function HelpdeskEmployeeLogin() {
+  return (
+    <Suspense fallback={null}>
+      <HelpdeskEmployeeLoginContent />
+    </Suspense>
+  );
+}
