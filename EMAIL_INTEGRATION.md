@@ -169,9 +169,9 @@ The Azure service principal needs:
 ## Next Steps
 
 To integrate into ticket creation:
-1. Open `app/ticketing/employee/new/page.tsx`
+1. Open `app/helpdesk/employee/new/page.tsx`
 2. Add email service call in `handleSubmit`
-3. Open `app/ticketing/admin/tickets/[id]/page.tsx`
+3. Open `app/helpdesk/admin/tickets/[id]/page.tsx`
 4. Add email calls for status/assignment changes
 5. Add comment notification in comment submission
 

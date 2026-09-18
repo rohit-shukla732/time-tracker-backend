@@ -6,7 +6,7 @@ This feature allows you to backup ticket data to CSV format and restore it later
 
 ### From Admin Dashboard
 
-1. Navigate to the admin ticketing dashboard at `/ticketing/admin`
+1. Navigate to the admin ticketing dashboard at `/helpdesk/admin`
 2. Click the **"Export CSV"** button in the top-right corner
 3. A CSV file named `tickets-export-YYYY-MM-DD.csv` will be downloaded
 

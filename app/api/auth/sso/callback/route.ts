@@ -121,7 +121,11 @@ export async function GET(req: NextRequest) {
     logger.info("GET /api/auth/sso/callback - SSO login successful", { userId: user.id, email: user.email, name });
 
     const destination = portalDef?.dashboardPath || "/helpdesk/employee/dashboard";
-    const target = new URL("/sso/return", req.url);
+    const proto = req.headers.get("x-forwarded-proto") || "https";
+    const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+
+const target = new URL("/sso/return", `${proto}://${host}`);
+    
     target.searchParams.set("accessToken", accessToken);
     target.searchParams.set("refreshToken", refreshToken);
     target.searchParams.set("destination", destination);
