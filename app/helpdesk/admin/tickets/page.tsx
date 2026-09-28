@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AdminTicketLayout } from '@/components/tickets/AdminTicketLayout';
@@ -42,7 +42,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { TicketStatus, TicketPriority, TicketCategory } from '@/types';
+import { TicketStatus, TicketPriority, TicketCategory, TicketType } from '@/types';
+import { TicketTypeBadge } from '@/components/tickets/lifecycle';
 import {
   Search,
   Trash2,
@@ -91,6 +92,11 @@ export default function AdminTicketsPage() {
     return p && Object.values(TicketPriority).includes(p as TicketPriority) ? p : 'all';
   });
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState(() => {
+    if (typeof window === 'undefined') return 'all';
+    const t = new URLSearchParams(window.location.search).get('type');
+    return t && Object.values(TicketType).includes(t as TicketType) ? t : 'all';
+  });
   const [loading, setLoading] = useState(true);
   const [itTeamMembers, setItTeamMembers] = useState<Array<{ id: string; name: string; email: string; role: string }>>([]);
   const [categories, setCategories] = useState<TicketCategory[]>([]);
@@ -156,8 +162,9 @@ export default function AdminTicketsPage() {
     if (statusFilter !== 'all') r = r.filter((t: Ticket) => t.status === statusFilter);
     if (priorityFilter !== 'all') r = r.filter((t: Ticket) => t.priority === priorityFilter);
     if (categoryFilter !== 'all') r = r.filter((t: Ticket) => (t.category?.id ?? t.category?.name) === categoryFilter);
+    if (typeFilter !== 'all') r = r.filter((t: Ticket) => (t.type ?? 'SUPPORT') === typeFilter);
     return r;
-  }, [tickets, searchQuery, statusFilter, priorityFilter, categoryFilter]);
+  }, [tickets, searchQuery, statusFilter, priorityFilter, categoryFilter, typeFilter]);
 
   const sortedTickets = useMemo(() => {
     return [...filteredTickets].sort((a: Ticket, b: Ticket) => {
@@ -296,8 +303,8 @@ export default function AdminTicketsPage() {
 
   const getSubLabel = (s?: { name: string } | null) => s?.name ?? 'Not specified';
 
-  const hasFilters = searchQuery || statusFilter !== 'all' || priorityFilter !== 'all' || categoryFilter !== 'all';
-  const resetFilters = () => { setSearchQuery(''); setStatusFilter('all'); setPriorityFilter('all'); setCategoryFilter('all'); };
+  const hasFilters = searchQuery || statusFilter !== 'all' || priorityFilter !== 'all' || categoryFilter !== 'all' || typeFilter !== 'all';
+  const resetFilters = () => { setSearchQuery(''); setStatusFilter('all'); setPriorityFilter('all'); setCategoryFilter('all'); setTypeFilter('all'); };
 
   return (
     <AdminTicketLayout>
@@ -344,6 +351,17 @@ export default function AdminTicketsPage() {
                 {categories.map(cat => (
                   <SelectItem key={cat.id} value={cat.id} className="text-[13px] font-medium">
                     {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[155px] h-11 rounded-2xl border-black/[0.06] dark:border-white/[0.06] bg-white/50 dark:bg-zinc-900/50 text-[14px] shadow-sm"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectContent className="rounded-2xl">
+                <SelectItem value="all">All Types</SelectItem>
+                {Object.values(TicketType).map(t => (
+                  <SelectItem key={t} value={t} className="text-[13px] font-medium">
+                    {t === 'SUPPORT' ? 'Support' : t === 'ONBOARDING' ? 'Onboarding' : 'Offboarding'}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -458,7 +476,12 @@ export default function AdminTicketsPage() {
                           </TableCell>
                           {/* Title */}
                           <TableCell>
-                            <p className="font-medium text-sm truncate max-w-xs group-hover:text-primary transition-colors">{ticket.title}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm truncate max-w-xs group-hover:text-primary transition-colors">{ticket.title}</p>
+                              {ticket.type && ticket.type !== 'SUPPORT' && (
+                                <TicketTypeBadge type={ticket.type} className="shrink-0" />
+                              )}
+                            </div>
                             {ticket.description && (
                               <p className="text-xs text-muted-foreground truncate max-w-xs mt-0.5">{ticket.description}</p>
                             )}
@@ -475,10 +498,7 @@ export default function AdminTicketsPage() {
                           <TableCell onClick={e => e.stopPropagation()}>
                             <Select value={ticket.status} onValueChange={v => handleStatusChange(ticket.id, v)}>
                               <SelectTrigger aria-label={`Change status for ticket ${ticket.ticketNumber ?? ''}`} className={`h-8 w-[140px] px-3 border-0 rounded-xl font-medium text-[12px] uppercase tracking-wide transition-colors ${(STATUS_STYLES[ticket.status] ?? STATUS_STYLES.CLOSED).badge} hover:opacity-80 focus:ring-1 focus:ring-black/10 dark:focus:ring-white/10`}>
-                                <div className="flex items-center gap-2">
-                                  <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full shrink-0 ${statusDotClass(ticket.status)}`} />
                                   <SelectValue />
-                                </div>
                               </SelectTrigger>
                               <SelectContent className="rounded-xl">
                                 {Object.values(TicketStatus).map(s => (

@@ -198,6 +198,64 @@ async function main() {
   }
   console.log('Created attendance types');
 
+  // Seed default onboarding/offboarding checklist templates (idempotent)
+  console.log('\nCreating checklist templates...');
+  const checklistTemplates = [
+    {
+      type: 'ONBOARDING' as const,
+      name: 'Standard Onboarding',
+      items: [
+        'Create user account (email + SSO)',
+        'Add to HR & payroll system',
+        'Issue laptop (record serial in equipment log)',
+        'Issue monitor',
+        'Issue keyboard & mouse',
+        'Issue headset',
+        'Assign seat / workstation (record in equipment log)',
+        'Configure VPN & network access',
+        'Install required software & licenses',
+        'Set up biometric attendance registration',
+        'Walkthrough: helpdesk portal & ticket creation',
+        'Obtain signed equipment acknowledgement',
+      ],
+    },
+    {
+      type: 'OFFBOARDING' as const,
+      name: 'Standard Offboarding',
+      items: [
+        'Collect laptop (record return in equipment log)',
+        'Collect peripherals (monitor, keyboard, mouse, headset)',
+        'Revoke email & SSO access',
+        'Revoke VPN & network access',
+        'Recover software licenses',
+        'Release seat / workstation (record in equipment log)',
+        'Remove biometric attendance registration',
+        'Offboard from HR & payroll system',
+        'Archive user account',
+        'Final settlement & clearance confirmation',
+      ],
+    },
+  ];
+  for (const [tIndex, t] of checklistTemplates.entries()) {
+    const existing = await prisma.checklistTemplate.findFirst({
+      where: { type: t.type, name: t.name },
+      select: { id: true },
+    });
+    if (existing) continue;
+    await prisma.checklistTemplate.create({
+      data: {
+        type: t.type,
+        name: t.name,
+        active: true,
+        sortOrder: tIndex,
+        items: {
+          create: t.items.map((title, i) => ({ title, order: i, optional: false })),
+        },
+      },
+    });
+  }
+  console.log('Created checklist templates');
+
   // Seed default notification settings
   console.log('\nCreating notification settings...');
   const notificationDefaults = [

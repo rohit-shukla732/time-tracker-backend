@@ -75,6 +75,9 @@ export async function GET(req: NextRequest) {
     );
 
     const categoryStats = byCategory.reduce((acc: any, item: any) => {
+      // Tickets without a category (e.g. onboarding/offboarding) are tracked
+      // separately by type and must not appear as a "null" slice on the chart.
+      if (item.categoryId === null) return acc;
       acc[categoryMap.get(item.categoryId) || item.categoryId] = item._count;
       return acc;
     }, {});

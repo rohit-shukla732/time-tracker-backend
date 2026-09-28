@@ -14,9 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TicketPriority, TicketCategory, TicketSubcategory } from "@/types";
+import { TicketPriority, TicketCategory, TicketSubcategory, TicketType } from "@/types";
+import { TicketSubjectsPicker, createBlankSubject, type TicketSubjectInput } from "@/components/tickets/TicketSubjectsPicker";
 import { toast } from "sonner";
-import { Upload, X, Image as ImageIcon } from "lucide-react";
+import { Upload, X, Image as ImageIcon, Sparkles } from "lucide-react";
 import TicketShipmentAnimation from "@/components/animated/TicketShipmentAnimation";
 
 export default function NewTicketPage() {
@@ -25,6 +26,7 @@ export default function NewTicketPage() {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    type: TicketType.SUPPORT,
     priority: TicketPriority.MEDIUM,
     categoryId: "",
     subcategoryId: "",
@@ -35,6 +37,33 @@ export default function NewTicketPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [templatePreview, setTemplatePreview] = useState<string[]>([]);
+  const [subjects, setSubjects] = useState<TicketSubjectInput[]>(() => [
+    createBlankSubject(),
+  ]);
+
+  const isLifecycle = formData.type === TicketType.ONBOARDING || formData.type === TicketType.OFFBOARDING;
+
+  // Load the active checklist template so the admin can preview what will be seeded
+  useEffect(() => {
+    if (!isLifecycle) { setTemplatePreview([]); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await makeAuthenticatedRequest("/api/admin/checklist-templates");
+        if (!res.ok) return;
+        const templates = await res.json();
+        const active = (templates as any[]).find((t) => t.type === formData.type && t.active);
+        if (!cancelled && active) setTemplatePreview(active.items?.map((i: any) => i.title) ?? []);
+      } catch { /* silent */ }
+    })();
+    return () => { cancelled = true; };
+  }, [formData.type, isLifecycle]);
+
+  // Reset the joiner list when switching between lifecycle and support types
+  useEffect(() => {
+    if (!isLifecycle) { setSubjects([createBlankSubject()]); return; }
+  }, [isLifecycle]);
 
   const loadCategories = useCallback(async () => {
     setLoadError(null);
@@ -181,15 +210,25 @@ export default function NewTicketPage() {
       return;
     }
 
-    if (!formData.categoryId) {
+    if (!formData.categoryId && !isLifecycle) {
       toast.error("Please select a category");
       return;
     }
 
     // Issue type is mandatory whenever the selected category offers any
-    if (activeSubcategories.length > 0 && !formData.subcategoryId) {
+    if (!isLifecycle && activeSubcategories.length > 0 && !formData.subcategoryId) {
       toast.error("Please select an issue type");
       return;
+    }
+
+    // Lifecycle tickets must be bound to at least one joiner
+    if (isLifecycle) {
+      for (let i = 0; i < subjects.length; i++) {
+        if (!subjects[i].name.trim()) {
+          toast.error(`Please enter the name for joiner ${i + 1}`);
+          return;
+        }
+      }
     }
 
     setIsSubmitting(true);
@@ -211,6 +250,16 @@ export default function NewTicketPage() {
         return;
       }
 
+      // Lifecycle tickets don't ask for a category/issue type; keep the
+      // auto-selected IT_SUPPORT category and fall back to the OTHER issue
+      // type (or the first available one) so the ticket is always categorized.
+      const resolvedCategoryId = formData.categoryId || null;
+      const resolvedSubcategoryId = isLifecycle
+        ? (activeSubcategories.find((s) => s.name === "OTHER")?.id ??
+          activeSubcategories[0]?.id ??
+          formData.subcategoryId) || null
+        : formData.subcategoryId || null;
+
       // Create ticket via API
       const response = await fetch("/api/tickets", {
         method: "POST",
@@ -220,11 +269,17 @@ export default function NewTicketPage() {
         },
         credentials: "include",
         body: JSON.stringify({
+          type: formData.type,
           title: formData.title,
           description: formData.description,
           priority: formData.priority,
-          categoryId: formData.categoryId || null,
-          subcategoryId: formData.subcategoryId || null,
+          categoryId: resolvedCategoryId,
+          subcategoryId: resolvedSubcategoryId,
+          ...(isLifecycle
+            ? {
+                subjects: subjects.map((s) => ({ name: s.name.trim() })),
+              }
+            : {}),
         }),
       });
 
@@ -362,6 +417,25 @@ export default function NewTicketPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2.5">
+                    <Label htmlFor="type" className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 ml-1">Ticket Type *</Label>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, type: value as TicketType, subcategoryId: "" })
+                      }
+                    >
+                      <SelectTrigger id="type" className="h-14 px-4 bg-white/50 dark:bg-zinc-900/50 border-black/5 dark:border-white/5 rounded-2xl text-[16px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus-visible:ring-2 focus-visible:ring-primary/20 transition-all">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-2xl border-black/5 dark:border-white/5 shadow-xl">
+                        <SelectItem value={TicketType.SUPPORT} className="rounded-xl">Support Request</SelectItem>
+                        <SelectItem value={TicketType.ONBOARDING} className="rounded-xl">Onboarding</SelectItem>
+                        <SelectItem value={TicketType.OFFBOARDING} className="rounded-xl">Offboarding</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2.5">
                     <Label htmlFor="priority" className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 ml-1">Priority *</Label>
                     <Select
                       value={formData.priority}
@@ -395,6 +469,57 @@ export default function NewTicketPage() {
                         >
                           Retry
                         </button>
+                      </div>
+                    </div>
+                  ) : isLifecycle ? (
+                    <div className="md:col-span-2 space-y-4">
+                      <div className="flex flex-col gap-3 p-5 rounded-2xl border border-teal-200/70 dark:border-teal-500/30 bg-teal-50/70 dark:bg-teal-500/10">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                          <p className="text-[14px] font-medium text-teal-800 dark:text-teal-200">
+                            {formData.type === TicketType.ONBOARDING ? "Onboarding" : "Offboarding"} checklist
+                          </p>
+                        </div>
+                        {templatePreview.length > 0 ? (
+                          <p className="text-[13px] text-teal-800/80 dark:text-teal-200/80 font-light leading-relaxed">
+                            A checklist with {templatePreview.length} tasks will be created from the active template
+                            and can be edited on the ticket:
+                          </p>
+                        ) : (
+                          <p className="text-[13px] text-teal-800/80 dark:text-teal-200/80 font-light">
+                            No active {formData.type === TicketType.ONBOARDING ? "onboarding" : "offboarding"} template
+                            is configured — the checklist will start empty and can be filled in on the ticket.
+                          </p>
+                        )}
+                        {templatePreview.length > 0 && (
+                          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1">
+                            {templatePreview.slice(0, 6).map((t, i) => (
+                              <li key={i} className="flex items-center gap-2 text-[13px] text-teal-800/90 dark:text-teal-200/90 font-light">
+                                <span className="h-1 w-1 rounded-full bg-teal-500 shrink-0" />
+                                {t}
+                              </li>
+                            ))}
+                            {templatePreview.length > 6 && (
+                              <li className="text-[13px] text-teal-700/70 dark:text-teal-300/70 font-light">
+                                +{templatePreview.length - 6} more…
+                              </li>
+                            )}
+                          </ul>
+                        )}
+                      </div>
+
+                      <div className="p-5 rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-white/40 dark:bg-zinc-900/30 space-y-3">
+                        <Label className="text-[14px] font-medium text-zinc-600 dark:text-zinc-400 ml-1">
+                          Who is this {formData.type === TicketType.ONBOARDING ? "onboarding" : "offboarding"} for?
+                          <span className="text-zinc-400 font-normal text-[12px] ml-2">
+                            Each joiner gets their own checklist
+                          </span>
+                        </Label>
+                        <TicketSubjectsPicker
+                          subjects={subjects}
+                          onChange={setSubjects}
+                          ticketTypeLabel={formData.type === TicketType.ONBOARDING ? "onboarding" : "offboarding"}
+                        />
                       </div>
                     </div>
                   ) : (

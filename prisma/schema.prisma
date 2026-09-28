@@ -20,20 +20,25 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  manager        User?            @relation("UserReports", fields: [managerId], references: [id], onDelete: SetNull)
-  reports        User[]           @relation("UserReports")
-  shiftGroup     ShiftGroup?      @relation(fields: [shiftGroupId], references: [id], onDelete: SetNull)
-  assignedTickets Ticket[]        @relation("TicketAssignee")
-  createdTickets  Ticket[]        @relation("TicketCreator")
-  ticketComments  TicketComment[]
-  refreshTokens   RefreshToken[]
-  leaveRequests   LeaveRequest[]
-  approvedLeaves  LeaveRequest[]  @relation("LeaveApprover")
-  leaveRequestEdits LeaveRequestEdit[] @relation("LeaveEditActor")
-  attendanceRecords AttendanceRecord[]
+  manager              User?                 @relation("UserReports", fields: [managerId], references: [id], onDelete: SetNull)
+  reports              User[]                @relation("UserReports")
+  shiftGroup           ShiftGroup?           @relation(fields: [shiftGroupId], references: [id], onDelete: SetNull)
+  assignedTickets      Ticket[]              @relation("TicketAssignee")
+  createdTickets       Ticket[]              @relation("TicketCreator")
+  relatedTickets       Ticket[]              @relation("TicketRelated")
+  ticketComments       TicketComment[]
+  checklistDone        ChecklistItem[]       @relation("ChecklistDoneBy")
+  equipmentOwned       EquipmentChange[]     @relation("EquipmentOwner")
+  equipmentRecorded    EquipmentChange[]     @relation("EquipmentRecordedBy")
+  refreshTokens        RefreshToken[]
+  leaveRequests        LeaveRequest[]
+  approvedLeaves       LeaveRequest[]        @relation("LeaveApprover")
+  leaveRequestEdits    LeaveRequestEdit[]    @relation("LeaveEditActor")
+  attendanceRecords    AttendanceRecord[]
   leaveOpeningBalances LeaveOpeningBalance[]
-  biometricPunches    BiometricPunch[]
-  biometricMappings   BiometricMapping[]
+  biometricPunches     BiometricPunch[]
+  biometricMappings    BiometricMapping[]
+  ticketSubjects       TicketSubject[]       @relation("TicketSubjectEmployee")
 
   @@index([email])
   @@index([role])
@@ -78,42 +83,72 @@ model PasswordResetToken {
 }
 
 model Ticket {
-  id           String            @id @default(uuid())
-  title        String
-  description  String
-  priority     TicketPriority    @default(MEDIUM)
-  status       TicketStatus      @default(OPEN)
-  categoryId   String?
-  subcategoryId String?
-  createdBy    String
-  assignedTo   String?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-  resolvedAt   DateTime?
-  ticketNumber Int               @unique @default(autoincrement())
-  assignee     User?             @relation("TicketAssignee", fields: [assignedTo], references: [id])
-  creator      User              @relation("TicketCreator", fields: [createdBy], references: [id])
-  category     TicketCategory?   @relation(fields: [categoryId], references: [id])
-  subcategory  TicketSubcategory? @relation(fields: [subcategoryId], references: [id])
-  comments     TicketComment[]
-  screenshots  TicketScreenshot[]
+  id                String             @id @default(uuid())
+  title             String
+  description       String
+  type              TicketType         @default(SUPPORT)
+  priority          TicketPriority     @default(MEDIUM)
+  status            TicketStatus       @default(OPEN)
+  categoryId        String?
+  subcategoryId     String?
+  createdBy         String
+  assignedTo        String?
+  relatedEmployeeId String?
+  relatedName       String?
+  relatedEmail      String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  resolvedAt        DateTime?
+  ticketNumber      Int                @unique @default(autoincrement())
+  assignee          User?              @relation("TicketAssignee", fields: [assignedTo], references: [id])
+  creator           User               @relation("TicketCreator", fields: [createdBy], references: [id])
+  relatedEmployee   User?              @relation("TicketRelated", fields: [relatedEmployeeId], references: [id], onDelete: SetNull)
+  category          TicketCategory?    @relation(fields: [categoryId], references: [id])
+  subcategory       TicketSubcategory? @relation(fields: [subcategoryId], references: [id])
+  comments          TicketComment[]
+  screenshots       TicketScreenshot[]
+  checklist         ChecklistItem[]
+  equipmentChanges  EquipmentChange[]
+  subjects          TicketSubject[]
 
   @@index([createdBy])
   @@index([assignedTo])
+  @@index([relatedEmployeeId])
   @@index([status])
   @@index([priority])
+  @@index([type])
   @@index([categoryId])
   @@index([subcategoryId])
   @@index([ticketNumber])
 }
 
+model TicketSubject {
+  id         String   @id @default(uuid())
+  ticketId   String
+  employeeId String?
+  name       String?
+  email      String?
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  ticket           Ticket            @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  employee         User?             @relation("TicketSubjectEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  checklist        ChecklistItem[]
+  equipmentChanges EquipmentChange[]
+
+  @@index([ticketId])
+  @@index([employeeId])
+  @@index([email])
+}
+
 model TicketCategory {
-  id            String             @id @default(uuid())
-  name          String             @unique
-  active        Boolean            @default(true)
-  sortOrder     Int                @default(0)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id            String              @id @default(uuid())
+  name          String              @unique
+  active        Boolean             @default(true)
+  sortOrder     Int                 @default(0)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
   tickets       Ticket[]
   subcategories TicketSubcategory[]
 }
@@ -160,6 +195,88 @@ model TicketScreenshot {
   @@index([ticketId])
 }
 
+model ChecklistItem {
+  id                String             @id @default(uuid())
+  ticketId          String
+  title             String
+  order             Int                @default(0)
+  done              Boolean            @default(false)
+  doneById          String?
+  doneAt            DateTime?
+  note              String?
+  subjectId         String?
+  equipmentCategory EquipmentCategory?
+  equipmentAction   EquipmentAction?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  ticket  Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  doneBy  User?          @relation("ChecklistDoneBy", fields: [doneById], references: [id], onDelete: SetNull)
+  subject TicketSubject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([doneById])
+  @@index([subjectId])
+}
+
+model EquipmentChange {
+  id           String            @id @default(uuid())
+  userId       String?
+  ticketId     String?
+  subjectName  String?
+  subjectEmail String?
+  category     EquipmentCategory
+  action       EquipmentAction
+  label        String?
+  note         String?
+  subjectId    String?
+  changedAt    DateTime          @default(now())
+  recordedById String
+  createdAt    DateTime          @default(now())
+
+  user       User?          @relation("EquipmentOwner", fields: [userId], references: [id], onDelete: SetNull)
+  ticket     Ticket?        @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  recordedBy User           @relation("EquipmentRecordedBy", fields: [recordedById], references: [id])
+  subject    TicketSubject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([subjectEmail])
+  @@index([ticketId])
+  @@index([subjectId])
+  @@index([category])
+  @@index([changedAt])
+}
+
+model ChecklistTemplate {
+  id        String     @id @default(uuid())
+  type      TicketType
+  name      String
+  active    Boolean    @default(true)
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  items ChecklistTemplateItem[]
+
+  @@index([type])
+  @@index([active])
+}
+
+model ChecklistTemplateItem {
+  id                String             @id @default(uuid())
+  templateId        String
+  title             String
+  order             Int                @default(0)
+  optional          Boolean            @default(false)
+  equipmentCategory EquipmentCategory?
+  equipmentAction   EquipmentAction?
+  createdAt         DateTime           @default(now())
+
+  template ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
 enum Role {
   ADMIN
   SENIOR_MANAGER
@@ -183,6 +300,29 @@ enum TicketStatus {
   CLOSED
 }
 
+enum TicketType {
+  SUPPORT
+  ONBOARDING
+  OFFBOARDING
+}
+
+enum EquipmentCategory {
+  LAPTOP
+  MONITOR
+  KEYBOARD
+  MOUSE
+  HEADSET
+  SEAT
+  OTHER
+}
+
+enum EquipmentAction {
+  ISSUED
+  REPLACED
+  RETURNED
+  RELOCATED
+}
+
 enum LeaveStatus {
   PENDING
   APPROVED
@@ -196,16 +336,16 @@ enum HalfDaySession {
 }
 
 model LeaveType {
-  id              String        @id @default(uuid())
-  name            String        @unique
+  id              String                @id @default(uuid())
+  name            String                @unique
   description     String?
-  monthlyCredit   Float         @default(1)
-  isPaid          Boolean       @default(true)
-  active          Boolean       @default(true)
-  rolloverMonthly Boolean       @default(true)
-  rolloverYearly  Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  monthlyCredit   Float                 @default(1)
+  isPaid          Boolean               @default(true)
+  active          Boolean               @default(true)
+  rolloverMonthly Boolean               @default(true)
+  rolloverYearly  Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
   requests        LeaveRequest[]
   openingBalances LeaveOpeningBalance[]
 
@@ -213,13 +353,13 @@ model LeaveType {
 }
 
 model LeaveOpeningBalance {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   userId      String
   leaveTypeId String
   year        Int
   balance     Float
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
@@ -259,15 +399,15 @@ model BiometricMapping {
 }
 
 model BiometricPunch {
-  id              String   @id @default(uuid())
+  id              String    @id @default(uuid())
   userId          String
   date            DateTime
   firstIn         DateTime?
   lastOut         DateTime?
-  lateMinutes     Int      @default(0)
-  earlyOutMinutes Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  lateMinutes     Int       @default(0)
+  earlyOutMinutes Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -276,34 +416,40 @@ model BiometricPunch {
 }
 
 model LeaveRequest {
-  id             String        @id @default(uuid())
+  id             String          @id @default(uuid())
   userId         String
   leaveTypeId    String
   startDate      DateTime
   endDate        DateTime
-  isHalfDay      Boolean       @default(false)
+  isHalfDay      Boolean         @default(false)
   halfDaySession HalfDaySession?
-  /** Per-day half-day sessions: { "YYYY-MM-DD": "FIRST_HALF" | "SECOND_HALF" } */
+  /**
+   * Per-day half-day sessions: { "YYYY-MM-DD": "FIRST_HALF" | "SECOND_HALF" }
+   */
   halfDayDays    Json?
-  /** Days excluded from the leave inside the start/end range: ["YYYY-MM-DD", ...] */
+  /**
+   * Days excluded from the leave inside the start/end range: ["YYYY-MM-DD", ...]
+   */
   skippedDays    Json?
-  /** Days NOT deducted from the paid balance: ["YYYY-MM-DD", ...] */
+  /**
+   * Days NOT deducted from the paid balance: ["YYYY-MM-DD", ...]
+   */
   withoutPayDays Json?
   durationDays   Float
   reason         String
-  status         LeaveStatus   @default(PENDING)
+  status         LeaveStatus     @default(PENDING)
   managerComment String?
   approvedById   String?
   approvedAt     DateTime?
   cancelledAt    DateTime?
-  isWithoutPay   Boolean       @default(false)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  isWithoutPay   Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
-  user      User       @relation(fields: [userId], references: [id])
-  leaveType LeaveType  @relation(fields: [leaveTypeId], references: [id])
-  approver  User?      @relation("LeaveApprover", fields: [approvedById], references: [id])
-  edits     LeaveRequestEdit[]
+  user              User               @relation(fields: [userId], references: [id])
+  leaveType         LeaveType          @relation(fields: [leaveTypeId], references: [id])
+  approver          User?              @relation("LeaveApprover", fields: [approvedById], references: [id])
+  edits             LeaveRequestEdit[]
   attendanceRecords AttendanceRecord[]
 
   @@index([userId])
@@ -319,7 +465,9 @@ model LeaveRequestEdit {
   editedById     String
   editedByRole   Role
   note           String?
-  /** Old values of the edited fields, for audit purposes: { field: oldValue } */
+  /**
+   * Old values of the edited fields, for audit purposes: { field: oldValue }
+   */
   changes        Json?
   createdAt      DateTime @default(now())
 
@@ -331,22 +479,22 @@ model LeaveRequestEdit {
 }
 
 model AttendanceType {
-  id              String              @id @default(uuid())
-  name            String              @unique
-  code            String              @unique
+  id              String             @id @default(uuid())
+  name            String             @unique
+  code            String             @unique
   description     String?
-  category        String              @default("OTHER")
-  color           String              @default("#10b981")
-  isPaid          Boolean             @default(true)
-  isWorking       Boolean             @default(false)
+  category        String             @default("OTHER")
+  color           String             @default("#10b981")
+  isPaid          Boolean            @default(true)
+  isWorking       Boolean            @default(false)
   mapsLeaveStatus String?
   mapsHalfDay     String?
   mapsWithoutPay  Boolean?
-  active          Boolean             @default(true)
-  isSystem        Boolean             @default(false)
-  sortOrder       Int                 @default(0)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  active          Boolean            @default(true)
+  isSystem        Boolean            @default(false)
+  sortOrder       Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
   records         AttendanceRecord[]
 
   @@index([active])
@@ -354,21 +502,21 @@ model AttendanceType {
 }
 
 model AttendanceRecord {
-  id             String         @id @default(uuid())
+  id             String   @id @default(uuid())
   userId         String
   date           DateTime
   typeId         String
-  isOverride     Boolean        @default(false)
-  source         String         @default("MANUAL")
+  isOverride     Boolean  @default(false)
+  source         String   @default("MANUAL")
   leaveRequestId String?
   markedById     String?
   note           String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id])
+  user         User           @relation(fields: [userId], references: [id])
   type         AttendanceType @relation(fields: [typeId], references: [id])
-  leaveRequest LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  leaveRequest LeaveRequest?  @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
   @@index([date])

@@ -34,7 +34,12 @@ import {
   Layers,
   ChevronUp,
   ChevronDown,
+  ClipboardCheck,
 } from 'lucide-react';
+import {
+  EQUIPMENT_CATEGORY_LABELS,
+  EQUIPMENT_ACTION_LABELS,
+} from '@/components/tickets/lifecycle';
 import { makeAuthenticatedRequest, setupAutoRefresh } from '@/lib/adminAuth';
 import { toast } from 'sonner';
 
@@ -71,6 +76,14 @@ export default function AdminSettingsPage() {
   const [deleteSub, setDeleteSub] = useState<SubcategoryItem | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Lifecycle checklist templates
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [templateModal, setTemplateModal] = useState<{ type: string } | null>(null);
+  const [templateName, setTemplateName] = useState('');
+  const [templateItems, setTemplateItems] = useState<
+    { title: string; equipmentCategory: string; equipmentAction: string }[]
+  >([]);
+
   const fetchCategories = async () => {
     try {
       const token = localStorage.getItem('accessToken');
@@ -88,10 +101,89 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     fetchCategories();
+    fetchTemplates();
     const cleanup = setupAutoRefresh();
     return () => cleanup();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await makeAuthenticatedRequest('/api/admin/checklist-templates');
+      if (response.status === 401) {
+        ['accessToken','refreshToken','user'].forEach(k => localStorage.removeItem(k));
+        router.push('/helpdesk/admin/login'); return;
+      }
+      if (response.ok) setTemplates(await response.json());
+    } catch { /* silent */ }
+  };
+
+  const openTemplateModal = (type: string) => {
+    const active = templates.find((t) => t.type === type && t.active);
+    setTemplateModal({ type });
+    setTemplateName(active?.name ?? `${type === 'ONBOARDING' ? 'Onboarding' : 'Offboarding'} Checklist`);
+    setTemplateItems(
+      active?.items?.map((i: any) => ({
+        title: i.title ?? '',
+        equipmentCategory: i.equipmentCategory ?? '',
+        equipmentAction: i.equipmentAction ?? '',
+      })) ?? [{ title: '', equipmentCategory: '', equipmentAction: '' }]
+    );
+  };
+
+  const saveTemplate = async () => {
+    const items = templateItems
+      .map(({ title, equipmentCategory, equipmentAction }) => ({
+        title: title.trim(),
+        equipmentCategory: equipmentCategory || null,
+        equipmentAction: equipmentAction || null,
+      }))
+      .filter((i) => i.title.length > 0);
+    if (!templateName.trim()) { toast.error('Template name is required'); return; }
+    if (items.length === 0) { toast.error('At least one checklist item is required'); return; }
+    setSaving(true);
+    try {
+      const active = templates.find((t) => t.type === templateModal!.type && t.active);
+      const url = active
+        ? `/api/admin/checklist-templates/${active.id}`
+        : '/api/admin/checklist-templates';
+      const response = await makeAuthenticatedRequest(url, {
+        method: active ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: templateModal!.type, name: templateName.trim(), items }),
+      });
+      const data = await response.json();
+      if (!response.ok) { toast.error(data.error || 'Failed to save template'); return; }
+      toast.success('Checklist template saved');
+      setTemplateModal(null);
+      fetchTemplates();
+    } catch { toast.error('Failed to save template'); }
+    finally { setSaving(false); }
+  };
+
+  const toggleTemplate = async (tpl: any) => {
+    try {
+      const response = await makeAuthenticatedRequest(`/api/admin/checklist-templates/${tpl.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !tpl.active }),
+      });
+      if (!response.ok) { toast.error('Failed to update template'); return; }
+      toast.success(tpl.active ? 'Template disabled' : 'Template enabled');
+      fetchTemplates();
+    } catch { toast.error('Failed to update template'); }
+  };
+
+  const deleteTemplate = async (tpl: any) => {
+    try {
+      const response = await makeAuthenticatedRequest(`/api/admin/checklist-templates/${tpl.id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) { toast.error('Failed to delete template'); return; }
+      toast.success('Template deleted');
+      fetchTemplates();
+    } catch { toast.error('Failed to delete template'); }
+  };
 
   const handleAddCategory = async () => {
     if (!categoryName.trim()) { toast.error('Category name is required'); return; }
@@ -365,6 +457,87 @@ export default function AdminSettingsPage() {
             ))}
           </div>
         )}
+
+      {/* Lifecycle checklist templates */}
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="space-y-2">
+            <h2 className="text-[24px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5 text-teal-500" />
+              Lifecycle Checklists
+            </h2>
+            <p className="text-[15px] text-zinc-500 dark:text-zinc-400 font-light">
+              Default checklists pre-filled on onboarding and offboarding tickets.
+            </p>
+          </div>
+        </div>
+        <div className="grid md:grid-cols-2 gap-6">
+          {(['ONBOARDING', 'OFFBOARDING'] as const).map((type) => {
+            const tpl = templates.find((t) => t.type === type);
+            return (
+              <GlassCard key={type} className="p-6 sm:p-8 space-y-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <h3 className="text-[16px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+                      {type === 'ONBOARDING' ? 'Onboarding' : 'Offboarding'}
+                    </h3>
+                    <p className="text-[12px] text-zinc-400">
+                      {tpl ? `${tpl.items?.length ?? 0} tasks` : 'No template yet'}
+                      {tpl && !tpl.active && ' · disabled'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {tpl && (
+                      <>
+                        <Switch
+                          checked={!!tpl.active}
+                          onCheckedChange={() => toggleTemplate(tpl)}
+                          aria-label={`Toggle ${type} template`}
+                        />
+                        <Button
+                          variant="ghost" size="icon"
+                          aria-label={`Delete ${type} template`}
+                          className="h-8 w-8 rounded-xl text-destructive hover:bg-destructive/10"
+                          onClick={() => deleteTemplate(tpl)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {tpl && tpl.items?.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {tpl.items.slice(0, 5).map((item: any) => (
+                      <div key={item.id} className="flex items-center gap-2 py-1 px-3 rounded-2xl bg-zinc-50/60 dark:bg-zinc-800/40">
+                        <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-teal-500" />
+                        <span className="text-[14px] text-zinc-700 dark:text-zinc-300 truncate">{item.title}</span>
+                      </div>
+                    ))}
+                    {tpl.items.length > 5 && (
+                      <p className="text-[12px] text-zinc-400 pl-4">+{tpl.items.length - 5} more…</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-zinc-400 font-light py-2">
+                    No tasks configured — new tickets of this type start with an empty checklist.
+                  </p>
+                )}
+
+                <Button
+                  variant="outline"
+                  onClick={() => openTemplateModal(type)}
+                  className="rounded-2xl border-black/[0.06] dark:border-white/[0.06]"
+                >
+                  <Pencil className="h-4 w-4 mr-1.5" />
+                  {tpl ? 'Edit Template' : 'Create Template'}
+                </Button>
+              </GlassCard>
+            );
+          })}
+        </div>
+      </div>
       </div>
 
       {/* Add category dialog */}
@@ -491,6 +664,107 @@ export default function AdminSettingsPage() {
             <Button variant="outline" onClick={() => setDeleteSub(null)} className="rounded-2xl">Cancel</Button>
             <Button onClick={handleDeleteSub} disabled={saving} className="rounded-2xl bg-red-600 text-white hover:bg-red-700">
               {saving ? 'Deleting…' : 'Delete Subcategory'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lifecycle checklist template editor */}
+      <Dialog open={!!templateModal} onOpenChange={o => !o && setTemplateModal(null)}>
+        <DialogContent className="sm:max-w-[640px] rounded-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {templateModal?.type === 'ONBOARDING' ? 'Onboarding' : 'Offboarding'} Checklist Template
+            </DialogTitle>
+            <DialogDescription>
+              These tasks are pre-filled when an admin creates this kind of ticket. Existing tickets are not affected.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label htmlFor="tpl-name">Template Name *</Label>
+              <Input
+                id="tpl-name"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="e.g. Standard Onboarding"
+                className="h-11 rounded-2xl"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Checklist Tasks *</Label>
+              <div className="space-y-3">
+                {templateItems.map((item, i) => (
+                  <div key={i} className="p-3 rounded-2xl bg-zinc-50/60 dark:bg-zinc-800/40 border border-black/[0.04] dark:border-white/[0.04] space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        value={item.title}
+                        onChange={(e) => setTemplateItems(templateItems.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))}
+                        placeholder={`Task ${i + 1}`}
+                        className="h-10 rounded-2xl"
+                      />
+                      <Button
+                        variant="ghost" size="icon"
+                        aria-label={`Remove task ${i + 1}`}
+                        className="h-10 w-10 rounded-2xl text-destructive hover:bg-destructive/10 shrink-0"
+                        disabled={templateItems.length === 1}
+                        onClick={() => setTemplateItems(templateItems.filter((_, j) => j !== i))}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Select
+                        value={item.equipmentCategory}
+                        onValueChange={(v) => setTemplateItems(templateItems.map((x, j) => (j === i ? { ...x, equipmentCategory: v === 'none' ? '' : v } : x)))}
+                      >
+                        <SelectTrigger className="h-9 rounded-xl text-[13px]"><SelectValue placeholder="Logs equipment…" /></SelectTrigger>
+                        <SelectContent className="rounded-2xl">
+                          <SelectItem value="none" className="text-[13px] font-light">No equipment</SelectItem>
+                          {Object.entries(EQUIPMENT_CATEGORY_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value} className="text-[13px] font-medium">{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select
+                        value={item.equipmentCategory ? item.equipmentAction : ''}
+                        disabled={!item.equipmentCategory}
+                        onValueChange={(v) => setTemplateItems(templateItems.map((x, j) => (j === i ? { ...x, equipmentAction: v === 'none' ? '' : v } : x)))}
+                      >
+                        <SelectTrigger className="h-9 rounded-xl text-[13px]"><SelectValue placeholder="…with action" /></SelectTrigger>
+                        <SelectContent className="rounded-2xl">
+                          <SelectItem value="none" className="text-[13px] font-light">No action</SelectItem>
+                          {Object.entries(EQUIPMENT_ACTION_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value} className="text-[13px] font-medium">{label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTemplateItems([...templateItems, { title: '', equipmentCategory: '', equipmentAction: '' }])}
+                className="w-fit rounded-2xl mt-1"
+              >
+                <Plus className="h-4 w-4 mr-1.5" />Add Task
+              </Button>
+              <p className="text-[12px] text-zinc-400 font-light">
+                When a task has an equipment category &amp; action, checking it off automatically records that event in
+                the employee&apos;s equipment ledger.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateModal(null)} className="rounded-2xl">Cancel</Button>
+            <Button
+              onClick={saveTemplate}
+              disabled={saving}
+              className="rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900"
+            >
+              {saving ? 'Saving…' : 'Save Template'}
             </Button>
           </DialogFooter>
         </DialogContent>

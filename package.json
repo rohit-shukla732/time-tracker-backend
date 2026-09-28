@@ -14,11 +14,13 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "db:seed": "prisma db seed",
+    "db:seed-templates": "node scripts/seed-checklist-templates.mjs",
     "worker:biometric": "tsx scripts/biometric-worker.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@azure/identity": "^4.13.0",
+    "@base-ui/react": "^1.8.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^6.19.2",
@@ -43,6 +45,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "cn": "^0.4.0",
     "date-fns": "^4.1.0",
     "date-fns-tz": "^3.2.0",
     "framer-motion": "^12.23.26",
